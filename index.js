@@ -96,7 +96,7 @@ if(isLocal){
     }
   })();
 } else {
-  const server = new Server(Post);
+  const server = new Server(Port);
   server.setup();
 }
 
