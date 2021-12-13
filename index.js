@@ -88,9 +88,15 @@ class Server {
 
 }
 
-(async () => {
-  for(let i=0;i<amountOfServers;i++){
-    const server = new Server(i + Port);
-    await server.setup();
-  }
-})();
+if(isLocal){
+  (async () => {
+    for(let i=0;i<amountOfServers;i++){
+      const server = new Server(i + Port);
+      await server.setup();
+    }
+  })();
+} else {
+  const server = new Server(Post);
+  server.setup();
+}
+
