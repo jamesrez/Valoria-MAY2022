@@ -15,6 +15,7 @@ class Server {
     if(isLocal){
       this.url = 'http://localhost:' + port;
     }
+    this.setupRoutes();
     this.server.listen(port, () => {
       console.log(this.url + " is running");
     })
@@ -22,7 +23,6 @@ class Server {
 
   setup = async () => {
     const self = this;
-    self.setupRoutes();
     let pathUrl = self.url.replace(/\//g, "");
     self.pathUrl = pathUrl.replace(/\:/g, "");
     self.path = `${__dirname}/data/servers/${self.pathUrl}/`;
@@ -97,6 +97,5 @@ if(isLocal){
   })();
 } else {
   const server = new Server(Port);
-  server.setup();
 }
 
