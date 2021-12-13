@@ -1,0 +1,24 @@
+@font-face {
+  font-family: xoloniumBold;
+  src: url(assets/Xolonium-Bold.otf);
+}
+
+@font-face {
+  font-family: oxaniumBold;
+  src: url(assets/Oxanium_Bold.ttf);
+}
+
+html {
+  font-family: oxaniumBold;
+  margin: 0px;
+  overflow-x: hidden;
+}
+
+body {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin: 0px !important;
+  background: black !important;
+}

@@ -1,0 +1,803 @@
+.valUI{
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  position: absolute;
+  display: flex;
+  z-index: 1;
+  background: none;
+  pointer-events: all;
+  overflow: hidden;
+}
+
+.valUINav {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 4px;
+  background: #000000b8;
+  pointer-events: all;
+}
+
+.valUINavHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  cursor: pointer;
+  text-shadow: 0px 0px 12px #e400ff;
+}
+
+.valUIHeaderImg{
+  height: 40px;
+  margin-right: 4px;
+}
+
+.valUIHeaderLabel{
+  font-weight: bold;
+  font-size: 26px;
+  color: white;
+  letter-spacing: 3px;
+  text-shadow: 0px 0px 12px #e400ff;
+  margin-top: 4px;
+}
+
+.valUINavRight{
+  display: flex;
+  margin-right: 16px;
+}
+
+.valUICreateBtn {
+  margin-right: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 2px solid white;
+  color: white;
+  margin: 8px;
+  display: none;
+  text-shadow: 0px 0px 12px #e400ff;
+}
+
+.valUIProfileBtn{
+  font-weight: bold;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 2px solid white;
+  color: white;
+  display: none;
+}
+
+.valUIAuth{
+  display: none;
+  /* background: #ff00d91f; */
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  flex-direction: column;
+  align-items: center;
+  position: absolute;
+}
+
+.valUIMainContent{
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.valUIFileNav {
+  width: 300px;
+  height: 100%;
+  background: white;
+}
+
+.valUICodeContainer{
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: white;
+}
+
+.valUISaveCodeBtn{
+  font-weight: bold;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 2px solid black;
+  margin: 8px;
+}
+
+#valUICodeEditor {
+  width: 100%;
+  height: 100%;
+}
+
+.valUIProjectUrlHeader{
+  cursor: pointer;
+}
+
+.valUIProjectList{
+  padding-left: 8px;
+}
+
+.valUIFile {
+  padding-left: 8px;
+  cursor: pointer;
+}
+
+.valUIFolder {
+  padding-left: 8px;
+  cursor: pointer;
+}
+
+.valUISigninBtn{
+  font-weight: bold;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 2px solid rgb(255, 255, 255);
+  margin: 8px;
+  color: white;
+}
+
+.valUILabel {
+  font-weight: bold;
+  text-align: left;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 18px;
+  color: white;
+}
+
+.valUIInput{
+  outline: none;
+  border: 2px solid #ebbaff;
+  font-weight: bold;
+  background: white;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 18px;
+}
+
+.valUIAppContainer {
+  width: 100%;
+  height: 100%;
+  background: white;
+  overflow-y: hidden;
+  overflow-x: hidden;
+}
+
+.gutter {
+  background: #a0a0a0;
+  cursor: grab;
+}
+
+.valUIMain{
+  background: #ff00d91f;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  /* overflow-y: scroll; */
+  background: rgb(35 0 43 / 51%);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.valUIMain::-webkit-scrollbar{
+  display: none;
+}
+
+.valUIMainNav{
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  width: 500px;
+  max-width: 100%;
+}
+
+.valUIMainNavBtn{
+  color: white;
+  font-weight: bold;
+  font-size: 18px;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0px 0px 12px #e400ff;
+  border: 2px solid #ffffff8a;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  width: 175px;
+  margin: 8px;
+  background: #3b004175;
+}
+
+.valUIMainNavBtn:hover{
+  background: #e600ff3e;
+}
+
+.valUIMainModal{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 8px;
+  width: 600px;
+  max-width: 95%;
+}
+
+.valUIJoin{
+  display: none;
+  flex-direction: column;
+  padding: 12px 16px;
+  width: 420px;
+  max-width: 90%;
+  margin-top: 54px;
+  background: #2b0030b5;
+  border: 2px solid #ffffff8a;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.valUIAbout{
+  display: none;
+  flex-direction: column;
+  padding: 12px 16px;
+  width: 550px;
+  max-width: 90%;
+  margin-top: 18px;
+  background: #2b0030b5;
+  border: 2px solid #ffffff8a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: white;
+  overflow-y: scroll;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.valUIAbout::-webkit-scrollbar{
+  display: none;
+}
+
+.valUIDonate{
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 16px;
+  width: 420px;
+  max-width: 90%;
+  margin-top: 18px;
+  background: #2b0030b5;
+  border: 2px solid #ffffff8a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: white;
+  overflow-y: scroll;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.valUIDonate::-webkit-scrollbar{
+  display: none;
+}
+
+.valUIContact{
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 16px;
+  width: 420px;
+  max-width: 90%;
+  margin-top: 18px;
+  background: #2b0030b5;
+  border: 2px solid #ffffff8a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: white;
+  overflow-y: scroll;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.valUIContact::-webkit-scrollbar{
+  display: none;
+}
+
+.valUIContactDesc{
+  text-shadow: 0px 0px 7px #e400ff;
+  color: white;
+  text-align: center;
+  font-size: 18px;
+  margin-top: 12px;
+  /* font-weight: bold; */
+}
+
+.valUIButton{
+  color: white;
+  font-weight: bold;
+  font-size: 18px;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0px 0px 7px #e400ff;
+  border: 2px solid #ffffff8a;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  background: #3b004175;
+  width: 80%;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  text-decoration: none;
+}
+
+.valUIButton:hover{
+  background: #e600ff3e;
+}
+
+.valUIBack{
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0px 0px 7px #e400ff;
+  border: 2px solid #ffffff8a;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  width: 64px;
+  background: #3b004175;
+  align-self: flex-start;
+}
+
+.valUIBack:hover{
+  background: #e600ff3e;
+}
+
+.valUIHeader{
+  text-shadow: 0px 0px 7px #e400ff;
+  font-size: 24px;
+  align-self: center;
+  margin-top: -31px;
+  font-weight: bold;
+}
+
+.valUIAboutDesc{
+  text-shadow: 0px 0px 7px #e400ff;
+  font-size: 17px;
+  align-self: center;
+  margin-top: 12px;
+  text-align: center;
+}
+
+.valUIAboutLink{
+  cursor: pointer;
+  text-decoration: underline;
+  color: white;
+}
+
+.valUILandingInfo{
+  width: 275px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.valUIMainLogo{
+  height: 200px;
+}
+
+.valUIMainHeader{
+  color: white;
+  font-weight: bold;
+  font-size: 32px;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0px 0px 12px #e400ff;
+}
+
+.valUIMainDescription{
+  color: white;
+  font-size: 18px;
+  text-align: center;
+  text-shadow: 0px 0px 4px #e400ff;
+  width: 420px;
+  max-width: 95%;
+  margin-top: 4px;
+  background: #2b0030b5;
+  border: 2px solid #ffffff8a;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.valUILandingGuideLink{
+  color: white;
+  font-size: 16px;
+  text-align: center;
+  font-weight: bold;
+  margin-left: 4px;
+  cursor: pointer;
+}
+
+.valUILandingJoin{
+  margin-left: 20px;
+  width: 275px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.valUIJoinHeader{
+  color: white;
+  font-weight: bold;
+  font-size: 36px;
+  text-align: center;
+  white-space: nowrap;
+  margin-bottom: 6px;
+  text-shadow: 0px 0px 12px #e400ff;
+}
+
+.valUIJoinDescription{
+  color: white;
+  font-size: 20px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.valUIJoinCreate{
+  color: white;
+  font-weight: bold;
+  font-size: 22px;
+  text-align: center;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border: 2px solid white;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0);
+  transition: 0.1s;
+  text-shadow: 0px 0px 2px #e400ff;
+  border-radius: 6px;
+  box-shadow: 0px 0px 16px #ffffff4f;
+}
+
+.valUIJoinCreate:hover {
+  background: rgba(255, 255, 255, 0.103);
+}
+
+.valUIJoinSignIn{
+  color: white;
+  font-weight: bold;
+  font-size: 22px;
+  text-align: center;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border: 2px solid white;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0);
+  transition: 0.1s;
+  text-shadow: 0px 0px 2px #e400ff;
+  border-radius: 6px;
+  box-shadow: 0px 0px 16px #ffffff4f;
+}
+
+.valUIJoinSignIn:hover {
+  background: rgba(255, 255, 255, 0.103);
+}
+
+.valUIJoinOr{
+  color: white;
+  font-weight: bold;
+  font-size: 24px;
+  text-align: center;
+  white-space: nowrap;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.valUIExtension{
+  display: none;
+  flex-direction: column;
+  border-radius: 8px;
+  background: rgb(35 0 43 / 51%);
+  width: 600px;
+  max-width: 95%;
+  padding: 12px 16px;
+  margin-top: 24px;
+}
+
+.valUINewPassword{
+  display: none;
+  flex-direction: column;
+  border-radius: 8px;
+  background: rgb(35 0 43 / 51%);
+  width: 350px;
+  max-width: 95%;
+  padding: 12px 16px;
+  margin-top: 54px;
+}
+
+.valUINewPasswordHeader{
+  font-size: 28px;
+  text-align: left;
+  color: white;
+  font-weight: bold;
+  margin-bottom: 16px;
+  align-self: center;
+}
+
+.valUINewPasswordLabel{
+  font-size: 18px;
+  text-align: left;
+  color: white;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.valUIPassInput{
+  padding: 8px 12px;
+  outline: none;
+  font-weight: bold;
+  font-size: 20px;
+  width: 350px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: #fbf3ff;
+  border: 2px solid black;
+}
+
+.valUINewPasswordCreate{
+  color: white;
+  font-weight: bold;
+  font-size: 20px;
+  text-align: center;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border: 2px solid white;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0);
+  transition: 0.1s;
+  border-radius: 6px;
+  width: fit-content;
+  margin-top: 12px;
+  align-self: center;
+}
+
+.valUINewPasswordCreate:hover {
+  background: rgba(255, 255, 255, 0.103);
+}
+
+.valUINewPasswordError {
+  color: white;
+  font-weight: bold;
+  display: none;
+}
+
+.valUINewQR{
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 8px;
+  background: rgb(35 0 43 / 51%);
+  width: 600px;
+  max-width: 95%;
+  padding: 12px 16px;
+  margin-top: 24px;
+}
+
+.valUINewQRHeader{
+  font-size: 28px;
+  text-align: left;
+  color: white;
+  font-weight: bold;
+  margin-bottom: 8px;
+  align-self: center;
+}
+
+.valUINewQRCanvas{
+  display: none;
+}
+
+.valUINewQRPhoto{
+  display: none;
+}
+
+.valUIQRRecoveryPhoto{
+  height: 400px;
+}
+
+.valUIQRTemplate{
+  display: none;
+}
+
+.valUINewQRDescription{
+  font-size: 15px;
+  text-align: center;
+  color: white;
+  margin-bottom: 6px;
+  margin-top: 8px;
+  width: 300px;
+}
+
+.valUINewQRSave{
+  color: white;
+  font-weight: bold;
+  font-size: 18px;
+  text-align: center;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border: 2px solid white;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0);
+  transition: 0.1s;
+  border-radius: 6px;
+  width: fit-content;
+  margin-top: 4px;
+  align-self: center;
+  display: none;
+}
+
+.valUINewQRSave:hover {
+  background: rgba(255, 255, 255, 0.103);
+}
+
+.valUINewQRNext{
+  display: none;
+  flex-direction: column;
+  align-items: center;
+}
+
+.valUINewQRNextLabel{
+  font-size: 18;
+  text-align: center;
+  color: white;
+  margin-top: 12px;
+}
+
+.valUINewQRNextBtn{
+  color: white;
+  font-weight: bold;
+  font-size: 20px;
+  text-align: center;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border: 2px solid white;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0);
+  transition: 0.1s;
+  border-radius: 6px;
+  width: fit-content;
+  margin-top: 12px;
+  align-self: center;
+}
+
+.valUINewQRNextBtn:hover {
+  background: rgba(255, 255, 255, 0.103);
+}
+
+.valUISignIn{
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 8px;
+  background: rgb(35 0 43 / 51%);
+  width: 350px;
+  max-width: 95%;
+  padding: 12px 16px;
+  margin-top: 24px;
+}
+
+.valUISignInHeader{
+  font-size: 28px;
+  text-align: left;
+  color: white;
+  font-weight: bold;
+  margin-bottom: 16px;
+  align-self: center;
+}
+
+.valUISignInDescription{
+  color: white;
+  font-size: 16px;
+  text-align: center;
+}
+
+.valUISignInQRInput{
+  position: absolute;
+  top: -1250000px;
+}
+
+.valUISignInQR{
+  display: none;
+  height: 400px;
+}
+
+.valUISignInQRSelect{
+  color: white;
+  font-weight: bold;
+  font-size: 20px;
+  text-align: center;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border: 2px solid white;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0);
+  transition: 0.1s;
+  border-radius: 6px;
+  width: fit-content;
+  margin-top: 12px;
+  align-self: center;
+}
+
+.valUISignInQRSelect:hover {
+  background: rgba(255, 255, 255, 0.103);
+}
+
+.valUISignInQRMsg{
+  font-size: 18px;
+  text-align: center;
+  color: white;
+  font-weight: bold;
+  margin-bottom: 6px;
+  margin-top: 8px;
+  display: none;
+}
+
+.valUISignInPassword{
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.valUISignInPassLabel{
+  font-size: 18px;
+  text-align: left;
+  color: white;
+  font-weight: bold;
+  align-self: flex-start;
+  margin-bottom: 6px;
+  margin-top: 8px;
+}
+
+.valUISignInSubmit{
+  color: white;
+  font-weight: bold;
+  font-size: 20px;
+  text-align: center;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border: 2px solid white;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0);
+  transition: 0.1s;
+  border-radius: 6px;
+  width: fit-content;
+  margin-top: 12px;
+  align-self: center;
+}
+
+.valUISignInSubmit:hover {
+  background: rgba(255, 255, 255, 0.103);
+}
+
+@media (max-width: 450px){
+  .valUIMainNavBtn{
+    width: 130px;
+  }
+}
+@media (max-width: 350px){
+  .valUIMainNavBtn{
+    width: 110px;
+  }
+}
