@@ -347,7 +347,8 @@
 .valUIBack{
   color: white;
   font-weight: bold;
-  font-size: 14px;
+  font-size: 12px;
+  margin-left: -6px;
   text-align: center;
   white-space: nowrap;
   text-shadow: 0px 0px 7px #e400ff;
@@ -368,7 +369,7 @@
   text-shadow: 0px 0px 7px #e400ff;
   font-size: 24px;
   align-self: center;
-  margin-top: -31px;
+  margin-top: -29px;
   font-weight: bold;
 }
 
