@@ -190,6 +190,7 @@
   background: rgb(35 0 43 / 51%);
   -ms-overflow-style: none;
   scrollbar-width: none;
+  padding-bottom: 32px;
 }
 
 .valUIMain::-webkit-scrollbar{
