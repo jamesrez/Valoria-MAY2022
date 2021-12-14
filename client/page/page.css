@@ -185,8 +185,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow: hidden;
-  /* overflow-y: scroll; */
+  /* overflow: hidden; */
+  overflow-y: scroll;
   background: rgb(35 0 43 / 51%);
   -ms-overflow-style: none;
   scrollbar-width: none;
