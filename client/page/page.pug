@@ -19,7 +19,9 @@ script(src="/scripts/qrious.min.js")
         .valUIMainNavBtn(onclick="showAbout()") About
         .valUIMainNavBtn(onclick="showDonate()") Donate
         .valUIMainNavBtn(onclick="showContact()") Contact
-      .valUIMainDescription Valoria is an open source, decentralized metaverse that everyone can be a part of. It is powered by a distributed network of devices and servers, which are all owned by the public. Anyone can add their own device's storage and computation power to the network and start earning Valor, a cryptocurrency tied to the amount of work and value each device is giving to the collective. Every phone, computer, and server added increases the scalability of the network. Join Valoria now and start earning Valor through your browser.
+      .valUIMainBox
+        .valUIMainDescription Valoria is an open source, decentralized metaverse that everyone can be a part of. It is powered by a distributed network of devices and servers, which are all owned by the public. Anyone can add their own device's storage and computation power to the network and start earning Valor, a cryptocurrency tied to the amount of work and value each device is giving to the collective. Every phone, computer, and server added increases the scalability of the network. Join Valoria now and start earning Valor through your browser.
+        a.valUIMainGithub(href="https://github.com/jamesrez/Valoria" target="_blank") Check out the project on Github
       //- span.valUILandingGuideLink Or click here to learn how to host your own Valoria server.
 
       //- .valUILandingInfo
@@ -43,6 +45,7 @@ script(src="/scripts/qrious.min.js")
     .valUIDonate
       .valUIBack(onclick="exitDonate()") < Go back
       .valUIHeader Donate
+      .valUIDonateDesc All support for the project is greatly appreciated, especially at this early time.
       a.valUIButton(href="https://www.patreon.com/valoria_live" target="_blank") Support on Patreon
       .valUIButton.valUIDonateBtc(onclick="copyBtc()") Send Bitcoin
       .valUIButton.valUIDonateEth(onclick="copyEth()") Send Ethereum
