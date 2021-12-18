@@ -4,6 +4,7 @@ let page;
 window.onload = async () => {
   page = document.querySelector(".page");
   cameraRig = document.querySelector('#cameraRig');
+  // page.click();
 }
 
 valoria.onJoin = async () => {
@@ -14,3 +15,7 @@ valoria.onJoin = async () => {
   // cameraRig.setAttribute('p2p-communication', true);
   // await valoria.goToDimension("Valoria");
 }
+
+// function playMusic(){
+//   document.querySelector("#radio").play();
+// }
