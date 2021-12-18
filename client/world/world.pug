@@ -9,6 +9,7 @@ script(src="scripts/components.js")
       img#dimPlane(src="assets/grid.png")
       img#galactic(src="assets/valoriacity.png")
       a-asset-item#palm(src="assets/palm/QueenPalmTree.gltf")
+      a-asset-item#soldier(src="assets/soldier.glb")
     a-entity#cameraRig(
       position="-0.25 0 0"
       rotation="0 90 0"
@@ -16,6 +17,9 @@ script(src="scripts/components.js")
       read-controls
     )
       a-entity#dimCamera(position="0 1.6 0" camera="active: true" look-controls="pointerLockEnabled: true;")
+    a-entity(gltf-model="#soldier" position="-1.8 0 -1.5" rotation="0 90 0" animation-mixer walk-anim)
+    a-entity(gltf-model="#soldier" position="-1.8 0 1.5" rotation="0 90 0" animation-mixer walk-anim)
+    a-entity(gltf-model="#soldier" position="-2.8 0 0" rotation="0 90 0" animation-mixer walk-anim)
       //- a-circle(src=user ? user.avatar : "assets/person-fill.svg" scale="0.25 0.25 0.25" position="0 0 0" rotation="0 180 0")
     a-entity.otherUsers
     a-entity(light="type: ambient; color: #FFF; intensity: 3" position="0 5 2.5")

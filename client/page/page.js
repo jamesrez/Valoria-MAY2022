@@ -20,9 +20,10 @@ async function showHome(){
 }
 
 async function showJoin(){
-  auth.style.display = "flex";
-  join.style.display = "flex";
-  mainModal.style.display = "none"
+  valoria.onJoin();
+  // auth.style.display = "flex";
+  // join.style.display = "flex";
+  // mainModal.style.display = "none"
 }
 
 async function showAbout(){
