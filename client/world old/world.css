@@ -1,0 +1,23 @@
+canvas.a-canvas.a-mouse-cursor-hover:hover {
+  cursor: none;
+}
+
+.a-canvas.a-grab-cursor:hover {
+  cursor: none;
+}
+
+.a-canvas {
+  cursor: none;
+}
+
+.a-enter-vr-button {
+  left: 12500px;
+}
+
+.valoria{
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  overflow: hidden;
+  /* z-index: 0; */
+}

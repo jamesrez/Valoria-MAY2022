@@ -20,10 +20,9 @@ async function showHome(){
 }
 
 async function showJoin(){
-  valoria.onJoin();
-  // auth.style.display = "flex";
-  // join.style.display = "flex";
-  // mainModal.style.display = "none"
+  auth.style.display = "flex";
+  join.style.display = "flex";
+  mainModal.style.display = "none";
 }
 
 async function showAbout(){
@@ -162,6 +161,7 @@ async function saveQRPhoto(){
 
 async function QRNext(){
   auth.style.display = "none";
+  valoria.onJoin();
 }
 
 let signInQRInput = document.querySelector('.valUISignInQRInput');
@@ -236,12 +236,12 @@ const setInnerHTML = function(elm, html) {
   });
 }
 
-const fileNav = document.querySelector('.valUIFileNav');
-const codeContainer = document.querySelector('.valUICodeContainer');
-const appContainer = document.querySelector('.valUIAppContainer');
-const split = Split([fileNav, codeContainer, appContainer], {
-  sizes: [20, 50, 30]
-});
+// const fileNav = document.querySelector('.valUIFileNav');
+// const codeContainer = document.querySelector('.valUICodeContainer');
+// const appContainer = document.querySelector('.valUIAppContainer');
+// const split = Split([fileNav, codeContainer, appContainer], {
+//   sizes: [20, 50, 30]
+// });
 
 let activeFile = null;
 

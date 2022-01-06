@@ -10,8 +10,9 @@ window.onload = async () => {
 valoria.onJoin = async () => {
   console.log("SIGNED IN!");
   page.style.display = "none";
-  cameraRig.setAttribute('movement-controls', 'constrainToNavMesh: true;speed: 0.7;fly: true')
-  cameraRig.setAttribute('read-controls', true);
+  controls.lock();
+  // cameraRig.setAttribute('movement-controls', 'constrainToNavMesh: true;speed: 0.2')
+  // cameraRig.setAttribute('read-controls', true);
   // cameraRig.setAttribute('p2p-communication', true);
   // await valoria.goToDimension("Valoria");
 }

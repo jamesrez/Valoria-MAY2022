@@ -94,10 +94,8 @@ class Valoria {
           // case 'Got pubkey':
           //   await self.handleGotPubKey(ws, d.data);
           //   break;
-          // case 'Get groups':
-          //   await self.handleGetGroups(ws);
-          //   break;
           case 'Got groups':
+            console.log("Got groups")
             await self.handleGotGroups(ws, d.data);
             break;
           // case 'Join group':
