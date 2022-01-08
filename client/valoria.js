@@ -7,14 +7,20 @@ class Valoria {
     this.users = {};
     this.groups = [];
     this.conns = {};
+    this.peers = {};
     this.promises = {};
     (async () => await this.setup())()
   }
   
   setup = async () => {
-    await this.loadAllGroups();
+    // await this.loadAllGroups();
     this.user = new ValoriaUser();
     this.user.valoria = this;
+    this.connectToServer(window.location.origin)
+  }
+
+  startMediaStream = async(opts) => {
+    this.stream = await navigator.mediaDevices.getUserMedia(opts);
   }
 
   loadAllGroups = async () => {
@@ -56,6 +62,7 @@ class Valoria {
   }
 
   connectToServer(url){
+    const self = this;
     return new Promise(async (res, rej) => {
       if(this.conns[url] && this.conns[url].readyState === WebSocket.OPEN){
         res();
@@ -66,7 +73,8 @@ class Valoria {
           this.conns[url] = new WebSocket(wsUrl.href);
         } 
         this.conns[url].Url = url;
-        this.conns[url].onopen = async () => {
+        this.conns[url].onopen = ( async () => {
+          // heartbeat(this.conns[url]);
           try {
             await this.setupWS(this.conns[url]);
             res();
@@ -74,10 +82,16 @@ class Valoria {
             console.log(e);
             res();
           }
-        };
+        });
         this.conns[url].onerror = (error) => {
+          console.log(error)
           rej(error);
         }
+        // this.conns[url].on('ping', () => heartbeat(self.conns[url]));
+        this.conns[url].onclose = function clear() {
+          console.log("CLOSED")
+          clearTimeout(self.conns[url].pingTimeout);
+        };
       }
     })
   }
@@ -131,6 +145,13 @@ class Valoria {
           // case "Refer sync interval":
           //   await self.handleReferSyncInterval(ws, d.data)
           //   break;
+          case "Joined dimension":
+            await self.handleJoinedDimension(ws, d.data);
+            break;
+          case "Got rtc description":
+            self.handleGotRtcDescription(ws, d.data);
+          case "Got rtc candidate":
+            self.handleGotRtcCandidate(ws, d.data);
         }
       }
       res();
@@ -146,6 +167,186 @@ class Valoria {
       res();
     })
   }
+
+  joinDimension(id){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      const url = Object.keys(valoria.conns)[0];
+      console.log(url)
+      self.promises["Joined " + id + " dimension"] = {res, rej};
+      valoria.conns[url].send(JSON.stringify({
+        event: "Join dimension",
+        data: {
+          id: id
+        }
+      }));
+    })
+  }
+
+  handleJoinedDimension(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      const peers = data.peers;
+      for(let i=0;i<peers.length;i++){
+        self.connectToPeer(ws, peers[i]);
+      }
+      if(self.promises["Joined " + data.id + " dimension"]){
+        self.promises["Joined " + data.id + " dimension"].res();
+      }
+      res();
+    });
+  }
+
+  async connectToPeer(ws, id){
+    const self = this;
+    const rtcConfig = {}
+    const offerOptions = {
+      offerToReceiveAudio: 0,
+      offerToReceiveVideo: 1
+    };
+    self.peers[id] = new RTCPeerConnection(rtcConfig);
+    self.peers[id].makingOffer = false;
+    self.peers[id].ignoreOffer = false;
+    self.peers[id].isSettingRemoteAnswerPending = false;
+    self.peers[id].onnegotiationneeded = async options => {
+      try {
+        self.peers[id].makingOffer = true;
+        const desc = await self.peers[id].createOffer();
+        if (self.peers[id].signalingState != "stable") return;
+        await self.peers[id].setLocalDescription(desc);
+        ws.send(JSON.stringify({
+          event: "Send rtc description",
+          data: {
+            desc,
+            id
+          }
+        }));
+      } catch (err) {
+        console.error(err);
+      } finally {
+        self.peers[id].makingOffer = false;
+      }
+    };
+    self.peers[id].onconnectionstatechange = () => {
+      if (self.peers[id] && self.peers[id].connectionState === "failed") {
+        self.peers[id].restartIce();
+      }
+    }
+    self.peers[id].oniceconnectionstatechange = () => {
+      if (self.peers[id] && self.peers[id].iceConnectionState === "failed") {
+        self.peers[id].restartIce();
+      }
+    };
+    self.peers[id].datachannel = self.peers[id].createDataChannel("data");
+    self.peers[id].datachannel.addEventListener("open", (event) => {
+      self.peers[id].datachannel.onmessage = async (e) => {
+        console.log(e)
+        // if(!e || !e.data) return;
+        // const data = JSON.parse(e.data);
+        // const event = data.event;
+      }
+      self.stream.getTracks().forEach(track => self.peers[id].addTrack(track, self.stream));
+    });
+    self.peers[id].ontrack = (e) => {
+      self.peers[id].stream = e.streams[0];
+    }
+    self.peers[id].onicecandidate = (e) => {
+      ws.send(JSON.stringify({
+        event: "Send rtc candidate",
+        data: {
+          candidate: e.candidate,
+          id: id
+        }
+      }));
+    }
+  }
+
+  async handleGotRtcDescription(ws, data){
+    const self = this;
+    const description = data.desc;
+    const id = data.id;
+    const polite = data.polite;
+    console.log("GOT RTC DESCRIPTION")
+    console.log(description)
+    if(!self.peers[id]){
+      self.peers[id] = new RTCPeerConnection({});
+      self.peers[id].makingOffer = false;
+      self.peers[id].ignoreOffer = false;
+      self.peers[id].isSettingRemoteAnswerPending = false;
+      self.peers[id].ondatachannel = (event) => {
+        self.peers[id].datachannel = event.channel;
+        self.peers[id].datachannel.addEventListener("open", (event) => {
+          self.peers[id].datachannel.onmessage = (e) => {
+            console.log(e)
+            // if(!e || !e.data) return;
+            // const data = JSON.parse(e.data);
+            // const event = data.event;
+          };
+          self.stream.getTracks().forEach(track => self.peers[id].addTrack(track, self.stream));
+        });
+      };
+      self.peers[id].ontrack = (e) => {
+        self.peers[id].stream = e.streams[0];
+      }
+      self.peers[id].onicecandidate = (e) => {
+        ws.send(JSON.stringify({
+          event: "Send rtc candidate",
+          data: {
+            candidate: e.candidate,
+            id
+          }
+        }));
+      }
+    }
+    try {
+      if (description) {
+        const readyForOffer =
+          !self.peers[id].makingOffer &&
+          (self.peers[id].signalingState == "stable" || self.peers[id].isSettingRemoteAnswerPending);
+        const offerCollision = description.type == "offer" && !readyForOffer;
+        self.peers[id].ignoreOffer = !polite && offerCollision;
+        if (self.peers[id].ignoreOffer) {
+          return;
+        }
+        self.peers[id].isSettingRemoteAnswerPending = description.type == "answer";
+        await self.peers[id].setRemoteDescription(description); // SRD rolls back as needed
+        self.peers[id].isSettingRemoteAnswerPending = false;
+        if (description.type == "offer") {
+          await self.peers[id].setLocalDescription(await self.peers[id].createAnswer());
+          ws.send(JSON.stringify({
+            event: "Send rtc description",
+            data: {
+              desc: self.peers[id].localDescription,
+              id: id
+            }
+          }));
+        }
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  }
+
+  async handleGotRtcCandidate(ws, data){
+    const self = this;
+    if(!self.peers[data.id]) return;
+    try {
+      await self.peers[data.id].addIceCandidate(data.candidate)
+    } catch (e) {
+      console.log("COULD NOT ADD ICE CANDIDATE");
+      console.log(e);
+    }
+  }
+
+  // async onIceCandidate(pc, event) {
+  //   try {
+
+  //     await (getOtherPc(pc));
+  //   } catch (e) {
+  //   }
+  // }
+  
+
 
 }
 
@@ -214,9 +415,9 @@ class ValoriaUser {
         iv: await arrayBufferToBase64(ecdhIv)
       });
       sessionStorage.setItem('valoria-user-secret', password + self.secret);
-      const group =  self.valoria.groups[jumpConsistentHash(self.id, self.valoria.groups.length)];
-      const url = group[group.length * Math.random() << 0];
-      console.log("SAVE USER TO " + url);
+      // const group =  self.valoria.groups[jumpConsistentHash(self.id, self.valoria.groups.length)];
+      // const url = group[group.length * Math.random() << 0];
+      // console.log("SAVE USER TO " + url);
       res(self);
     })
   }
@@ -315,6 +516,13 @@ async function digestMessage(message) {
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // convert bytes to hex string
     res(hashHex);
   });
+}
+
+function heartbeat(ws) {
+  clearTimeout(ws.pingTimeout);
+  ws.pingTimeout = setTimeout(() => {
+    ws.close();
+  }, 3500);
 }
 
 window.valoria = new Valoria();

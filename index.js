@@ -7,6 +7,7 @@ const Port = process.env.PORT || 3000;
 const crypto = require('crypto');
 const subtle = crypto.webcrypto.subtle;
 const WebSocket = require('ws');
+const { v4: uuidv4 } = require('uuid');
 
 class Server {
   constructor(port){
@@ -17,6 +18,7 @@ class Server {
     this.conns = {};
     this.ECDSA = {publicKey: null, privateKey: null};
     this.ECDH = {publicKey: null, privateKey: null};
+    this.dimensions = {};
     const self = this;
     if(isLocal){
       this.url = 'http://localhost:' + port;
@@ -50,7 +52,18 @@ class Server {
     this.wss.on('connection', async (ws) => {
       await self.setupWS(ws);
     })
-    this.heartbeatInterval();
+    const heartbeatInterval = setInterval(() => {
+      self.wss.clients.forEach(function each(ws) {
+        if (ws.isAlive === false) {
+          return ws.terminate();
+        }
+        ws.isAlive = false;
+        ws.ping();
+      });
+    }, 2500);
+    self.wss.on('close', function close() {
+      clearInterval(heartbeatInterval);
+    });
   }
 
   setupRoutes = async () => {
@@ -67,9 +80,62 @@ class Server {
   loadCredentials = async () => {
     const self = this;
     return new Promise(async(res, rej) => {
-      const creds = await self.load("credentials.json");
-      if(!creds){
+      const credentials = await self.load("credentials.json");
+      if(!credentials){
         return rej();
+      } else {
+        const ecdsaPub = await subtle.importKey(
+          'raw',
+          Buffer.from(credentials.ecdsaPub, 'base64'),
+          {
+            name: 'ECDSA',
+            namedCurve: 'P-384'
+          },
+          true,
+          ['verify']
+        )
+        const ecdsaPubHash = await subtle.digest("SHA-256", Buffer.from(credentials.ecdsaPub, 'base64'));
+        const id = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
+        self.id = id;
+        self.ECDSA.publicKey = ecdsaPub;
+        const keyMaterial = await subtle.importKey(
+          "raw",
+          new TextEncoder().encode(credentials.secret),
+          {name: "PBKDF2"},
+          false,
+          ["deriveBits", "deriveKey"]
+        );
+        const salt = Buffer.from(credentials.ecdsaPrv.salt, 'base64');
+        const unwrappingKey = await subtle.deriveKey(
+          {
+            "name": "PBKDF2",
+            salt: salt,
+            "iterations": 100000,
+            "hash": "SHA-256"
+          },
+          keyMaterial,
+          { "name": "AES-GCM", "length": 256},
+          true,
+          [ "wrapKey", "unwrapKey" ]
+        );
+        const iv = Buffer.from(credentials.ecdsaPrv.iv, 'base64');
+        const ecdsaPrv = await subtle.unwrapKey(
+          "jwk",
+          Buffer.from(credentials.ecdsaPrv.wrapped, 'base64'),
+          unwrappingKey,
+          {
+            name: "AES-GCM",
+            iv: iv
+          },
+          {                      
+            name: "ECDSA",
+            namedCurve: "P-384"
+          },  
+          true,
+          ["sign"]
+        )
+        self.ECDSA.privateKey = ecdsaPrv;
+        return res();
       }
       //Loading
     });
@@ -168,11 +234,18 @@ class Server {
   setupWS = async (ws) => {
     const self = this;
     return new Promise(async(res, rej) => {
-      // ws.id = ws.id || uuidv4();
+      ws.id = ws.id || uuidv4();
+      self.conns[ws.id] = ws;
       ws.isAlive = true;
       ws.on('pong', () => {
         ws.isAlive = true;
-      });
+      })
+      ws.on('close', () => {
+        if(self.conns[ws.id].dimension && self.dimensions[ws.dimension]){
+          delete self.dimensions[ws.dimension].conns[ws.id];
+        }
+        delete self.conns[ws.id];
+      })
       ws.on('message', async (d) => {
         d = JSON.parse(d);
         switch (d.event) {
@@ -239,7 +312,12 @@ class Server {
           // case "Request group replication":
           //   await self.handleRequestGroupReplication(ws, d.data);
           //   break;
-
+          case "Join dimension":
+            await self.handleJoinDimension(ws, d.data);
+          case "Send rtc description":
+            self.handleSendRtcDescription(ws, d.data);
+          case "Send rtc candidate":
+            self.handleSendRtcCandidate(ws, d.data);
         }
       })
       res();
@@ -250,18 +328,11 @@ class Server {
     return Math.round(Date.now() + this.timeOffset + this.testOffset);
   }
 
-  heartbeatInterval(){
-    const self = this;
-    const interval = setInterval(function ping() {
-      self.wss.clients.forEach(function each(ws) {
-        if (ws.isAlive === false) return ws.terminate();
-        ws.isAlive = false;
-        ws.ping();
-      });
-    }, 2500);
-    self.wss.on('close', function close() {
-      clearInterval(interval);
-    });
+  heartbeat(ws){
+    clearTimeout(ws.pingTimeout);
+    ws.pingTimeout = setTimeout(() => {
+      ws.terminate();
+    }, 3500);
   }
 
   handleGetGroups(ws){
@@ -283,6 +354,56 @@ class Server {
       }
       return res();
     })
+  }
+
+  handleJoinDimension(ws, data){
+    const self = this;
+    return new Promise(async( res, rej) => {
+      const id = data.id;
+      if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
+      const peers = Object.keys(self.dimensions[id].conns)
+      self.dimensions[id].conns[ws.id] = ws;
+      self.conns[ws.id].dimension = id;
+      ws.send(JSON.stringify({
+        event: "Joined dimension",
+        data: {
+          id,
+          peers
+        }
+      }))
+      res();
+    })
+  }
+
+  handleSendRtcDescription(ws, data){
+    const self = this;
+    if(!self.conns[data.id]) return;
+    if(!self.conns[data.id].peers) self.conns[data.id].peers = {};
+    if(!self.conns[ws.id].peers) self.conns[ws.id].peers = {};
+    if(!self.conns[ws.id].peers[data.id]){
+      self.conns[ws.id].peers[data.id] = {polite: false};
+      self.conns[data.id].peers[ws.id] = {polite: true};
+    }
+    self.conns[data.id].send(JSON.stringify({
+      event: "Got rtc description",
+      data: {
+        id: ws.id,
+        desc: data.desc,
+        polite: self.conns[data.id].peers[ws.id]?.polite,
+      }
+    }));
+  }
+
+  handleSendRtcCandidate(ws, data){
+    const self = this;
+    if(!self.conns[data.id]) return;
+    self.conns[data.id].send(JSON.stringify({
+      event: "Got rtc candidate",
+      data: {
+        id: ws.id,
+        candidate: data.candidate
+      }
+    }))
   }
 
 }

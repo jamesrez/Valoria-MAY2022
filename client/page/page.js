@@ -20,9 +20,11 @@ async function showHome(){
 }
 
 async function showJoin(){
-  auth.style.display = "flex";
-  join.style.display = "flex";
+  // auth.style.display = "flex";
+  // join.style.display = "flex";
   mainModal.style.display = "none";
+  await valoria.user.create("123");
+  valoria.onJoin();
 }
 
 async function showAbout(){
@@ -115,7 +117,6 @@ let QRrecoverySave = document.querySelector('.valUINewQRSave');
 let QRrecoveryNext = document.querySelector('.valUINewQRNext');
 
 async function createAccount(){
-  const newPass = newPassInput.value;
   const confirmPass = confirmPassInput.value;
   if(newPass !== confirmPass) {
     newPassError.style.display = "block";
@@ -152,7 +153,7 @@ async function saveQRPhoto(){
   let download = document.createElement('a');
   download.style.position = "absolute";
   download.style.top = "-1250000px";
-  download.download = "Valoria-Recovery-Photo-" + valoria.user.userId + ".png";
+  download.download = "Valoria-Recovery-Photo-" + valoria.user.id + ".png";
   download.href = QRrecoveryPhoto.src
   newQRForm.append(download)
   download.click();

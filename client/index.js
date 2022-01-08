@@ -11,10 +11,8 @@ valoria.onJoin = async () => {
   console.log("SIGNED IN!");
   page.style.display = "none";
   controls.lock();
-  // cameraRig.setAttribute('movement-controls', 'constrainToNavMesh: true;speed: 0.2')
-  // cameraRig.setAttribute('read-controls', true);
-  // cameraRig.setAttribute('p2p-communication', true);
-  // await valoria.goToDimension("Valoria");
+  await valoria.startMediaStream({audio: true, video: false});
+  await valoria.joinDimension("Valoria");
 }
 
 // function playMusic(){
