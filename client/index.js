@@ -12,6 +12,12 @@ valoria.onJoin = async () => {
   page.style.display = "none";
   controls.lock();
   await valoria.startMediaStream({audio: true, video: false});
+  valoria.dimension.onPeerJoin = (id) => {
+    addPeerToScene(id);
+  }
+  valoria.dimension.onPeerLeave = (id) => {
+    removePeerFromScene(id);
+  }
   await valoria.joinDimension("Valoria");
 }
 

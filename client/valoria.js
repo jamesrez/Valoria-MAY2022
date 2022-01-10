@@ -1,5 +1,16 @@
 const subtle = window.crypto.subtle;
-const initialServers = window.location.hostname == "localhost" ? [window.location.origin + "/"] : ["https://valoria.live/"]
+const initialServers = window.location.hostname == "localhost" ? [window.location.origin + "/"] : ["https://valoria.live/"];
+const iceServers = [
+  {url: "stun:stun.l.google.com:19302", urls: "stun:stun.l.google.com:19302"},
+  {url: "stun:stun2.l.google.com:19302", urls: "stun:stun2.l.google.com:19302"},
+  {url: "stun:stun3.l.google.com:19302", urls: "stun:stun3.l.google.com:19302"},
+  {url: "stun:stun4.l.google.com:19302", urls: "stun:stu4.l.google.com:19302"},
+  {url: "stun:stunserver.org", urls: "stun:stunserver.org"},
+  {url: "stun:stun.voiparound.com", urls: "stun:stun.voiparound.com"},
+  {url: "stun:stun.voipbuster.com", urls: "stun:stun.voipbuster.com"},
+  {url: "stun:stun.voipstunt.com", urls: "stun:stun.voipstunt.com"},
+];
+
 
 class Valoria {
  
@@ -9,6 +20,7 @@ class Valoria {
     this.conns = {};
     this.peers = {};
     this.promises = {};
+    this.dimension = {};
     (async () => await this.setup())()
   }
   
@@ -148,10 +160,18 @@ class Valoria {
           case "Joined dimension":
             await self.handleJoinedDimension(ws, d.data);
             break;
+          case "New peer in dimension":
+            await self.handleNewPeerInDimension(ws, d.data);
+            break;
+          case "Peer has left dimension":
+            await self.handlePeerHasLeftDimension(ws, d.data);
+            break;
           case "Got rtc description":
             self.handleGotRtcDescription(ws, d.data);
+            break;
           case "Got rtc candidate":
             self.handleGotRtcCandidate(ws, d.data);
+            break;
         }
       }
       res();
@@ -171,10 +191,9 @@ class Valoria {
   joinDimension(id){
     const self = this;
     return new Promise(async (res, rej) => {
-      const url = Object.keys(valoria.conns)[0];
-      console.log(url)
+      const url = Object.keys(self.conns)[0];
       self.promises["Joined " + id + " dimension"] = {res, rej};
-      valoria.conns[url].send(JSON.stringify({
+      self.conns[url].send(JSON.stringify({
         event: "Join dimension",
         data: {
           id: id
@@ -186,78 +205,112 @@ class Valoria {
   handleJoinedDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
+      self.peers = {};
       const peers = data.peers;
-      for(let i=0;i<peers.length;i++){
-        self.connectToPeer(ws, peers[i]);
+      self.dimension = {
+        id: data.dimension,
+        peers,
+        onPeerJoin: self.dimension.onPeerJoin || (() => {}),
+        onPeerLeave: self.dimension.onPeerLeave || (() => {}),
+        ws
       }
-      if(self.promises["Joined " + data.id + " dimension"]){
-        self.promises["Joined " + data.id + " dimension"].res();
+      for(let i=0;i<peers.length;i++){
+        self.connectToPeer(peers[i]);
+        self.dimension.onPeerJoin(peers[i]);
+      }
+      if(self.promises["Joined " + data.dimension + " dimension"]){
+        self.promises["Joined " + data.dimension + " dimension"].res();
       }
       res();
     });
   }
 
-  async connectToPeer(ws, id){
+  handleNewPeerInDimension(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(data.dimension !== self.dimension.id || !data.peer) return;
+      self.connectToPeer(data.peer);
+      self.dimension.peers.push(data.peer);
+      self.dimension.onPeerJoin(data.peer);
+      res();
+    });
+  }
+
+  handlePeerHasLeftDimension(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(data.dimension !== self.dimension.id || !data.peer) return;
+      self.dimension.peers.splice(self.dimension.peers.indexOf(data.peer), 1);
+      self.dimension.onPeerLeave(data.peer);
+      delete self.peers[data.peer];
+      res();
+    });
+  }
+
+  async connectToPeer(id){
     const self = this;
     const rtcConfig = {}
     const offerOptions = {
-      offerToReceiveAudio: 0,
+      offerToReceiveAudio: 1,
       offerToReceiveVideo: 1
     };
-    self.peers[id] = new RTCPeerConnection(rtcConfig);
-    self.peers[id].makingOffer = false;
-    self.peers[id].ignoreOffer = false;
-    self.peers[id].isSettingRemoteAnswerPending = false;
-    self.peers[id].onnegotiationneeded = async options => {
-      try {
-        self.peers[id].makingOffer = true;
-        const desc = await self.peers[id].createOffer();
-        if (self.peers[id].signalingState != "stable") return;
-        await self.peers[id].setLocalDescription(desc);
-        ws.send(JSON.stringify({
-          event: "Send rtc description",
+    if(!self.peers[id]){
+      self.peers[id] = new RTCPeerConnection({iceServers});
+      self.peers[id].callbacks = {};
+      self.peers[id].on = (event, cb) => {
+        self.peers[id].callbacks[event] = cb;
+      }
+      self.peers[id].makingOffer = false;
+      self.peers[id].ignoreOffer = false;
+      self.peers[id].isSRDAnswerPending = false;
+      self.peers[id].datachannel = self.peers[id].createDataChannel("Data");
+      self.peers[id].datachannel.onopen = () => {
+        self.peers[id].datachannel.onmessage = (e) => {
+          if(!e || !e.data) return;
+          const data = JSON.parse(e.data);
+          const event = data.event;
+          if(typeof self.peers[id].callbacks[event] == "function"){
+            self.peers[id].callbacks[event](data.data);
+          } 
+        };
+      };
+      self.stream.getTracks().forEach(track => self.peers[id].addTrack(track, self.stream));
+      self.peers[id].onicecandidate = ({candidate}) =>  {
+        if(!candidate) return;
+        self.dimension.ws.send(JSON.stringify({
+          event: "Send rtc candidate",
           data: {
-            desc,
+            candidate,
             id
           }
         }));
-      } catch (err) {
-        console.error(err);
-      } finally {
-        self.peers[id].makingOffer = false;
       }
-    };
-    self.peers[id].onconnectionstatechange = () => {
-      if (self.peers[id] && self.peers[id].connectionState === "failed") {
-        self.peers[id].restartIce();
-      }
-    }
-    self.peers[id].oniceconnectionstatechange = () => {
-      if (self.peers[id] && self.peers[id].iceConnectionState === "failed") {
-        self.peers[id].restartIce();
-      }
-    };
-    self.peers[id].datachannel = self.peers[id].createDataChannel("data");
-    self.peers[id].datachannel.addEventListener("open", (event) => {
-      self.peers[id].datachannel.onmessage = async (e) => {
-        console.log(e)
-        // if(!e || !e.data) return;
-        // const data = JSON.parse(e.data);
-        // const event = data.event;
-      }
-      self.stream.getTracks().forEach(track => self.peers[id].addTrack(track, self.stream));
-    });
-    self.peers[id].ontrack = (e) => {
-      self.peers[id].stream = e.streams[0];
-    }
-    self.peers[id].onicecandidate = (e) => {
-      ws.send(JSON.stringify({
-        event: "Send rtc candidate",
-        data: {
-          candidate: e.candidate,
-          id: id
+      self.peers[id].onnegotiationneeded = async options => {
+        if(!self.peers[id]) return;
+        try {
+          self.peers[id].makingOffer = true;
+          await self.peers[id].setLocalDescription();
+          self.dimension.ws.send(JSON.stringify({
+            event: "Send rtc description",
+            data: {
+              desc: self.peers[id].localDescription,
+              id
+            }
+          }));
+        } catch (err) {
+          console.error(err);
+        } finally {
+          self.peers[id].makingOffer = false;
         }
-      }));
+      };
+      self.peers[id].oniceconnectionstatechange = () => {
+        if (self.peers[id] && self.peers[id].iceConnectionState === "failed") {
+          self.peers[id].restartIce();
+        }
+      };
+      self.peers[id].ontrack = (e) => {
+        self.peers[id].stream = e.streams[0];
+      }
     }
   }
 
@@ -266,54 +319,57 @@ class Valoria {
     const description = data.desc;
     const id = data.id;
     const polite = data.polite;
-    console.log("GOT RTC DESCRIPTION")
-    console.log(description)
     if(!self.peers[id]){
-      self.peers[id] = new RTCPeerConnection({});
+      self.peers[id] = new RTCPeerConnection({iceServers});
+      self.peers[id].callbacks = {};
+      self.peers[id].on = (event, cb) => {
+        self.peers[id].callbacks[event] = cb;
+      }
       self.peers[id].makingOffer = false;
       self.peers[id].ignoreOffer = false;
-      self.peers[id].isSettingRemoteAnswerPending = false;
-      self.peers[id].ondatachannel = (event) => {
-        self.peers[id].datachannel = event.channel;
-        self.peers[id].datachannel.addEventListener("open", (event) => {
-          self.peers[id].datachannel.onmessage = (e) => {
-            console.log(e)
-            // if(!e || !e.data) return;
-            // const data = JSON.parse(e.data);
-            // const event = data.event;
-          };
-          self.stream.getTracks().forEach(track => self.peers[id].addTrack(track, self.stream));
-        });
-      };
+      self.peers[id].isSRDAnswerPending = false;
+      self.stream.getTracks().forEach(track => self.peers[id].addTrack(track, self.stream));
       self.peers[id].ontrack = (e) => {
         self.peers[id].stream = e.streams[0];
       }
-      self.peers[id].onicecandidate = (e) => {
-        ws.send(JSON.stringify({
+      self.peers[id].onicecandidate = ({candidate}) =>  {
+        if(!candidate) return;
+        self.dimension.ws.send(JSON.stringify({
           event: "Send rtc candidate",
           data: {
-            candidate: e.candidate,
+            candidate,
             id
           }
         }));
       }
     }
+    self.peers[id].ondatachannel = (event) => {
+      self.peers[id].datachannel = event.channel;
+      self.peers[id].datachannel.onopen = () => {
+        self.peers[id].datachannel.onmessage = (e) => {
+          if(!e || !e.data) return;
+          const data = JSON.parse(e.data);
+          const event = data.event;
+          if(typeof self.peers[id].callbacks[event] == "function"){
+            self.peers[id].callbacks[event](data.data);
+          } 
+        };
+      };
+    };
     try {
       if (description) {
-        const readyForOffer =
-          !self.peers[id].makingOffer &&
-          (self.peers[id].signalingState == "stable" || self.peers[id].isSettingRemoteAnswerPending);
-        const offerCollision = description.type == "offer" && !readyForOffer;
+        const offerCollision = (description.type == "offer") &&
+                             (self.peers[id].makingOffer || self.peers[id].signalingState != "stable");
         self.peers[id].ignoreOffer = !polite && offerCollision;
         if (self.peers[id].ignoreOffer) {
           return;
         }
-        self.peers[id].isSettingRemoteAnswerPending = description.type == "answer";
-        await self.peers[id].setRemoteDescription(description); // SRD rolls back as needed
-        self.peers[id].isSettingRemoteAnswerPending = false;
+        self.peers[id].isSRDAnswerPending = description.type == 'answer';
+        await self.peers[id].setRemoteDescription(description);
+        self.peers[id].isSRDAnswerPending = false;
         if (description.type == "offer") {
-          await self.peers[id].setLocalDescription(await self.peers[id].createAnswer());
-          ws.send(JSON.stringify({
+          await self.peers[id].setLocalDescription();
+          self.dimension.ws.send(JSON.stringify({
             event: "Send rtc description",
             data: {
               desc: self.peers[id].localDescription,
@@ -331,6 +387,8 @@ class Valoria {
     const self = this;
     if(!self.peers[data.id]) return;
     try {
+      if(!data.candidate) return;
+      console.log(data.candidate);
       await self.peers[data.id].addIceCandidate(data.candidate)
     } catch (e) {
       console.log("COULD NOT ADD ICE CANDIDATE");

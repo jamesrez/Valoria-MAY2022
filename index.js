@@ -243,6 +243,16 @@ class Server {
       ws.on('close', () => {
         if(self.conns[ws.id].dimension && self.dimensions[ws.dimension]){
           delete self.dimensions[ws.dimension].conns[ws.id];
+          const peers = Object.keys(self.dimensions[ws.dimension].conns)
+          for(let i=0;i<peers.length;i++){
+            self.dimensions[ws.dimension].conns[peers[i]].send(JSON.stringify({
+              event: "Peer has left dimension",
+              data: {
+                dimension: ws.dimension,
+                peer: ws.id
+              }
+            }))
+          }
         }
         delete self.conns[ws.id];
       })
@@ -314,10 +324,13 @@ class Server {
           //   break;
           case "Join dimension":
             await self.handleJoinDimension(ws, d.data);
+            break;
           case "Send rtc description":
             self.handleSendRtcDescription(ws, d.data);
+            break;
           case "Send rtc candidate":
             self.handleSendRtcCandidate(ws, d.data);
+            break;
         }
       })
       res();
@@ -367,10 +380,19 @@ class Server {
       ws.send(JSON.stringify({
         event: "Joined dimension",
         data: {
-          id,
+          dimension: id,
           peers
         }
       }))
+      for(let i=0;i<peers.length;i++){
+        self.dimensions[id].conns[peers[i]].send(JSON.stringify({
+          event: "New peer in dimension",
+          data: {
+            peer: ws.id,
+            dimension: id
+          }
+        }));
+      }
       res();
     })
   }
@@ -389,7 +411,7 @@ class Server {
       data: {
         id: ws.id,
         desc: data.desc,
-        polite: self.conns[data.id].peers[ws.id]?.polite,
+        polite: self.conns[ws.id].peers[data.id]?.polite,
       }
     }));
   }

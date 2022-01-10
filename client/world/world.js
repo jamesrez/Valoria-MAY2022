@@ -8,6 +8,8 @@ const world = document.querySelector('.world');
 world.appendChild( renderer.domElement );
 world.appendChild( VRButton.createButton( renderer ) );
 
+const peerAvatars = {};
+
 const clock = new THREE.Clock();
 
 async function loadModel(url){
@@ -20,6 +22,7 @@ async function loadModel(url){
         }
       })
       gltf.scene.animations = gltf.animations;
+      gltf.scene.mixer = new THREE.AnimationMixer(gltf.scene);
       res(gltf.scene);
     });
   })
@@ -49,12 +52,8 @@ let room;
       node.frustumCulled = true;
     }
   })
-  avatar.mixer = new THREE.AnimationMixer(avatar);
   setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
   avatar.attach(camera);
-  waluigi = await loadModel('assets/waluigi.glb');
-  waluigi.mixer = new THREE.AnimationMixer(waluigi);
-  setModelAction(waluigi, waluigi.mixer.clipAction(waluigi.animations[0]));
 })();
 camera.position.z = -0.7;
 camera.position.y = 1.6;
@@ -66,6 +65,8 @@ renderer.setAnimationLoop(async () => {
   scene.traverse((node) => {
     if(node.mixer) node.mixer.update(delta);
   })
+  sendPeerUpdates();
+  handleObjectsMoving();
 });
 
 window.addEventListener('resize', onWindowResize, false)
@@ -86,6 +87,7 @@ document.addEventListener('keyup', (event) => {
 
 const moveSpeed = 0.03;
 function handleControls(){
+  let direction;
   if(activeKeys["w"]){
     controls.moveForward(moveSpeed);
     setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
@@ -107,10 +109,77 @@ function handleControls(){
   }
 }
 
+let frame = 0;
+async function sendPeerUpdates(){
+  frame += 1;
+  if(frame == 10){
+    if(valoria.dimension?.peers){
+      const peers = valoria.dimension?.peers;
+      for(let i=0;i<peers.length;i++){
+        if(valoria.peers[peers[i]] && valoria.peers[peers[i]]?.datachannel?.readyState == "open"){
+          valoria.peers[peers[i]].datachannel.send(JSON.stringify({
+            event: "Movement",
+            data: {
+              position: {x: avatar.position.x, y: avatar.position.y, z: avatar.position.z},
+              rotation: {x: avatar.rotation.x, y: avatar.rotation.y, z: avatar.rotation.z},
+            }
+          }))
+        }
+      }
+    }
+    frame = 0;
+  }
+}
+
+let objsMoving = {};
+let letters = ["x", "y", "z"];
+function handleObjectsMoving(){
+  for(let o in objsMoving){
+    const obj = objsMoving[o];
+    const ent = obj.entity;
+    for(let v in obj.data){
+      let speedModifier = 10;
+      for(let l in obj.data[v]){
+        let dif = Math.abs(obj.data[v][l] - ent[v][l]) / speedModifier;
+        if(typeof dif !== "number" || dif < 0.01) continue;
+        if(ent[v][l] < obj.data[v][l]){
+          ent[v][l] += dif;
+        } else if(ent[v][l] > obj.data[v][l]){
+          ent[v][l] -= dif;
+        }
+      }
+    }
+  }
+}
+
+async function addPeerToScene(id){
+  peerAvatars[id] = await loadModel('assets/waluigi.glb');
+  setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
+  valoria.peers[id].on("Movement", (data) => {
+    if(
+      Math.abs(data.position.x - peerAvatars[id].position.x) < 0.01 &&
+      // Math.abs(data.position.y - peerAvatars[id].position.y) < 0.1 ||
+      Math.abs(data.position.z - peerAvatars[id].position.z) < 0.01
+    ) {
+      setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
+    } else {
+      setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[2]));
+    }
+
+    objsMoving[id] = {
+      entity: peerAvatars[id],
+      data
+    }
+  })
+}
+
+async function removePeerFromScene(id){
+  if(peerAvatars[id]) peerAvatars[id].clear();
+}
+
 world.onmousedown = () => {
   controls.lock();
 }
-
 
 const light = new THREE.AmbientLight();
 light.intensity = 3;
