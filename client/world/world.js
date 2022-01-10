@@ -33,9 +33,9 @@ function setModelAction(model, toAction) {
       model.lastAction = model.activeAction
       model.activeAction = toAction
       //lastAction.stop()
-      model.lastAction?.fadeOut(1)
+      model.lastAction?.fadeOut(0.2)
       model.activeAction.reset()
-      // model.activeAction.fadeIn(1)
+      model.activeAction.fadeIn(0.2)
       model.activeAction.play()
   }
 }
@@ -121,7 +121,7 @@ async function sendPeerUpdates(){
             event: "Movement",
             data: {
               position: {x: avatar.position.x, y: avatar.position.y, z: avatar.position.z},
-              rotation: {x: avatar.rotation.x, y: avatar.rotation.y, z: avatar.rotation.z},
+              quaternion: {w: avatar.quaternion.w, x: avatar.quaternion.x, y: avatar.quaternion.y, z: avatar.quaternion.z},
             }
           }))
         }
@@ -138,14 +138,24 @@ function handleObjectsMoving(){
     const obj = objsMoving[o];
     const ent = obj.entity;
     for(let v in obj.data){
-      let speedModifier = 10;
-      for(let l in obj.data[v]){
-        let dif = Math.abs(obj.data[v][l] - ent[v][l]) / speedModifier;
-        if(typeof dif !== "number" || dif < 0.01) continue;
-        if(ent[v][l] < obj.data[v][l]){
-          ent[v][l] += dif;
-        } else if(ent[v][l] > obj.data[v][l]){
-          ent[v][l] -= dif;
+      if(v == "quaternion") {
+        const qv = obj.data.quaternion;
+        let q = new THREE.Quaternion(qv.x, qv.y, qv.z, qv.w)
+        ent.quaternion.slerp(q, 0.025);
+      } else {
+        for(let l in obj.data[v]){
+          let dif = obj.data[v][l] - ent[v][l];
+          if(typeof dif !== "number") continue;
+          if(Math.abs(dif) < 0.01){
+            ent[v][l] = obj.data[v][l];
+          } else {
+            let val = dif / 10;
+            ent[v][l] += val;
+            // if(ent[v][l] < obj.data[v][l]){
+            // } else if(ent[v][l] > obj.data[v][l]){
+            //   ent[v][l] -= val;
+            // }
+          }
         }
       }
     }
