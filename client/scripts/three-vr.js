@@ -153,6 +153,7 @@ class VRButton {
 
 				message.href = 'https://immersiveweb.dev/';
 				message.innerHTML = 'WEBXR NOT AVAILABLE';
+        button.style.display = 'none';
 
 			}
 
