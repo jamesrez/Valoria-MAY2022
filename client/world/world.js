@@ -260,3 +260,9 @@ function updateGridWave(){
     gridWaveCount += 0.1
   }
 }
+
+document.onclick = () => {
+  if(window.DeviceOrientationEvent.requestPermission){
+    window.DeviceOrientationEvent.requestPermission();
+  }
+}

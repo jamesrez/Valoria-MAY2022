@@ -21,7 +21,6 @@
     || navigator.userAgent.match(/Windows Phone/i)
   ){
     scope.enabled = true;
-    window.DeviceOrientationEvent.requestPermission();
   } else {
     this.enabled = false;
   }
@@ -89,7 +88,6 @@
       || navigator.userAgent.match(/Windows Phone/i)
     ){
       scope.enabled = true;
-      await window.DeviceOrientationEvent.requestPermission();
     } else {
       scope.disconnect();
     }
