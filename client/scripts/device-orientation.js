@@ -87,8 +87,8 @@
       || navigator.userAgent.match(/BlackBerry/i)
       || navigator.userAgent.match(/Windows Phone/i)
     ){
-      window.DeviceOrientationEvent.requestPermission();
       scope.enabled = true;
+      window.DeviceOrientationEvent.requestPermission();
     } else {
       scope.disconnect();
     }
