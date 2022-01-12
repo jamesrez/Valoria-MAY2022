@@ -72,7 +72,7 @@
 
 	}();
 
-	this.connect = function() {
+	this.connect = async function() {
 
 		onScreenOrientationChangeEvent(); // run once on load
 
@@ -88,7 +88,7 @@
       || navigator.userAgent.match(/Windows Phone/i)
     ){
       scope.enabled = true;
-      window.DeviceOrientationEvent.requestPermission();
+      await window.DeviceOrientationEvent.requestPermission();
     } else {
       scope.disconnect();
     }
