@@ -28,10 +28,11 @@ async function loadModel(url){
   })
 }
 
-function setModelAction(model, toAction) {
+function setModelAction(model, toAction, t=1) {
   if (toAction != model.activeAction) {
       model.lastAction = model.activeAction
       model.activeAction = toAction
+      toAction.setEffectiveTimeScale(t);
       //lastAction.stop()
       model.lastAction?.fadeOut(0.2)
       model.activeAction.reset()
@@ -41,7 +42,8 @@ function setModelAction(model, toAction) {
 }
 
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-const controls = new THREE.PointerLockControls(camera, renderer.domElement)
+const controls = new THREE.PointerLockControls(camera, renderer.domElement);
+const mobControls = new THREE.DeviceOrientationControls(camera);
 let avatar;
 let waluigi;
 let room;
@@ -57,6 +59,8 @@ let room;
 })();
 camera.position.z = -0.7;
 camera.position.y = 1.6;
+const listener = new THREE.AudioListener();
+camera.add(listener);
 
 renderer.setAnimationLoop(async () => {
 	renderer.render( scene, camera );
@@ -67,6 +71,7 @@ renderer.setAnimationLoop(async () => {
   })
   sendPeerUpdates();
   handleObjectsMoving();
+  updateGridWave();
 });
 
 window.addEventListener('resize', onWindowResize, false)
@@ -107,6 +112,7 @@ function handleControls(){
   if(Object.keys(activeKeys).length == 0){
     setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
   }
+  mobControls.update();
 }
 
 let frame = 0;
@@ -164,6 +170,8 @@ function handleObjectsMoving(){
 
 async function addPeerToScene(id){
   peerAvatars[id] = await loadModel('assets/waluigi.glb');
+  peerAvatars[id].sound = new THREE.PositionalAudio(listener);
+  peerAvatars[id].add(peerAvatars[id].sound);
   setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
   valoria.peers[id].on("Movement", (data) => {
     if(
@@ -175,12 +183,31 @@ async function addPeerToScene(id){
     } else {
       setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[2]));
     }
-
     objsMoving[id] = {
       entity: peerAvatars[id],
       data
     }
   })
+  valoria.peers[id].onStream = (stream) => {
+    console.log("GOT STREAM");
+    console.log(stream)
+    let audio = document.createElement('audio');
+    audio.autoplay = true;
+    try {
+      audio.srcObject = stream;
+    } catch(e) {
+      audio.src = URL.createObjectURL(stream);
+    }
+    world.appendChild(audio);
+    audio.play();
+    peerAvatars[id].sound.autoplay = true;
+    peerAvatars[id].sound.setMediaElementSource(audio);
+    // peerAvatars[id].sound.play();
+
+  };
+  if(valoria.peers[id].stream){
+    valoria.peers[id].onStream(valoria.peers[id].stream);
+  }
 }
 
 async function removePeerFromScene(id){
@@ -203,7 +230,7 @@ const skyBox = new THREE.Mesh( skySphere, skyMat );
 skyBox.rotation.y = 90 * Math.PI / 180;
 scene.add( skyBox );
 
-const gridPlane = new THREE.PlaneGeometry(100, 100);
+const gridPlane = new THREE.PlaneGeometry(100, 100, 200, 200);
 const gridTexture = TextureLoader.load("assets/grid.png");
 gridTexture.wrapS = THREE.RepeatWrapping;
 gridTexture.wrapT = THREE.RepeatWrapping;
@@ -211,8 +238,25 @@ gridTexture.repeat.set(200, 200)
 const gridMat = new THREE.MeshPhongMaterial({ color: 0xffffff, map: gridTexture, opacity: 0.77, transparent: true, })
 const grid = new THREE.Mesh(gridPlane, gridMat);
 grid.rotation.x = -90 * Math.PI / 180;
+grid.rotation.z = 2.4;
 grid.scale.x = 2;
 grid.scale.y = 2;
 grid.scale.z = 2;
+grid.position.y = -0.5;
 scene.add(grid)
-
+let gridWaveHeight = 0.03;
+const gridVertices = gridPlane.attributes.position;
+const myZs = []
+for (let i=0;i<gridVertices.count;i++) {
+  gridVertices.setZ(i, gridVertices.getZ(i) + Math.random() * gridWaveHeight - gridWaveHeight)
+  myZs.push(gridVertices.getZ(i))
+}
+let gridWaveCount = 0;
+function updateGridWave(){
+  for (let i=0;i<gridVertices.count;i++) {
+    const z = +gridVertices.getZ(i);
+    gridVertices.setZ(i, Math.sin( i + gridWaveCount * 0.0000033) * (myZs[i] - (myZs[i] * 0.00001)));
+    gridVertices.needsUpdate = true;
+    gridWaveCount += 0.1
+  }
+}

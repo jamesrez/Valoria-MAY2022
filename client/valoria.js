@@ -260,6 +260,7 @@ class Valoria {
       self.peers[id].on = (event, cb) => {
         self.peers[id].callbacks[event] = cb;
       }
+      self.peers[id].onStream = self.peers[id].onStream || (() => {});
       self.peers[id].makingOffer = false;
       self.peers[id].ignoreOffer = false;
       self.peers[id].isSRDAnswerPending = false;
@@ -310,6 +311,7 @@ class Valoria {
       };
       self.peers[id].ontrack = (e) => {
         self.peers[id].stream = e.streams[0];
+        self.peers[id].onStream(e.streams[0]);
       }
     }
   }
@@ -325,12 +327,14 @@ class Valoria {
       self.peers[id].on = (event, cb) => {
         self.peers[id].callbacks[event] = cb;
       }
+      self.peers[id].onStream = self.peers[id].onStream || (() => {});
       self.peers[id].makingOffer = false;
       self.peers[id].ignoreOffer = false;
       self.peers[id].isSRDAnswerPending = false;
       self.stream.getTracks().forEach(track => self.peers[id].addTrack(track, self.stream));
       self.peers[id].ontrack = (e) => {
         self.peers[id].stream = e.streams[0];
+        self.peers[id].onStream(e.streams[0]);
       }
       self.peers[id].onicecandidate = ({candidate}) =>  {
         if(!candidate) return;
