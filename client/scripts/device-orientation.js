@@ -21,7 +21,7 @@
     || navigator.userAgent.match(/Windows Phone/i)
   ){
     scope.enabled = true;
-    await window.DeviceOrientationEvent.requestPermission();
+    window.DeviceOrientationEvent.requestPermission();
   } else {
     this.enabled = false;
   }
