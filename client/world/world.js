@@ -266,3 +266,4 @@ document.onclick = () => {
     window.DeviceOrientationEvent.requestPermission();
   }
 }
+document.onclick()
