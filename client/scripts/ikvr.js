@@ -1,6 +1,6 @@
 class IKVR {
   
-  constructor(avatar, leftTarget){
+  constructor(avatar, leftTarget, rightTarget){
     this.back = [];
     this.leftArm = [];
     this.rightArm = [];
@@ -9,20 +9,27 @@ class IKVR {
     this.back.push(avatar.getObjectByName("mixamorigSpine1"));
     this.back.push(avatar.getObjectByName("mixamorigSpine2"));
     this.back.push(avatar.getObjectByName("mixamorigLeftShoulder"));
+    this.back.push(avatar.getObjectByName("mixamorigRightShoulder"));
     this.leftArm.push(avatar.getObjectByName("mixamorigLeftArm"));
     this.leftArm.push(avatar.getObjectByName("mixamorigLeftForeArm"));
-
     this.leftArm[0].rotation.x += 1.35;
     this.leftArm[1].rotation.x += 0.1;
     this.leftArm[1].rotation.z += 1.35;
-
-
     leftTarget.position.x = -0.24;
     leftTarget.position.y = 1.06;
     leftTarget.position.z = -0.64;
-    // this.leftArm.push(test.getObjectByName("mixamorigLeftHand"));
-
     this.leftTarget = leftTarget; 
+
+    this.rightArm.push(avatar.getObjectByName("mixamorigRightArm"));
+    this.rightArm.push(avatar.getObjectByName("mixamorigRightForeArm"));
+    this.rightArm[0].rotation.x += 1.35;
+    this.rightArm[1].rotation.x += 0.1;
+    this.rightArm[1].rotation.z -= 1.35;
+    rightTarget.position.x = 0.24;
+    rightTarget.position.y = 1.06;
+    rightTarget.position.z = -0.64;
+    this.rightTarget = rightTarget; 
+
     this.setup();
   }
 
@@ -47,6 +54,18 @@ class IKVR {
       y: self.leftTarget.position.y,
       z: self.leftTarget.position.z
     }
+    for(let i=self.rightArm.length-1;i>=0;i--){
+      self.rightArm[i].oRotation = {
+        x: self.rightArm[i].rotation.x,
+        y:  self.rightArm[i].rotation.y,
+        z: self.rightArm[i].rotation.z
+      }
+    }
+    self.rightTarget.oPosition = {
+      x: self.rightTarget.position.x,
+      y: self.rightTarget.position.y,
+      z: self.rightTarget.position.z
+    }
   }
 
   update(){
@@ -61,17 +80,18 @@ class IKVR {
       self.leftArm[i].rotation.y = self.leftArm[i].oRotation.y
       self.leftArm[i].rotation.z = self.leftArm[i].oRotation.z
     }
-
-
-    // self.leftArm[0].rotation.x = ((self.leftTarget.position.y - self.leftTarget.oPosition.y) * -1.2) - 0.2;
     self.leftArm[0].rotation.z = (self.leftTarget.position.z - self.leftTarget.oPosition.z) * -2.5;
     self.leftArm[1].rotation.z = ((self.leftTarget.position.z - self.leftTarget.oPosition.z) * 3) + 1.4 + ((self.leftTarget.position.y - self.leftTarget.oPosition.y) * 1.5);
     self.leftArm[1].rotation.y = ((self.leftTarget.position.x - self.leftTarget.oPosition.x) * 1.5);
 
-    // self.leftArm[0].rotation.
-    // self.rotation
-    // console.log(self.leftTarget.position);
-
+    for(let i=self.rightArm.length-1;i>=0;i--){
+      self.rightArm[i].rotation.x = self.rightArm[i].oRotation.x;
+      self.rightArm[i].rotation.y = self.rightArm[i].oRotation.y
+      self.rightArm[i].rotation.z = self.rightArm[i].oRotation.z
+    }
+    self.rightArm[0].rotation.z = (self.rightTarget.position.z - self.rightTarget.oPosition.z) * 2.5;
+    self.rightArm[1].rotation.z = ((self.rightTarget.position.z - self.rightTarget.oPosition.z) * -3) - 1.4 + ((self.rightTarget.position.y - self.rightTarget.oPosition.y) * -1.5);
+    self.rightArm[1].rotation.y = ((self.rightTarget.position.x - self.rightTarget.oPosition.x) * -1.5);
 
   }
 

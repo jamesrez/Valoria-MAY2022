@@ -4,6 +4,7 @@ const GLTFLoader = new THREE.GLTFLoader();
 const TextureLoader = new THREE.TextureLoader();
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.xr.enabled = true;
+renderer.xr.setFramebufferScaleFactor(2.0);
 const world = document.querySelector('.world');
 world.appendChild( renderer.domElement );
 world.appendChild( VRButton.createButton( renderer ) );
@@ -46,11 +47,16 @@ const controls = new THREE.PointerLockControls(camera, renderer.domElement);
 const mobControls = new THREE.DeviceOrientationControls(camera);
 
 //INVERSE KINEMATICS FOR ARMS
-const movingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-const transformControls = new THREE.TransformControls(camera, world);
-transformControls.attach(movingTarget);
-scene.add(movingTarget)
-scene.add(transformControls)
+const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+const lTransformControls = new THREE.TransformControls(camera, world);
+lTransformControls.attach(lMovingTarget);
+scene.add(lMovingTarget)
+scene.add(lTransformControls)
+const rMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+const rTransformControls = new THREE.TransformControls(camera, world);
+rTransformControls.attach(rMovingTarget);
+scene.add(rMovingTarget)
+scene.add(rTransformControls)
 
 let avatar;
 let waluigi;
@@ -68,8 +74,8 @@ let rightController;
   //   }
   // })
   avatar.attach(camera);
-  leftController = renderer.xr.getController( 0 );
-  rightController = renderer.xr.getController( 1 );
+  leftController = renderer.xr.getController( 1 );
+  rightController = renderer.xr.getController( 0 );
   const lcTransform = new THREE.TransformControls(camera, world);
   lcTransform.attach(leftController);
   scene.add(lcTransform)
@@ -77,10 +83,10 @@ let rightController;
 
   avatar.attach(leftController);
   avatar.attach(rightController);
-  avatarIK = new IKVR(avatar, rightController);
-  // test = await loadModel('assets/waluigi.glb');
-  // testIK = new IKVR(test, movingTarget);
-  // setModelAction(test, test.mixer.clipAction(test.animations[0]));
+  avatarIK = new IKVR(avatar, leftController, rightController);
+  test = await loadModel('assets/waluigi.glb');
+  testIK = new IKVR(test, lMovingTarget, rMovingTarget);
+  setModelAction(test, test.mixer.clipAction(test.animations[0]));
 })();
 camera.position.z = -0.7;
 camera.position.y = 1.6;
@@ -97,6 +103,7 @@ renderer.setAnimationLoop(async () => {
   sendPeerUpdates();
   handleObjectsMoving();
   updateGridWave();
+  handleXRControls();
   if(testIK){
     testIK.update();
   }
@@ -145,6 +152,61 @@ function handleControls(){
   }
   mobControls.update();
 }
+
+let session;
+function handleXRControls(){
+  session = renderer.xr.getSession();
+  if(!session) return;
+  for(let source of session.inputSources){
+    if(!source || !source.gamepad || !source.handedness) continue;
+    let axes = source.gamepad.axes.slice(0);
+    axes.forEach((value, i) => {
+      //handlers for thumbsticks
+      //if thumbstick axis has moved beyond the minimum threshold from center, windows mixed reality seems to wander up to about .17 with no input
+      if (Math.abs(value) > 0.2) {
+          //set the speedFactor per axis, with acceleration when holding above threshold, up to a max speed
+          if (i == 2) {
+              //left and right axis on thumbsticks
+              if (source.handedness == "left") {
+                  // (data.axes[2] > 0) ? console.log('left on left thumbstick') : console.log('right on left thumbstick')
+                  if(axes[i] > 0){
+                    controls.moveRight(moveSpeed * -1);
+                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                  } else if(axes[i] < 0){
+                    controls.moveRight(moveSpeed);
+                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                  }
+              } else {
+                  // (data.axes[2] > 0) ? console.log('left on right thumbstick') : console.log('right on right thumbstick')
+                  // dolly.rotateY(-THREE.Math.degToRad(data.axes[2]));
+              }
+          }
+          if (i == 3) {
+              //up and down axis on thumbsticks
+              if (source.handedness == "left") {
+                  // (data.axes[3] > 0) ? console.log('up on left thumbstick') : console.log('down on left thumbstick')
+                  if(axes[i] > 0){
+                    controls.moveForward(moveSpeed);
+                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                  } else if(axes[i] < 0){
+                    controls.moveForward(moveSpeed * -1);
+                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                  }
+              } else {
+                  // (data.axes[3] > 0) ? console.log('up on right thumbstick') : console.log('down on right thumbstick')
+            
+              }
+          }
+      } else {
+          //axis below threshold - reset the speedFactor if it is greater than zero  or 0.025 but below our threshold
+          setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
+      }
+    })
+  }
+}
+
+
+
 
 let frame = 0;
 async function sendPeerUpdates(){
