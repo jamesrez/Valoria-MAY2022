@@ -89,7 +89,7 @@ class IKVR {
       self.rightArm[i].rotation.y = self.rightArm[i].oRotation.y
       self.rightArm[i].rotation.z = self.rightArm[i].oRotation.z
     }
-    self.rightArm[0].rotation.z = (self.rightTarget.position.z - self.rightTarget.oPosition.z) * 2.5;
+    self.rightArm[0].rotation.z = (self.rightTarget.position.z - self.rightTarget.oPosition.z) * -2.5;
     self.rightArm[1].rotation.z = ((self.rightTarget.position.z - self.rightTarget.oPosition.z) * -3) - 1.4 + ((self.rightTarget.position.y - self.rightTarget.oPosition.y) * -1.5);
     self.rightArm[1].rotation.y = ((self.rightTarget.position.x - self.rightTarget.oPosition.x) * -1.5);
 

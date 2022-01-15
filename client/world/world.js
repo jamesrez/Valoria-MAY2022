@@ -47,16 +47,16 @@ const controls = new THREE.PointerLockControls(camera, renderer.domElement);
 const mobControls = new THREE.DeviceOrientationControls(camera);
 
 //INVERSE KINEMATICS FOR ARMS
-const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-const lTransformControls = new THREE.TransformControls(camera, world);
-lTransformControls.attach(lMovingTarget);
-scene.add(lMovingTarget)
-scene.add(lTransformControls)
-const rMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-const rTransformControls = new THREE.TransformControls(camera, world);
-rTransformControls.attach(rMovingTarget);
-scene.add(rMovingTarget)
-scene.add(rTransformControls)
+// const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+// const lTransformControls = new THREE.TransformControls(camera, world);
+// lTransformControls.attach(lMovingTarget);
+// scene.add(lMovingTarget)
+// scene.add(lTransformControls)
+// const rMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+// const rTransformControls = new THREE.TransformControls(camera, world);
+// rTransformControls.attach(rMovingTarget);
+// scene.add(rMovingTarget)
+// scene.add(rTransformControls)
 
 let avatar;
 let waluigi;
@@ -76,9 +76,9 @@ let rightController;
   avatar.attach(camera);
   leftController = renderer.xr.getController( 1 );
   rightController = renderer.xr.getController( 0 );
-  const lcTransform = new THREE.TransformControls(camera, world);
-  lcTransform.attach(leftController);
-  scene.add(lcTransform)
+  // const lcTransform = new THREE.TransformControls(camera, world);
+  // lcTransform.attach(leftController);
+  // scene.add(lcTransform)
   setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
 
   avatar.attach(leftController);
@@ -169,10 +169,10 @@ function handleXRControls(){
               //left and right axis on thumbsticks
               if (source.handedness == "left") {
                   // (data.axes[2] > 0) ? console.log('left on left thumbstick') : console.log('right on left thumbstick')
-                  if(axes[i] > 0){
+                  if(axes[i] < 0){
                     controls.moveRight(moveSpeed * -1);
                     setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
-                  } else if(axes[i] < 0){
+                  } else if(axes[i] > 0){
                     controls.moveRight(moveSpeed);
                     setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                   }
@@ -185,10 +185,10 @@ function handleXRControls(){
               //up and down axis on thumbsticks
               if (source.handedness == "left") {
                   // (data.axes[3] > 0) ? console.log('up on left thumbstick') : console.log('down on left thumbstick')
-                  if(axes[i] > 0){
+                  if(axes[i] < 0){
                     controls.moveForward(moveSpeed);
                     setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
-                  } else if(axes[i] < 0){
+                  } else if(axes[i] > 0){
                     controls.moveForward(moveSpeed * -1);
                     setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                   }
