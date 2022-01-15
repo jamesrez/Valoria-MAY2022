@@ -50,12 +50,12 @@ const mobControls = new THREE.DeviceOrientationControls(camera);
 const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 // const lTransformControls = new THREE.TransformControls(camera, world);
 // lTransformControls.attach(lMovingTarget);
-scene.add(lMovingTarget)
+// scene.add(lMovingTarget)
 // scene.add(lTransformControls)
-const rMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+// const rMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 // const rTransformControls = new THREE.TransformControls(camera, world);
 // rTransformControls.attach(rMovingTarget);
-scene.add(rMovingTarget)
+// scene.add(rMovingTarget)
 // scene.add(rTransformControls)
 
 let avatar;
@@ -84,9 +84,9 @@ let rightController;
   avatar.attach(leftController);
   avatar.attach(rightController);
   avatarIK = new IKVR(avatar, leftController, rightController);
-  test = await loadModel('assets/waluigi.glb');
-  testIK = new IKVR(test, lMovingTarget, rMovingTarget);
-  setModelAction(test, test.mixer.clipAction(test.animations[2]));
+  // test = await loadModel('assets/waluigi.glb');
+  // testIK = new IKVR(test, lMovingTarget, rMovingTarget);
+  // setModelAction(test, test.mixer.clipAction(test.animations[2]));
 })();
 camera.position.z = -0.7;
 camera.position.y = 1.6;
