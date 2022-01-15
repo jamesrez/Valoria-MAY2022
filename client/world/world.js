@@ -29,11 +29,11 @@ async function loadModel(url){
   })
 }
 
-function setModelAction(model, toAction, t=1) {
+function setModelAction(model, toAction) {
   if (toAction != model.activeAction) {
       model.lastAction = model.activeAction
       model.activeAction = toAction
-      toAction.setEffectiveTimeScale(t);
+      // toAction.setEffectiveTimeScale(t);
       //lastAction.stop()
       model.lastAction?.fadeOut(0.2)
       model.activeAction.reset()
@@ -185,9 +185,9 @@ function handleXRControls(){
                   }
               } else {
                 if(axes[i] < 0){
-                  avatar.rotation.y -= 0.01;
+                  avatar.rotation.y += 0.03;
                 } else if (axes[i] > 0){
-                  avatar.rotation.y += 0.01;
+                  avatar.rotation.y -= 0.03;
                 }
                   // (data.axes[2] > 0) ? console.log('left on right thumbstick') : console.log('right on right thumbstick')
                   // dolly.rotateY(-THREE.Math.degToRad(data.axes[2]));
