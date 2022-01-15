@@ -62,11 +62,11 @@ let leftController;
 let rightController;
 (async () => {
   avatar = await loadModel('assets/waluigi.glb');
-  avatar.traverse((node) => {
-    if(node.isMesh){
-      node.frustumCulled = true;
-    }
-  })
+  // avatar.traverse((node) => {
+  //   if(node.isMesh){
+  //     node.frustumCulled = true;
+  //   }
+  // })
   avatar.attach(camera);
   leftController = renderer.xr.getController( 0 );
   rightController = renderer.xr.getController( 1 );
@@ -77,10 +77,10 @@ let rightController;
 
   avatar.attach(leftController);
   avatar.attach(rightController);
-  avatarIK = new IKVR(avatar, leftController);
-  test = await loadModel('assets/waluigi.glb');
-  testIK = new IKVR(test, movingTarget);
-  setModelAction(test, test.mixer.clipAction(test.animations[0]));
+  avatarIK = new IKVR(avatar, rightController);
+  // test = await loadModel('assets/waluigi.glb');
+  // testIK = new IKVR(test, movingTarget);
+  // setModelAction(test, test.mixer.clipAction(test.animations[0]));
 })();
 camera.position.z = -0.7;
 camera.position.y = 1.6;
@@ -99,6 +99,9 @@ renderer.setAnimationLoop(async () => {
   updateGridWave();
   if(testIK){
     testIK.update();
+  }
+  if(avatarIK){
+    avatarIK.update();
   }
 });
 
