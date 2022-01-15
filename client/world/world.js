@@ -134,22 +134,22 @@ function handleControls(){
   let direction;
   if(activeKeys["w"]){
     controls.moveForward(moveSpeed);
-    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
   }
   if(activeKeys["a"]){
     controls.moveRight(moveSpeed * -1);
-    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
   }
   if(activeKeys["s"]){
     controls.moveForward(moveSpeed * -1);
-    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
   }
   if(activeKeys["d"]){
     controls.moveRight(moveSpeed);
-    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
   }
   if(Object.keys(activeKeys).length == 0){
-    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
+    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
   }
   mobControls.update();
 }
@@ -206,7 +206,7 @@ function handleXRControls(){
           }
       } else {
           //axis below threshold - reset the speedFactor if it is greater than zero  or 0.025 but below our threshold
-          setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
+          // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
       }
     })
   }
