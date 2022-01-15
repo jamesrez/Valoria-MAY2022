@@ -96,6 +96,7 @@ camera.add(listener);
 renderer.setAnimationLoop(async () => {
 	renderer.render( scene, camera );
   handleControls();
+  handleXRControls();
   let delta = clock.getDelta();
   scene.traverse((node) => {
     if(node.mixer) node.mixer.update(delta);
@@ -103,7 +104,6 @@ renderer.setAnimationLoop(async () => {
   sendPeerUpdates();
   handleObjectsMoving();
   updateGridWave();
-  handleXRControls();
   if(testIK){
     testIK.update();
   }
