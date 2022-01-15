@@ -154,6 +154,7 @@ function handleControls(){
 }
 
 let session;
+let vrAction = "still";
 function handleXRControls(){
   session = renderer.xr.getSession();
   if(!session) return;
@@ -171,10 +172,16 @@ function handleXRControls(){
                   // (data.axes[2] > 0) ? console.log('left on left thumbstick') : console.log('right on left thumbstick')
                   if(axes[i] < 0){
                     controls.moveRight(moveSpeed * -1);
-                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    if(vrAction !== "left"){
+                      vrAction = "left"
+                      setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    }
                   } else if(axes[i] > 0){
                     controls.moveRight(moveSpeed);
-                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    if(vrAction !== "right"){
+                      vrAction = "right"
+                      setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    }
                   }
               } else {
                   // (data.axes[2] > 0) ? console.log('left on right thumbstick') : console.log('right on right thumbstick')
@@ -187,10 +194,16 @@ function handleXRControls(){
                   // (data.axes[3] > 0) ? console.log('up on left thumbstick') : console.log('down on left thumbstick')
                   if(axes[i] < 0){
                     controls.moveForward(moveSpeed);
-                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    if(vrAction !== "forward"){
+                      vrAction = "forward"
+                      setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    }
                   } else if(axes[i] > 0){
                     controls.moveForward(moveSpeed * -1);
-                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    if(vrAction !== "backward"){
+                      vrAction = "backward"
+                      setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    }
                   }
               } else {
                   // (data.axes[3] > 0) ? console.log('up on right thumbstick') : console.log('down on right thumbstick')
@@ -199,7 +212,10 @@ function handleXRControls(){
           }
       } else {
           //axis below threshold - reset the speedFactor if it is greater than zero  or 0.025 but below our threshold
-          setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
+          if(vrAction !== "still"){
+            vrAction = "still"
+            setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
+          }
       }
     })
   }
