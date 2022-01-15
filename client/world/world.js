@@ -37,7 +37,7 @@ function setModelAction(model, toAction) {
       // model.lastAction.stop()
       model.lastAction?.fadeOut(0.2)
       model.activeAction.reset()
-      // model.activeAction.fadeIn(0.2)
+      model.activeAction.fadeIn(0.2)
       model.activeAction.play()
   }
 }
@@ -47,15 +47,15 @@ const controls = new THREE.PointerLockControls(camera, renderer.domElement);
 const mobControls = new THREE.DeviceOrientationControls(camera);
 
 //INVERSE KINEMATICS FOR ARMS
-// const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 // const lTransformControls = new THREE.TransformControls(camera, world);
 // lTransformControls.attach(lMovingTarget);
-// scene.add(lMovingTarget)
+scene.add(lMovingTarget)
 // scene.add(lTransformControls)
-// const rMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+const rMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 // const rTransformControls = new THREE.TransformControls(camera, world);
 // rTransformControls.attach(rMovingTarget);
-// scene.add(rMovingTarget)
+scene.add(rMovingTarget)
 // scene.add(rTransformControls)
 
 let avatar;
@@ -84,9 +84,9 @@ let rightController;
   avatar.attach(leftController);
   avatar.attach(rightController);
   avatarIK = new IKVR(avatar, leftController, rightController);
-  // test = await loadModel('assets/waluigi.glb');
-  // testIK = new IKVR(test, lMovingTarget, rMovingTarget);
-  // setModelAction(test, test.mixer.clipAction(test.animations[0]));
+  test = await loadModel('assets/waluigi.glb');
+  testIK = new IKVR(test, lMovingTarget, rMovingTarget);
+  setModelAction(test, test.mixer.clipAction(test.animations[2]));
 })();
 camera.position.z = -0.7;
 camera.position.y = 1.6;
