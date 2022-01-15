@@ -47,7 +47,7 @@ const controls = new THREE.PointerLockControls(camera, renderer.domElement);
 const mobControls = new THREE.DeviceOrientationControls(camera);
 
 //INVERSE KINEMATICS FOR ARMS
-const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+// const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 // const lTransformControls = new THREE.TransformControls(camera, world);
 // lTransformControls.attach(lMovingTarget);
 // scene.add(lMovingTarget)
@@ -101,6 +101,7 @@ renderer.setAnimationLoop(async () => {
   scene.traverse((node) => {
     if(node.mixer) node.mixer.update(delta);
   })
+  updateAvatarAnimation();
   sendPeerUpdates();
   handleObjectsMoving();
   updateGridWave();
@@ -172,10 +173,10 @@ function handleXRControls(){
                   // (data.axes[2] > 0) ? console.log('left on left thumbstick') : console.log('right on left thumbstick')
                   if(axes[i] < 0){
                     controls.moveRight(vrSpeed * -1);
-                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                   } else if(axes[i] > 0){
                     controls.moveRight(vrSpeed);
-                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                   }
               } else {
                 if(axes[i] < 0){
@@ -193,10 +194,10 @@ function handleXRControls(){
                   // (data.axes[3] > 0) ? console.log('up on left thumbstick') : console.log('down on left thumbstick')
                   if(axes[i] < 0){
                     controls.moveForward(vrSpeed);
-                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                   } else if(axes[i] > 0){
                     controls.moveForward(vrSpeed * -1);
-                    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+                    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                   }
               } else {
                   // (data.axes[3] > 0) ? console.log('up on right thumbstick') : console.log('down on right thumbstick')
@@ -211,7 +212,25 @@ function handleXRControls(){
   }
 }
 
-
+let oAvatarPos = {
+  x: null,
+  z: null
+}
+function updateAvatarAnimation(){
+  if(!avatar.position) return;
+  if(!oAvatarPos.x) oAvatarPos.x = avatar.position.x;
+  if(!oAvatarPos.z) oAvatarPos.z = avatar.position.z;
+  if(
+    oAvatarPos.x !== avatar.position.x || 
+    oAvatarPos.z !== avatar.position.z
+  ) {
+    oAvatarPos.x = avatar.position.x;
+    oAvatarPos.z = avatar.position.z;
+    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+  } else {
+    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
+  }
+}
 
 
 let frame = 0;
