@@ -44,9 +44,22 @@ function setModelAction(model, toAction, t=1) {
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 const controls = new THREE.PointerLockControls(camera, renderer.domElement);
 const mobControls = new THREE.DeviceOrientationControls(camera);
+
+//INVERSE KINEMATICS FOR ARMS
+const movingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+const transformControls = new THREE.TransformControls(camera, world);
+transformControls.attach(movingTarget);
+scene.add(movingTarget)
+scene.add(transformControls)
+
 let avatar;
 let waluigi;
 let room;
+let test;
+let testIK;
+let avatarIK;
+let leftController;
+let rightController;
 (async () => {
   avatar = await loadModel('assets/waluigi.glb');
   avatar.traverse((node) => {
@@ -54,8 +67,20 @@ let room;
       node.frustumCulled = true;
     }
   })
-  setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
   avatar.attach(camera);
+  leftController = renderer.xr.getController( 0 );
+  rightController = renderer.xr.getController( 1 );
+  const lcTransform = new THREE.TransformControls(camera, world);
+  lcTransform.attach(leftController);
+  scene.add(lcTransform)
+  setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
+
+  avatar.attach(leftController);
+  avatar.attach(rightController);
+  avatarIK = new IKVR(avatar, leftController);
+  test = await loadModel('assets/waluigi.glb');
+  testIK = new IKVR(test, movingTarget);
+  setModelAction(test, test.mixer.clipAction(test.animations[0]));
 })();
 camera.position.z = -0.7;
 camera.position.y = 1.6;
@@ -72,6 +97,9 @@ renderer.setAnimationLoop(async () => {
   sendPeerUpdates();
   handleObjectsMoving();
   updateGridWave();
+  if(testIK){
+    testIK.update();
+  }
 });
 
 window.addEventListener('resize', onWindowResize, false)
@@ -260,4 +288,8 @@ function updateGridWave(){
     gridWaveCount += 0.1
   }
 }
+
+
+
+
 
