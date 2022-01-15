@@ -155,6 +155,7 @@ function handleControls(){
 
 let session;
 let vrAction = "still";
+let vrSpeed = 0.05;
 function handleXRControls(){
   session = renderer.xr.getSession();
   if(!session) return;
@@ -171,13 +172,13 @@ function handleXRControls(){
               if (source.handedness == "left") {
                   // (data.axes[2] > 0) ? console.log('left on left thumbstick') : console.log('right on left thumbstick')
                   if(axes[i] < 0){
-                    controls.moveRight(moveSpeed * -1);
+                    controls.moveRight(vrSpeed * -1);
                     if(vrAction !== "left"){
                       vrAction = "left"
                       setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                     }
                   } else if(axes[i] > 0){
-                    controls.moveRight(moveSpeed);
+                    controls.moveRight(vrSpeed);
                     if(vrAction !== "right"){
                       vrAction = "right"
                       setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
@@ -198,13 +199,13 @@ function handleXRControls(){
               if (source.handedness == "left") {
                   // (data.axes[3] > 0) ? console.log('up on left thumbstick') : console.log('down on left thumbstick')
                   if(axes[i] < 0){
-                    controls.moveForward(moveSpeed);
+                    controls.moveForward(vrSpeed);
                     if(vrAction !== "forward"){
                       vrAction = "forward"
                       setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                     }
                   } else if(axes[i] > 0){
-                    controls.moveForward(moveSpeed * -1);
+                    controls.moveForward(vrSpeed * -1);
                     if(vrAction !== "backward"){
                       vrAction = "backward"
                       setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
