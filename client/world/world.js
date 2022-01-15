@@ -34,10 +34,10 @@ function setModelAction(model, toAction) {
       model.lastAction = model.activeAction
       model.activeAction = toAction
       // toAction.setEffectiveTimeScale(t);
-      //lastAction.stop()
+      // model.lastAction.stop()
       model.lastAction?.fadeOut(0.2)
       model.activeAction.reset()
-      model.activeAction.fadeIn(0.2)
+      // model.activeAction.fadeIn(0.2)
       model.activeAction.play()
   }
 }
