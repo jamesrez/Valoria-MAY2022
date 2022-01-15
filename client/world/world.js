@@ -184,6 +184,11 @@ function handleXRControls(){
                     }
                   }
               } else {
+                if(axes[i] < 0){
+                  avatar.rotation.y -= 0.01;
+                } else if (axes[i] > 0){
+                  avatar.rotation.y += 0.01;
+                }
                   // (data.axes[2] > 0) ? console.log('left on right thumbstick') : console.log('right on right thumbstick')
                   // dolly.rotateY(-THREE.Math.degToRad(data.axes[2]));
               }
