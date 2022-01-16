@@ -74,8 +74,14 @@ let rightController;
   //   }
   // })
   avatar.attach(camera);
-  leftController = renderer.xr.getController( 1 );
-  rightController = renderer.xr.getController( 0 );
+  if(renderer.xr.getController(0).position.x <= renderer.xr.getController(1).position.x){
+    leftController = renderer.xr.getController( 0 );
+    rightController = renderer.xr.getController( 1 );
+  } else {
+    leftController = renderer.xr.getController( 1 );
+    rightController = renderer.xr.getController( 0 );
+  }
+ 
   // const lcTransform = new THREE.TransformControls(camera, world);
   // lcTransform.attach(leftController);
   // scene.add(lcTransform)
