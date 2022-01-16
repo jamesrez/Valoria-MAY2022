@@ -58,15 +58,21 @@
 
 		var q1 = new THREE.Quaternion( - Math.sqrt( 0.5 ), 0, 0, Math.sqrt( 0.5 ) ); // - PI/2 around the x-axis
 
-		return function( quaternion, alpha, beta, gamma, orient ) {
+		return function( obj, alpha, beta, gamma, orient ) {
 
 			euler.set( beta, alpha, - gamma, 'YXZ' ); // 'ZXY' for the device, but 'YXZ' for us
 
-			quaternion.setFromEuler( euler ); // orient the device
+      euler.y = obj.rotation.y;
 
-			quaternion.multiply( q1 ); // camera looks out the back of the device, not the top
+			obj.quaternion.setFromEuler( euler ); // orient the device
 
-			quaternion.multiply( q0.setFromAxisAngle( zee, - orient ) ); // adjust for screen orientation
+			obj.quaternion.multiply( q1 ); // camera looks out the back of the device, not the top
+
+			obj.quaternion.multiply( q0.setFromAxisAngle( zee, - orient ) ); // adjust for screen orientation
+
+      let parentEuler = new THREE.Euler().setFromQuaternion(obj.parent.quaternion);
+      parentEuler.y = alpha;
+      obj.parent.quaternion.setFromEuler(parentEuler);
 
 		};
 
@@ -112,7 +118,7 @@
 		var gamma = scope.deviceOrientation.gamma ? THREE.Math.degToRad( scope.deviceOrientation.gamma ) + this.gammaOffsetAngle : 0; // Y''
 		var orient = scope.screenOrientation ? THREE.Math.degToRad( scope.screenOrientation ) : 0; // O
 
-		setObjectQuaternion( scope.object.quaternion, alpha, beta, gamma, orient );
+		setObjectQuaternion( scope.object, alpha, beta, gamma, orient );
 		this.alpha = alpha;
 
 	};
