@@ -65,14 +65,13 @@
 			euler.set( beta, alpha, - gamma, 'YXZ' ); // 'ZXY' for the device, but 'YXZ' for us
 
       camEuler.x = beta;
-      camEuler.y = alpha;
       camEuler.z = - gamma;
 
 			obj.quaternion.setFromEuler( camEuler ); // orient the device
 
 			obj.quaternion.multiply( q1 ); // camera looks out the back of the device, not the top
 
-			obj.quaternion.multiply( q0.setFromAxisAngle( zee, - orient ) ); // adjust for screen orientation
+			// obj.quaternion.multiply( q0.setFromAxisAngle( zee, - orient ) ); // adjust for screen orientation
 
       let parentEuler = new THREE.Euler().setFromQuaternion(obj.parent.quaternion);
       parentEuler.y = alpha;
