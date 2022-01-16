@@ -352,7 +352,7 @@ directionalLight.position.y = 10;
 scene.add( directionalLight );
 
 const bulb = new THREE.PointLight( 0xE735D5, 5, 3 );
-bulb.position.set( 0, 2, 0 );
+bulb.position.set( 0, 2, -2.5 );
 scene.add(bulb);
 
 const skySphere = new THREE.SphereGeometry(500, 300, 300);
