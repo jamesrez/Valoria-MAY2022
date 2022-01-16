@@ -86,9 +86,15 @@ let rightController;
   avatarIK = new IKVR(avatar, leftController, rightController);
   // test = await loadModel('assets/waluigi.glb');
   // testIK = new IKVR(test, lMovingTarget, rMovingTarget);
-  // setModelAction(test, test.mixer.clipAction(test.animations[2]));
+  // setModelAction(test, test.mixer.clipAction(test.animations[0]));
+  room = await loadModel('assets/room-fix.glb')
+  room.scale.x = 2
+  room.scale.y = 2
+  room.scale.z = 2
+  room.position.z = -2.5;
+
 })();
-camera.position.z = -0.7;
+camera.position.z = -0.8;
 camera.position.y = 1.6;
 const listener = new THREE.AudioListener();
 camera.add(listener);
@@ -217,7 +223,7 @@ let oAvatarPos = {
   z: null
 }
 function updateAvatarAnimation(){
-  if(!avatar.position) return;
+  if(!avatar) return;
   if(!oAvatarPos.x) oAvatarPos.x = avatar.position.x;
   if(!oAvatarPos.z) oAvatarPos.z = avatar.position.z;
   if(
@@ -337,9 +343,17 @@ world.onmousedown = () => {
 }
 
 const light = new THREE.AmbientLight();
-light.intensity = 3;
+light.intensity = 1;
 light.position.y = 5;
 scene.add(light)
+
+const directionalLight = new THREE.DirectionalLight( 0xffffff, 2);
+directionalLight.position.y = 10;
+scene.add( directionalLight );
+
+const bulb = new THREE.PointLight( 0xE735D5, 5, 3 );
+bulb.position.set( 0, 2, 0 );
+scene.add(bulb);
 
 const skySphere = new THREE.SphereGeometry(500, 300, 300);
 const skyTexture = TextureLoader.load("assets/valoriacity.png");

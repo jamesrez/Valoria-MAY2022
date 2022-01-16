@@ -30,6 +30,11 @@ class IKVR {
     rightTarget.position.z = -0.64;
     this.rightTarget = rightTarget; 
 
+    this.head = avatar.getObjectByName("mixamorigHead");
+    this.head.scale.x = 0.001;
+    this.head.scale.y = 0.001;
+    this.head.scale.z = 0.001;
+
     this.setup();
   }
 
@@ -70,6 +75,9 @@ class IKVR {
 
   update(){
     const self = this;
+    self.head.scale.x = 0.001;
+    self.head.scale.y = 0.001;
+    self.head.scale.z = 0.001;
     for(let i=self.back.length-1;i>=0;i--){
       self.back[i].rotation.x = self.back[i].oRotation.x;
       self.back[i].rotation.y = self.back[i].oRotation.y
