@@ -4,10 +4,15 @@ const GLTFLoader = new THREE.GLTFLoader();
 const TextureLoader = new THREE.TextureLoader();
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.xr.enabled = true;
-renderer.xr.setFramebufferScaleFactor(2.0);
+// renderer.xr.setFramebufferScaleFactor(2.0);
 const world = document.querySelector('.world');
 world.appendChild( renderer.domElement );
 world.appendChild( VRButton.createButton( renderer ) );
+
+let video = document.createElement('video');
+video.setAttribute('autoplay', '');
+video.setAttribute('muted', '');
+video.setAttribute('playsinline', '');
 
 const peerAvatars = {};
 
