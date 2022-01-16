@@ -32,7 +32,11 @@ class Valoria {
   }
 
   startMediaStream = async(opts) => {
-    this.stream = await navigator.mediaDevices.getUserMedia(opts);
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia(opts);
+    } catch (e){
+      console.log(e)
+    }
   }
 
   loadAllGroups = async () => {
