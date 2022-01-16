@@ -479,6 +479,7 @@ class ValoriaUser {
       // const group =  self.valoria.groups[jumpConsistentHash(self.id, self.valoria.groups.length)];
       // const url = group[group.length * Math.random() << 0];
       // console.log("SAVE USER TO " + url);
+      console.log("Lol")
       res(self);
     })
   }
