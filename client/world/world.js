@@ -170,7 +170,9 @@ function handleControls(){
   if(Object.keys(activeKeys).length == 0){
     // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
   }
-  mobControls.update();
+  if(mobControls && mobControls.update){
+    mobControls.update();
+  }
 }
 
 let session;
