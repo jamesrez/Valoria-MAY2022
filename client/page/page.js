@@ -267,4 +267,5 @@ function deviceOrientate(){
     window.DeviceOrientationEvent.requestPermission();
   }
   document.querySelector('.mobileControls').style.display = "none";    
+  valoria.startMediaStream({audio: true, video: false});
 }

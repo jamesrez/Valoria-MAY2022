@@ -34,7 +34,11 @@ class Valoria {
   startMediaStream = async(opts) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      self.stream = await navigator.mediaDevices.getUserMedia(opts || {video: false, audio: true});
+      try {
+        self.stream = await navigator.mediaDevices.getUserMedia(opts || {video: false, audio: true});
+      } catch(e){
+        
+      }
       res();
     })
   }
