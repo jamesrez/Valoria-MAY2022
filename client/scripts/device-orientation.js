@@ -60,11 +60,14 @@
 
 		return function( obj, alpha, beta, gamma, orient ) {
 
+      let camEuler = new THREE.Euler().setFromQuaternion(obj.quaternion);
+
 			euler.set( beta, alpha, - gamma, 'YXZ' ); // 'ZXY' for the device, but 'YXZ' for us
 
-      euler.y = obj.rotation.y;
+      camEuler.x = beta;
+      camEuler.z = - gamma;
 
-			obj.quaternion.setFromEuler( euler ); // orient the device
+			obj.quaternion.setFromEuler( camEuler ); // orient the device
 
 			obj.quaternion.multiply( q1 ); // camera looks out the back of the device, not the top
 

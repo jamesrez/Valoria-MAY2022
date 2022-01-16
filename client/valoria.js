@@ -195,7 +195,6 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       const url = Object.keys(self.conns)[0];
-      alert("JOINING DIMENSION " + id + " via " + url);
       self.promises["Joined " + id + " dimension"] = {res, rej};
       self.conns[url].send(JSON.stringify({
         event: "Join dimension",
