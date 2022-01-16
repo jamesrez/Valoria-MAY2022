@@ -23,6 +23,7 @@ async function showJoin(){
   // auth.style.display = "flex";
   // join.style.display = "flex";
   mainModal.style.display = "none";
+  // await valoria.startMediaStream({audio: true, video: false});
   await valoria.user.create("123");
   valoria.onJoin();
 }
@@ -267,5 +268,4 @@ function deviceOrientate(){
     window.DeviceOrientationEvent.requestPermission();
   }
   document.querySelector('.mobileControls').style.display = "none";    
-  valoria.startMediaStream({audio: true, video: false});
 }

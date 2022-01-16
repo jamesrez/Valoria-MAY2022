@@ -33,12 +33,8 @@ class Valoria {
 
   startMediaStream = async(opts) => {
     const self = this;
-    return new Promise(async (res, rej) => {
-      try {
-        self.stream = await navigator.mediaDevices.getUserMedia(opts || {video: false, audio: true});
-      } catch(e){
-        
-      }
+    return new Promise(async(res, rej) => {
+      self.stream = await navigator.mediaDevices.getUserMedia(opts);
       res();
     })
   }
@@ -257,11 +253,6 @@ class Valoria {
 
   async connectToPeer(id){
     const self = this;
-    const rtcConfig = {}
-    const offerOptions = {
-      offerToReceiveAudio: 1,
-      offerToReceiveVideo: 1
-    };
     if(!self.peers[id]){
       self.peers[id] = new RTCPeerConnection({iceServers});
       self.peers[id].callbacks = {};
