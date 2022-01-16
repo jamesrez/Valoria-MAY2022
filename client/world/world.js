@@ -337,6 +337,7 @@ async function addPeerToScene(id){
     audio.play();
     peerAvatars[id].sound.autoplay = true;
     peerAvatars[id].sound.setMediaElementSource(audio);
+    peerAvatars[id].sound.setRefDistance(1);
     // peerAvatars[id].sound.play();
 
   };

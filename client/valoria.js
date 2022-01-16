@@ -203,6 +203,7 @@ class Valoria {
           id: id
         }
       }));
+      console.log("JOINING DIMENSION");
     })
   }
 

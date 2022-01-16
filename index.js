@@ -372,6 +372,7 @@ class Server {
   handleJoinDimension(ws, data){
     const self = this;
     return new Promise(async( res, rej) => {
+      console.log(ws.id + " wants to join dimension " + data.id);
       const id = data.id;
       if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
       const peers = Object.keys(self.dimensions[id].conns)
