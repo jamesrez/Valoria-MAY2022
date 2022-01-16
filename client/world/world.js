@@ -49,8 +49,7 @@ function setModelAction(model, toAction) {
 
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 const controls = new THREE.PointerLockControls(camera, renderer.domElement);
-const mobControls = new THREE.DeviceOrientationControls(camera);
-
+let mobControls;
 //INVERSE KINEMATICS FOR ARMS
 // const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 // const lTransformControls = new THREE.TransformControls(camera, world);
@@ -85,6 +84,9 @@ let rightController;
   } else {
     leftController = renderer.xr.getController( 1 );
     rightController = renderer.xr.getController( 0 );
+  }
+  if(isMobile){
+    mobControls = new THREE.DeviceOrientationControls(camera);
   }
  
   // const lcTransform = new THREE.TransformControls(camera, world);
@@ -176,6 +178,7 @@ let vrSpeed = 0.05;
 function handleXRControls(){
   session = renderer.xr.getSession();
   if(!session) return;
+  camera.position.z = -1;
   for(let source of session.inputSources){
     if(!source || !source.gamepad || !source.handedness) continue;
     let axes = source.gamepad.axes.slice(0);
