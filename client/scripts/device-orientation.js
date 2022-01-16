@@ -69,7 +69,7 @@
 
 			obj.quaternion.setFromEuler( camEuler ); // orient the device
 
-			// obj.quaternion.multiply( q1 ); // camera looks out the back of the device, not the top
+			obj.quaternion.multiply( q1 ); // camera looks out the back of the device, not the top
 
 			obj.quaternion.multiply( q0.setFromAxisAngle( zee, - orient ) ); // adjust for screen orientation
 
