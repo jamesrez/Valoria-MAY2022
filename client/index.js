@@ -11,7 +11,7 @@ valoria.onJoin = async () => {
   console.log("SIGNED IN!");
   page.style.display = "none";
   controls.lock();
-  valoria.startMediaStream({audio: true, video: false});
+  await valoria.startMediaStream({audio: true, video: false});
   valoria.dimension.onPeerJoin = (id) => {
     addPeerToScene(id);
   }
