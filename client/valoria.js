@@ -125,7 +125,6 @@ class Valoria {
           //   await self.handleGotPubKey(ws, d.data);
           //   break;
           case 'Got groups':
-            console.log("Got groups")
             await self.handleGotGroups(ws, d.data);
             break;
           // case 'Join group':
@@ -392,11 +391,8 @@ class Valoria {
     if(!self.peers[data.id]) return;
     try {
       if(!data.candidate) return;
-      console.log(data.candidate);
       await self.peers[data.id].addIceCandidate(data.candidate)
     } catch (e) {
-      console.log("COULD NOT ADD ICE CANDIDATE");
-      console.log(e);
     }
   }
 
@@ -432,7 +428,6 @@ class ValoriaUser {
 
   signIn = async (id, password) => {
     return new Promise(async(res, rej) => {
-      console.log("SIGNED IN!");
       res();
     })
   }
@@ -480,7 +475,6 @@ class ValoriaUser {
       // const group =  self.valoria.groups[jumpConsistentHash(self.id, self.valoria.groups.length)];
       // const url = group[group.length * Math.random() << 0];
       // console.log("SAVE USER TO " + url);
-      console.log("Lol")
       res(self);
     })
   }

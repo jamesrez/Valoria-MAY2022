@@ -24,15 +24,12 @@ valoria.onJoin = async () => {
   if(!isMobile){
     controls.lock();
   }
-  alert(1)
   valoria.dimension.onPeerJoin = (id) => {
     addPeerToScene(id);
   }
-  alert(2)
   valoria.dimension.onPeerLeave = (id) => {
     removePeerFromScene(id);
   }
-  alert(3)
   await valoria.joinDimension("Valoria");
 }
 

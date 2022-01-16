@@ -324,8 +324,6 @@ async function addPeerToScene(id){
     }
   })
   valoria.peers[id].onStream = (stream) => {
-    console.log("GOT STREAM");
-    console.log(stream)
     let audio = document.createElement('audio');
     audio.autoplay = true;
     try {
