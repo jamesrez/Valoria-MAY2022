@@ -141,8 +141,6 @@ class VRButton {
 			return button;
 
 		} else {
-      
-      button.style.display = 'none';
 
 			const message = document.createElement( 'a' );
 
@@ -161,6 +159,8 @@ class VRButton {
 			message.style.textDecoration = 'none';
 
 			stylizeElement( message );
+
+      message.style.display = "none"
 
 			return message;
 
