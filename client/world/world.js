@@ -172,6 +172,9 @@ function handleControls(){
   }
   if(mobControls && mobControls.update){
     mobControls.update();
+    if(camera.rotation.x < -1.57){
+      camera.rotation.x = -1.57;
+    }
     avatar.rotation.y = camera.rotation.y;
     camera.rotation.y = 0
   } 
