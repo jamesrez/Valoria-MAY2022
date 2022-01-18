@@ -183,10 +183,10 @@ function handleControls(){
     // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
   }
   if(mobControls && mobControls.update){
-    // mobControls.update();
     // avatar.rotation.y = camera.rotation.y;
     // camera.rotation.y = 0
     touchControls.update();
+    mobControls.update();
   } 
 }
 
