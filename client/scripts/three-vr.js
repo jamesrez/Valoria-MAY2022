@@ -141,6 +141,8 @@ class VRButton {
 			return button;
 
 		} else {
+      
+      button.style.display = 'none';
 
 			const message = document.createElement( 'a' );
 
@@ -150,11 +152,8 @@ class VRButton {
 				message.innerHTML = 'WEBXR NEEDS HTTPS'; // TODO Improve message
 
 			} else {
-
 				message.href = 'https://immersiveweb.dev/';
 				message.innerHTML = 'WEBXR NOT AVAILABLE';
-        button.style.display = 'none';
-
 			}
 
 			message.style.left = 'calc(50% - 90px)';
