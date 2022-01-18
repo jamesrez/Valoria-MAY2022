@@ -9295,10 +9295,6 @@ function TouchControls(parent, camera, options) {
 		moveForward = moveBackward = moveLeft = moveRight = false;
 	});
 
-	container.on("contextmenu", onContextMenu);
-	container.on("mousedown", onMouseDown);
-	container.on("mouseup", onMouseUp);
-
 	prepareRotationMatrices();
 
 	//
@@ -9583,7 +9579,7 @@ TouchControls.prototype = {
 	setRotation: function(x, y) {
 
 		if (x !== null)
-			this.camera.rotation.x = x;
+			// this.camera.rotation.x = x;
 
 		if (y !== null)
 			this.fpsBody.rotation.y = y;
@@ -9666,7 +9662,14 @@ function MovementPad(container) {
 
 	self.region.on("touchmove", function(event) {
 		if (!mouseDown) return;
-		update(event.originalEvent.touches[0].pageX, event.originalEvent.touches[0].pageY);
+    // console.log(event.originalEvent.touches)
+    // let t;
+    // for(let i=0;i<event.originalEvent.touches.length;i++){
+    //   if(event.originalEvent.touches[i].target.parentElement.className == "movement-pad"){
+    //     t = event.originalEvent.touches[i];
+    //   }
+    // }
+		update(event.originalEvent.targetTouches[0].pageX, event.originalEvent.targetTouches[0].pageY);
 	});
 
 
@@ -9785,11 +9788,11 @@ function RotationPad(container) {
 	self.regionData.radius = self.regionData.width / 2 - self.handleData.radius;
 
 	// Mouse events:
-	// self.region.on("mousedown", function (event) {
-	// 	mouseDown = true;
-	// 	self.handle.css("opacity", "1.0");
-	// 	update(event.pageX, event.pageY);
-	// });
+	self.region.on("mousedown", function (event) {
+		mouseDown = true;
+		self.handle.css("opacity", "1.0");
+		update(event.pageX, event.pageY);
+	});
 
 	// $(document).on("mouseup", function () {
 	// 	mouseDown = false;
@@ -9815,7 +9818,7 @@ function RotationPad(container) {
 
 	self.region.on("touchmove", function(event) {
 		if (!mouseDown) return;
-		update(event.originalEvent.touches[0].pageX, event.originalEvent.touches[0].pageY);
+		update(event.originalEvent.targetTouches[0].pageX, event.originalEvent.targetTouches[0].pageY);
 	});
 
 	
