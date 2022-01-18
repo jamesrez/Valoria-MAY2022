@@ -9223,14 +9223,7 @@ function TouchControls(parent, camera, options) {
 	}, options);
 
 	var container = $(parent);
-  $(document).on('touchmove', function(e) {
-    e.preventDefault();
-  });
-  $(document).on('touchstart', function(e) {
-    if (e.target.nodeName !== 'INPUT') {
-        e.preventDefault();
-    }
-  });
+  document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive:false });
 	var isRightMouseDown = false;
 	var rotationMatrices = [];
 	var hitObjects = [];
