@@ -172,7 +172,9 @@ function handleControls(){
   }
   if(mobControls && mobControls.update){
     mobControls.update();
-  }
+    avatar.rotation.y = camera.rotation.y;
+    camera.rotation.y = 0
+  } 
 }
 
 let session;
