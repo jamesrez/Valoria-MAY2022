@@ -14,8 +14,8 @@
 
 .rotation-pad .region {
 	position: absolute;
-	width: 100px;
-	height: 100px;
+	width: 150px;
+	height: 150px;
 	background: radial-gradient(rgba(218, 225, 230, 0.25) 5%, rgba(218, 225, 230, 0.50) 95%),
 				url("../images/cam.png") center center no-repeat;
 	border: 2px solid rgba(218, 225, 230, 0.25);
@@ -46,8 +46,8 @@
 
 .movement-pad .region {
 	position: absolute;
-	width: 100px;
-	height: 100px;
+	width: 150px;
+	height: 150px;
 	background: radial-gradient(rgba(218, 225, 230, 0.25) 5%, rgba(218, 225, 230, 0.50) 95%),
 				url("../images/nav.png") center center no-repeat;
 	border: 2px solid rgba(218, 225, 230, 0.25);
