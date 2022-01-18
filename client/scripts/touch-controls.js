@@ -9636,21 +9636,21 @@ function MovementPad(container) {
 	self.regionData.radius = self.regionData.width / 2 - self.handleData.radius;
 
 	// Mouse events:
-	self.region.on("mousedown", function (event) {
-		mouseDown = true;
-		self.handle.css("opacity", "1.0");
-		update(event.pageX, event.pageY);
-	});
+	// self.region.on("mousedown", function (event) {
+	// 	mouseDown = true;
+	// 	self.handle.css("opacity", "1.0");
+	// 	update(event.pageX, event.pageY);
+	// });
 
-	$(document).on("mouseup", function () {
-		mouseDown = false;
-		self.resetHandlePosition();
-	});
+	// $(document).on("mouseup", function () {
+	// 	mouseDown = false;
+	// 	self.resetHandlePosition();
+	// });
 
-	$(document).on("mousemove", function(event) {
-		if (!mouseDown) return;
-		update(event.pageX, event.pageY);
-	});
+	// $(document).on("mousemove", function(event) {
+	// 	if (!mouseDown) return;
+	// 	update(event.pageX, event.pageY);
+	// });
 
 	//Touch events:
 	self.region.on("touchstart", function (event) {
@@ -9785,21 +9785,21 @@ function RotationPad(container) {
 	self.regionData.radius = self.regionData.width / 2 - self.handleData.radius;
 
 	// Mouse events:
-	self.region.on("mousedown", function (event) {
-		mouseDown = true;
-		self.handle.css("opacity", "1.0");
-		update(event.pageX, event.pageY);
-	});
+	// self.region.on("mousedown", function (event) {
+	// 	mouseDown = true;
+	// 	self.handle.css("opacity", "1.0");
+	// 	update(event.pageX, event.pageY);
+	// });
 
-	$(document).on("mouseup", function () {
-		mouseDown = false;
-		self.resetHandlePosition();
-	});
+	// $(document).on("mouseup", function () {
+	// 	mouseDown = false;
+	// 	self.resetHandlePosition();
+	// });
 
-	$(document).on("mousemove", function(event) {
-		if (!mouseDown) return;
-		update(event.pageX, event.pageY);
-	});
+	// $(document).on("mousemove", function(event) {
+	// 	if (!mouseDown) return;
+	// 	update(event.pageX, event.pageY);
+	// });
 
 	//Touch events:
 	self.region.on("touchstart", function (event) {
