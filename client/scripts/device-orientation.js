@@ -62,7 +62,7 @@
 
       let camEuler = new THREE.Euler().setFromQuaternion(obj.quaternion);
 
-			euler.set( beta, alpha, - gamma, 'YXZ' ); // 'ZXY' for the device, but 'YXZ' for us
+			euler.set( beta + 0.4, alpha, - gamma, 'YXZ' ); // 'ZXY' for the device, but 'YXZ' for us
 
       // camEuler.x = beta;
       // camEuler.y = - gamma;

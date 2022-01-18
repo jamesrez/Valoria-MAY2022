@@ -99,6 +99,7 @@ let rightController;
 			hitTestDistance: 40
 		});
 		touchControls.addToScene(scene);
+    camera.position.z = -0.4
   }
  
   // const lcTransform = new THREE.TransformControls(camera, world);
