@@ -93,7 +93,7 @@ let rightController;
 		touchControls = new TouchControls(world, camera, {
 			speedFactor: 0.01,
 			delta: 1,
-			rotationFactor: 0.01,
+			rotationFactor: 0.005,
 			maxPitch: 55,
 			hitTest: false,
 			hitTestDistance: 40
