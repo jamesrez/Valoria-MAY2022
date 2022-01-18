@@ -50,6 +50,9 @@ function setModelAction(model, toAction) {
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 const controls = new THREE.PointerLockControls(camera, renderer.domElement);
 let mobControls;
+let touchControls;
+
+
 //INVERSE KINEMATICS FOR ARMS
 // const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 // const lTransformControls = new THREE.TransformControls(camera, world);
@@ -87,6 +90,15 @@ let rightController;
   }
   if(isMobile){
     mobControls = new THREE.DeviceOrientationControls(camera);
+		touchControls = new TouchControls(world, camera, {
+			speedFactor: 0.01,
+			delta: 1,
+			rotationFactor: 0.01,
+			maxPitch: 55,
+			hitTest: false,
+			hitTestDistance: 40
+		});
+		touchControls.addToScene(scene);
   }
  
   // const lcTransform = new THREE.TransformControls(camera, world);
@@ -177,6 +189,7 @@ function handleControls(){
     }
     avatar.rotation.y = camera.rotation.y;
     camera.rotation.y = 0
+    touchControls.update();
   } 
 }
 
