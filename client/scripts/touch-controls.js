@@ -9659,12 +9659,12 @@ function MovementPad(container) {
 		update(event.originalEvent.targetTouches[0].pageX, event.originalEvent.targetTouches[0].pageY);
 	});
 
-	$(document).on("touchend touchcancel", function () {
+	self.region.on("touchend touchcancel", function () {
 		mouseDown = false;
 		self.resetHandlePosition();
 	});
 
-	$(document).on("touchmove", function(event) {
+	self.region.on("touchmove", function(event) {
 		if (!mouseDown) return;
 		update(event.originalEvent.touches[0].pageX, event.originalEvent.touches[0].pageY);
 	});
@@ -9808,12 +9808,12 @@ function RotationPad(container) {
 		update(event.originalEvent.targetTouches[0].pageX, event.originalEvent.targetTouches[0].pageY);
 	});
 
-	$(document).on("touchend touchcancel", function () {
+	self.region.on("touchend touchcancel", function () {
 		mouseDown = false;
 		self.resetHandlePosition();
 	});
 
-	$(document).on("touchmove", function(event) {
+	self.region.on("touchmove", function(event) {
 		if (!mouseDown) return;
 		update(event.originalEvent.touches[0].pageX, event.originalEvent.touches[0].pageY);
 	});
