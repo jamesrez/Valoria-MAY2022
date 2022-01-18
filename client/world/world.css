@@ -5,3 +5,7 @@
   overflow: hidden;
   /* z-index: 0; */
 }
+
+canvas{
+  overflow: hidden;
+}

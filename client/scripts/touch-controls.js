@@ -9210,7 +9210,7 @@ return jQuery;
 
 }));
 
-function TouchControls(container, camera, options) {
+function TouchControls(parent, camera, options) {
 
 	var self = this;
 	self.config = $.extend({
@@ -9222,7 +9222,7 @@ function TouchControls(container, camera, options) {
 		hitTestDistance: 40
 	}, options);
 
-	var container = $(container);
+	var container = $(parent);
 	var isRightMouseDown = false;
 	var rotationMatrices = [];
 	var hitObjects = [];
