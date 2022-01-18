@@ -65,7 +65,7 @@
 			euler.set( beta, alpha, - gamma, 'YXZ' ); // 'ZXY' for the device, but 'YXZ' for us
 
       camEuler.x = beta;
-      camEuler.y = - gamma;
+      camEuler.z = - gamma;
       // camEuler.z = gamma;
 
 			obj.quaternion.setFromEuler( camEuler ); // orient the device
