@@ -23,13 +23,13 @@ async function showJoin(){
   // auth.style.display = "flex";
   // join.style.display = "flex";
   mainModal.style.display = "none";
-  // await valoria.startMediaStream({audio: true, video: false});
-  // await valoria.startMediaStream({audio: {
-  //   echoCancellation: true,
-  //   noiseSuppression: true,
-  //   sampleRate: 44100
-  // }, video: false});
-  // await valoria.user.create("123");
+  await valoria.startMediaStream({audio: true, video: false});
+  await valoria.startMediaStream({audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    sampleRate: 44100
+  }, video: false});
+  await valoria.user.create("123");
   valoria.onJoin();
 }
 
