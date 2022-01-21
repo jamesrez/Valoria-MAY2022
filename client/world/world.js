@@ -66,7 +66,6 @@ let touchControls;
 // scene.add(rTransformControls)
 
 let avatar;
-let waluigi;
 let room;
 let test;
 let testIK;
@@ -74,7 +73,7 @@ let avatarIK;
 let leftController;
 let rightController;
 (async () => {
-  avatar = await loadModel('assets/waluigi.glb');
+  avatar = await loadModel('assets/vanguard.glb');
   // avatar.traverse((node) => {
   //   if(node.isMesh){
   //     node.frustumCulled = true;
@@ -325,9 +324,9 @@ function handleObjectsMoving(){
 }
 
 async function addPeerToScene(id){
-  peerAvatars[id] = await loadModel('assets/waluigi.glb');
+  peerAvatars[id] = await loadModel('assets/vanguard.glb');
   peerAvatars[id].sound = new THREE.PositionalAudio(listener);
-  peerAvatars[id].add(peerAvatars[id].sound);
+  peerAvatars[id].attach(peerAvatars[id].sound);
   setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
   valoria.peers[id].on("Movement", (data) => {
     if(
@@ -356,7 +355,9 @@ async function addPeerToScene(id){
     audio.play();
     peerAvatars[id].sound.autoplay = true;
     peerAvatars[id].sound.setMediaElementSource(audio);
-    peerAvatars[id].sound.setRefDistance(1);
+    peerAvatars[id].sound.setRefDistance(0.75);
+    peerAvatars[id].sound.setRolloffFactor(1);
+    peerAvatars[id].sound.setDirectionalCone(180, 230, 0.1);
     // peerAvatars[id].sound.play();
 
   };
