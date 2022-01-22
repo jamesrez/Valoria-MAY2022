@@ -30,7 +30,7 @@
 
 	this.alpha = 0;
 	this.alphaOffsetAngle = 0;
-	this.betaOffsetAngle = 20;
+	this.betaOffsetAngle = 0;
 	this.gammaOffsetAngle = 0;
 
 
@@ -108,7 +108,7 @@
 		if ( scope.enabled === false ) return;
 
 		var alpha = scope.deviceOrientation.alpha ? THREE.Math.degToRad( scope.deviceOrientation.alpha ) + this.alphaOffsetAngle : 0; // Z
-		var beta =  scope.deviceOrientation.beta ? THREE.Math.degToRad( scope.deviceOrientation.beta + this.betaOffsetAngle) : 0; // X'
+		var beta =  scope.deviceOrientation.beta ? THREE.Math.degToRad( scope.deviceOrientation.beta ) + this.betaOffsetAngle : 0; // X'
 		var gamma = scope.deviceOrientation.gamma ? THREE.Math.degToRad( scope.deviceOrientation.gamma ) + this.gammaOffsetAngle : 0; // Y''
 		var orient = scope.screenOrientation ? THREE.Math.degToRad( scope.screenOrientation ) : 0; // O
 

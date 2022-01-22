@@ -187,6 +187,7 @@ function handleControls(){
     // camera.rotation.y = 0
     touchControls.update();
     mobControls.update();
+    camera.rotation.x += 20 * (Math.PI / 180);
   } 
 }
 
