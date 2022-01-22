@@ -9578,8 +9578,8 @@ TouchControls.prototype = {
 
 	setRotation: function(x, y) {
 
-		if (x !== null)
-			this.camera.rotation.x = x;
+		// if (x !== null)
+		// 	this.camera.rotation.x = x;
 
 		if (y !== null)
 			this.fpsBody.rotation.y = y;

@@ -60,23 +60,13 @@
 
 		return function( obj, alpha, beta, gamma, orient ) {
 
-      let camEuler = new THREE.Euler().setFromQuaternion(obj.quaternion);
-
 			euler.set( beta, alpha, - gamma, 'YXZ' ); // 'ZXY' for the device, but 'YXZ' for us
-
-      // camEuler.x = beta;
-      // camEuler.y = - gamma;
-      // camEuler.z = - gamma;
 
 			obj.quaternion.setFromEuler( euler ); // orient the device
 
 			obj.quaternion.multiply( q1 ); // camera looks out the back of the device, not the top
 
 			obj.quaternion.multiply( q0.setFromAxisAngle( zee, - orient ) ); // adjust for screen orientation
-
-      // let parentEuler = new THREE.Euler().setFromQuaternion(obj.parent.quaternion);
-      // parentEuler.y = alpha;
-      // obj.parent.quaternion.setFromEuler(parentEuler);
 
 		};
 
@@ -118,7 +108,7 @@
 		if ( scope.enabled === false ) return;
 
 		var alpha = scope.deviceOrientation.alpha ? THREE.Math.degToRad( scope.deviceOrientation.alpha ) + this.alphaOffsetAngle : 0; // Z
-		var beta =  THREE.Math.degToRad( scope.deviceOrientation.beta + this.betaOffsetAngle) || 0; // X'
+		var beta =  scope.deviceOrientation.beta ? THREE.Math.degToRad( scope.deviceOrientation.beta + this.betaOffsetAngle) : 0; // X'
 		var gamma = scope.deviceOrientation.gamma ? THREE.Math.degToRad( scope.deviceOrientation.gamma ) + this.gammaOffsetAngle : 0; // Y''
 		var orient = scope.screenOrientation ? THREE.Math.degToRad( scope.screenOrientation ) : 0; // O
 
