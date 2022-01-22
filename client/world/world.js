@@ -9,17 +9,17 @@ const world = document.querySelector('.world');
 world.appendChild( renderer.domElement );
 world.appendChild( VRButton.createButton( renderer ) );
 
-video = document.createElement('video');
-video.setAttribute('autoplay', '');
-video.setAttribute('playsinline', '');
-video.setAttribute('loop', '');
-video.setAttribute('crossorigin', 'anonymous');
-video.setAttribute('data-yt2html5', 'https://www.youtube.com/embed/BOjmV32oD_4');
-video.style.display = "none";
-world.append(video);
-new YouTubeToHtml5({
-  withAudio: true
-});
+// video = document.createElement('video');
+// video.setAttribute('autoplay', '');
+// video.setAttribute('playsinline', '');
+// video.setAttribute('loop', '');
+// video.setAttribute('crossorigin', 'anonymous');
+// video.setAttribute('data-yt2html5', 'https://www.youtube.com/embed/BOjmV32oD_4');
+// video.style.display = "none";
+// world.append(video);
+// new YouTubeToHtml5({
+//   withAudio: true
+// });
 
 const peerAvatars = {};
 
