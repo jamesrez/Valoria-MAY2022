@@ -9,10 +9,17 @@ const world = document.querySelector('.world');
 world.appendChild( renderer.domElement );
 world.appendChild( VRButton.createButton( renderer ) );
 
-let video = document.createElement('video');
+video = document.createElement('video');
 video.setAttribute('autoplay', '');
-video.setAttribute('muted', '');
 video.setAttribute('playsinline', '');
+video.setAttribute('loop', '');
+video.setAttribute('crossorigin', 'anonymous');
+video.setAttribute('data-yt2html5', 'https://www.youtube.com/embed/BOjmV32oD_4');
+video.style.display = "none";
+world.append(video);
+new YouTubeToHtml5({
+  withAudio: true
+});
 
 const peerAvatars = {};
 
@@ -53,7 +60,7 @@ let mobControls;
 let touchControls;
 
 
-//INVERSE KINEMATICS FOR ARMS
+// TEST INVERSE KINEMATICS FOR ARMS
 // const lMovingTarget = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 // const lTransformControls = new THREE.TransformControls(camera, world);
 // lTransformControls.attach(lMovingTarget);
@@ -73,7 +80,7 @@ let avatarIK;
 let leftController;
 let rightController;
 (async () => {
-  avatar = await loadModel('assets/vanguard.glb');
+  avatar = await loadModel('assets/default.glb');
   // avatar.traverse((node) => {
   //   if(node.isMesh){
   //     node.frustumCulled = true;
@@ -109,7 +116,7 @@ let rightController;
   avatar.attach(leftController);
   avatar.attach(rightController);
   avatarIK = new IKVR(avatar, leftController, rightController);
-  // test = await loadModel('assets/waluigi.glb');
+  // test = await loadModel('assets/default.glb');
   // testIK = new IKVR(test, lMovingTarget, rMovingTarget);
   // setModelAction(test, test.mixer.clipAction(test.animations[0]));
   room = await loadModel('assets/room-fix.glb')
@@ -119,7 +126,7 @@ let rightController;
   room.position.z = -2.5;
 
 })();
-camera.position.z = -0.8;
+camera.position.z = -0.4;
 camera.position.y = 1.6;
 const listener = new THREE.AudioListener();
 camera.add(listener);
@@ -325,7 +332,7 @@ function handleObjectsMoving(){
 }
 
 async function addPeerToScene(id){
-  peerAvatars[id] = await loadModel('assets/vanguard.glb');
+  peerAvatars[id] = await loadModel('assets/default.glb');
   peerAvatars[id].sound = new THREE.PositionalAudio(listener);
   peerAvatars[id].attach(peerAvatars[id].sound);
   setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
@@ -373,6 +380,8 @@ async function removePeerFromScene(id){
 
 world.onmousedown = () => {
   controls.lock();
+  if(video.is)
+  video.play();
 }
 
 const light = new THREE.AmbientLight();

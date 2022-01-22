@@ -12,7 +12,7 @@ class IKVR {
     this.back.push(avatar.getObjectByName("mixamorigRightShoulder"));
     this.leftArm.push(avatar.getObjectByName("mixamorigLeftArm"));
     this.leftArm.push(avatar.getObjectByName("mixamorigLeftForeArm"));
-    this.leftArm[0].rotation.x += 1.35;
+    this.leftArm[0].rotation.x = 0.7;
     this.leftArm[1].rotation.x += 0.1;
     this.leftArm[1].rotation.z += 1.35;
     leftTarget.position.x = -0.24;
@@ -22,7 +22,7 @@ class IKVR {
 
     this.rightArm.push(avatar.getObjectByName("mixamorigRightArm"));
     this.rightArm.push(avatar.getObjectByName("mixamorigRightForeArm"));
-    this.rightArm[0].rotation.x += 1.35;
+    this.rightArm[0].rotation.x = 0.7;
     this.rightArm[1].rotation.x += 0.1;
     this.rightArm[1].rotation.z -= 1.35;
     rightTarget.position.x = 0.24;
