@@ -126,7 +126,7 @@ let rightController;
   room.position.z = -2.5;
 
 })();
-camera.position.z = -0.4;
+camera.position.z = -0.3;
 camera.position.y = 1.6;
 const listener = new THREE.AudioListener();
 camera.add(listener);
