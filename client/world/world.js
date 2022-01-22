@@ -105,7 +105,7 @@ let rightController;
 			hitTestDistance: 40
 		});
 		touchControls.addToScene(scene);
-    camera.position.z = -0.4
+    camera.position.z = -0.2
   }
  
   // const lcTransform = new THREE.TransformControls(camera, world);
@@ -203,7 +203,7 @@ let vrSpeed = 0.05;
 function handleXRControls(){
   session = renderer.xr.getSession();
   if(!session) return;
-  camera.position.z = -1;
+  camera.position.z = -0.4;
   for(let source of session.inputSources){
     if(!source || !source.gamepad || !source.handedness) continue;
     let axes = source.gamepad.axes.slice(0);
