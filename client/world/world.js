@@ -116,9 +116,13 @@ let rightController;
   avatar.attach(leftController);
   avatar.attach(rightController);
   avatarIK = new IKVR(avatar, leftController, rightController);
-  // test = await loadModel('assets/default.glb');
+  test = await loadModel('assets/default.glb');
+  test.position.x = 1;
+  test.position.y = 0.1;
+  test.position.z = -2.5;
+  test.rotation.y = 1.7;
   // testIK = new IKVR(test, lMovingTarget, rMovingTarget);
-  // setModelAction(test, test.mixer.clipAction(test.animations[0]));
+  setModelAction(test, test.mixer.clipAction(test.animations[1]));
   room = await loadModel('assets/room-fix.glb')
   room.scale.x = 2
   room.scale.y = 2
@@ -271,7 +275,7 @@ function updateAvatarAnimation(){
   ) {
     oAvatarPos.x = avatar.position.x;
     oAvatarPos.z = avatar.position.z;
-    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[3]));
   } else {
     setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
   }
@@ -344,7 +348,7 @@ async function addPeerToScene(id){
     ) {
       setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
     } else {
-      setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[2]));
+      setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[3]));
     }
     objsMoving[id] = {
       entity: peerAvatars[id],
