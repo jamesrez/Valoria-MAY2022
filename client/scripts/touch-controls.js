@@ -9649,18 +9649,18 @@ function MovementPad(container) {
 	// });
 
 	//Touch events:
-	self.region.on("touchstart", function (event) {
+	self.movementPad.on("touchstart", function (event) {
 		mouseDown = true;
 		self.handle.css("opacity", "1.0");
 		update(event.originalEvent.targetTouches[0].pageX, event.originalEvent.targetTouches[0].pageY);
 	});
 
-	self.region.on("touchend touchcancel", function () {
+	self.movementPad.on("touchend touchcancel", function () {
 		mouseDown = false;
 		self.resetHandlePosition();
 	});
 
-	self.region.on("touchmove", function(event) {
+	self.movementPad.on("touchmove", function(event) {
 		if (!mouseDown) return;
     // console.log(event.originalEvent.touches)
     // let t;
@@ -9788,11 +9788,11 @@ function RotationPad(container) {
 	self.regionData.radius = self.regionData.width / 2 - self.handleData.radius;
 
 	// Mouse events:
-	self.region.on("mousedown", function (event) {
-		mouseDown = true;
-		self.handle.css("opacity", "1.0");
-		update(event.pageX, event.pageY);
-	});
+	// self.rotationPad.on("mousedown", function (event) {
+	// 	mouseDown = true;
+	// 	self.handle.css("opacity", "1.0");
+	// 	update(event.pageX, event.pageY);
+	// });
 
 	// $(document).on("mouseup", function () {
 	// 	mouseDown = false;
@@ -9805,18 +9805,18 @@ function RotationPad(container) {
 	// });
 
 	//Touch events:
-	self.region.on("touchstart", function (event) {
+	self.rotationPad.on("touchstart", function (event) {
 		mouseDown = true;
 		self.handle.css("opacity", "1.0");
 		update(event.originalEvent.targetTouches[0].pageX, event.originalEvent.targetTouches[0].pageY);
 	});
 
-	self.region.on("touchend touchcancel", function () {
+	self.rotationPad.on("touchend touchcancel", function () {
 		mouseDown = false;
 		self.resetHandlePosition();
 	});
 
-	self.region.on("touchmove", function(event) {
+	self.rotationPad.on("touchmove", function(event) {
 		if (!mouseDown) return;
 		update(event.originalEvent.targetTouches[0].pageX, event.originalEvent.targetTouches[0].pageY);
 	});

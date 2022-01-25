@@ -384,8 +384,6 @@ async function removePeerFromScene(id){
 
 world.onmousedown = () => {
   controls.lock();
-  if(video.is)
-  video.play();
 }
 
 const light = new THREE.AmbientLight();
