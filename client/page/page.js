@@ -28,6 +28,15 @@ async function showJoin(){
     noiseSuppression: true,
     sampleRate: 44100
   }, video: false});
+
+  if(isMobile){
+    valoria.user.signInFromLocal().then((userId) => {
+      alert("FOUND USER ID FROM LOCAL: " + userId)
+    }).catch((e) => {
+      alert("COULD NOT GET USER ID FROM LOCAL")
+    })
+  }
+
   await valoria.user.create("123");
   valoria.onJoin();
 }

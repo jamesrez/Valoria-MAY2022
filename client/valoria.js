@@ -28,7 +28,24 @@ class Valoria {
     // await this.loadAllGroups();
     this.user = new ValoriaUser();
     this.user.valoria = this;
+    this.setupDeviceMessages();
     this.connectToServer(window.location.origin)
+  }
+
+  setupDeviceMessages = async () => {
+    const self = this;
+    window.onmessage = (e) => {
+      console.log(e)
+      const d = JSON.parse(e.data);
+      const event = d.event;
+      const data = d.data;
+      switch(event){
+        case "GotValoriaUserId":
+          if(self.user.promises["GotValoriaUserId"]){
+            self.user.promises["GotValoriaUserId"].res(data.userId);
+          }
+      }
+    }
   }
 
   startMediaStream = async(opts) => {
@@ -420,6 +437,7 @@ class ValoriaUser {
       privateKey: null,
     };
     this.valoria = null;
+    this.promises = {};
     if(id && password){
       (async() => await this.signIn(id, password))()
     }
@@ -428,6 +446,13 @@ class ValoriaUser {
   signIn = async (id, password) => {
     return new Promise(async(res, rej) => {
       res();
+    })
+  }
+
+  signInFromLocal = async () => {
+    const self = this;
+    return new Promise((res, rej) => {
+      self.promises["GotValoriaUserId"] = {res, rej}
     })
   }
 
@@ -441,7 +466,7 @@ class ValoriaUser {
         {name: "ECDH", namedCurve: "P-384"}, true, ["deriveKey", "deriveBits"]
       );
       const ecdsaPubHash = await crypto.subtle.digest("SHA-256", await window.crypto.subtle.exportKey("raw", self.ecdsa.publicKey));
-      this.id = buf2hex(ecdsaPubHash).substr(24, 64)
+      self.id = buf2hex(ecdsaPubHash).substr(24, 64)
       const ecdsaSalt = window.crypto.getRandomValues(new Uint8Array(16))
       const ecdsaIv = window.crypto.getRandomValues(new Uint8Array(12))
       const ecdhSalt = window.crypto.getRandomValues(new Uint8Array(16))
@@ -474,6 +499,13 @@ class ValoriaUser {
       // const group =  self.valoria.groups[jumpConsistentHash(self.id, self.valoria.groups.length)];
       // const url = group[group.length * Math.random() << 0];
       // console.log("SAVE USER TO " + url);
+      postMessage(JSON.stringify({
+        event: "SaveValoriaUserId",
+        data: {
+          userId: self.id
+        }
+      }))
+      
       res(self);
     })
   }
