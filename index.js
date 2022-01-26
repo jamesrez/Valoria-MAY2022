@@ -98,9 +98,12 @@ class Server {
         if(!this.conns[url]) {
           this.conns[url] = new WebSocket(url);
         } 
+        console.log("created");
         this.conns[url].onopen = ( async () => {
+          console.log("OPEN")
           try {
             await this.setupWS(this.conns[url]);
+            console.log("connected")
             res();
           } catch (e){
             console.log(e);
@@ -514,7 +517,7 @@ if(isLocal){
   (async () => {
     for(let i=0;i<localServerCount;i++){
       const server = new Server(i + Port);
-      // await server.setup();
+      await server.setup();
     }
   })();
 } else {
