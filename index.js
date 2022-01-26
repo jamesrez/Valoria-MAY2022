@@ -31,9 +31,12 @@ class Server {
         if(!self.url){
           const url = "ws://" + req.get('host') + "/";
           try {
+            console.log(url);
             await this.connectToServer(url);
+            console.log("connected");
             await this.verifyIsSelf(url);
             self.url = url;
+            console.log("verified");
             await this.setup();
           } catch(e){
 
