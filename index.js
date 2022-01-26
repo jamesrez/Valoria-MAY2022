@@ -26,6 +26,7 @@ class Server {
       this.app.use(async (req, res, next) => {
         if(!self.url){
           const url = req.protocol + "://" + req.get('host') + "/";
+          //TODO: TEST URL AND VERIFY IT IS OURS
           self.url = url;
           await this.setup();
         }

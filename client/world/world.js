@@ -439,32 +439,3 @@ video.volume = 0.25;
 // video.setAttribute('crossorigin', 'anonymous');
 video.style.display = "none";
 world.append(video);
-
-// const vidGeo = new THREE.PlaneGeometry(2, 2);
-// const vidTexture = new THREE.VideoTexture(video)
-// const vidMat = new THREE.MeshPhongMaterial({ color: 0xffffff, map: vidTexture})
-// const vidScreen = new THREE.Mesh(vidGeo, vidMat);
-// scene.add(vidScreen);
-// fetch("https://youtube-video-downloader2.p.rapidapi.com/?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Dk3WkJq478To", {
-// 	"method": "GET",
-// 	"headers": {
-// 		"x-rapidapi-host": "youtube-video-downloader2.p.rapidapi.com",
-// 		"x-rapidapi-key": "iqHzcPB138mshXl5UkviablXYVsOp1z79fAjsnVUGBeH4n1hT7"
-// 	}
-// })
-// .then(response => {
-//   response.json().then(async (data) => {
-//     // console.log(data.medias);
-//     let blob = await fetch(data.medias[10].url, {mode: "no-cors"}).then(r => r.blob());
-//     let dataUrl = await new Promise(resolve => {
-//       let reader = new FileReader();
-//       reader.onload = () => resolve(reader.result);
-//       reader.readAsDataURL(blob);
-//     });
-//     console.log(dataUrl);
-//     video.src = dataUrl;
-//   })
-// })
-// .catch(err => {
-// 	console.error(err);
-// });
