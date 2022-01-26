@@ -27,6 +27,7 @@ class Server {
       this.url = 'ws://localhost:' + port;
     } else {
       this.app.use(async (req, res, next) => {
+        next();
         if(!self.url){
           const url = "ws://" + req.get('host') + "/";
           try {
@@ -38,7 +39,6 @@ class Server {
 
           }
         }
-        next();
       });
     }
     this.setupRoutes();
