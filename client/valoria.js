@@ -35,7 +35,7 @@ class Valoria {
     this.user = new ValoriaUser();
     this.user.valoria = this;
     this.setupDeviceMessages();
-    this.connectToServer(window.location.origin)
+    this.connectToServer("ws://" + window.location.host)
   }
 
   setupDeviceMessages = async () => {
@@ -108,13 +108,9 @@ class Valoria {
         res();
       } else {
         if(!this.conns[url]) {
-          let wsUrl = new URL("/", url);
-          wsUrl.protocol = wsUrl.protocol.replace('http', 'ws');
-          this.conns[url] = new WebSocket(wsUrl.href);
+          this.conns[url] = new WebSocket(url);
         } 
-        this.conns[url].Url = url;
         this.conns[url].onopen = ( async () => {
-          // heartbeat(this.conns[url]);
           try {
             await this.setupWS(this.conns[url]);
             res();
@@ -124,12 +120,9 @@ class Valoria {
           }
         });
         this.conns[url].onerror = (error) => {
-          console.log(error)
           rej(error);
         }
-        // this.conns[url].on('ping', () => heartbeat(self.conns[url]));
         this.conns[url].onclose = function clear() {
-          console.log("CLOSED")
           clearTimeout(self.conns[url].pingTimeout);
         };
       }
@@ -208,8 +201,8 @@ class Valoria {
   handleGotGroups(ws, data){
     const self = this;
     return new Promise(async( res, rej) => {
-      if(self.promises["Got groups from " + ws.Url]){
-        self.promises["Got groups from " + ws.Url].res(data)
+      if(self.promises["Got groups from " + ws.url]){
+        self.promises["Got groups from " + ws.url].res(data)
       }
       res();
     })

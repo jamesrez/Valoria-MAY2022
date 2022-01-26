@@ -15,27 +15,37 @@ class Server {
     this.server = http.Server(this.app);
     this.port = port;
     this.wss = new WebSocket.Server({ server: this.server });
+    
     this.conns = {};
+    this.promises = {};
     this.ECDSA = {publicKey: null, privateKey: null};
     this.ECDH = {publicKey: null, privateKey: null};
     this.dimensions = {};
     const self = this;
+    this.wss.on('connection', async (ws) => {
+      await self.setupWS(ws);
+    })
     if(isLocal){
-      this.url = 'http://localhost:' + port;
+      this.url = 'ws://localhost:' + port;
     } else {
       this.app.use(async (req, res, next) => {
         if(!self.url){
-          const url = req.protocol + "://" + req.get('host') + "/";
-          //TODO: TEST URL AND VERIFY IT IS OURS
-          self.url = url;
-          await this.setup();
+          const url = "ws://" + req.get('host') + "/";
+          await this.connectToServer(url);
+          try {
+            await this.verifyIsSelf(url);
+            self.url = url;
+            await this.setup();
+          } catch(e){
+
+          }
         }
         next();
       });
     }
     this.setupRoutes();
     this.server.listen(port, () => {
-      console.log(this.url + " is running");
+      console.log("Server started on port " + port);
     })
   }
 
@@ -50,9 +60,6 @@ class Server {
     } catch(e){
       await this.generateCredentials();
     }
-    this.wss.on('connection', async (ws) => {
-      await self.setupWS(ws);
-    })
     const heartbeatInterval = setInterval(() => {
       self.wss.clients.forEach(function each(ws) {
         if (ws.isAlive === false) {
@@ -65,6 +72,7 @@ class Server {
     self.wss.on('close', function close() {
       clearInterval(heartbeatInterval);
     });
+    console.log(self.url + " is setup");
   }
 
   setupRoutes = async () => {
@@ -75,6 +83,34 @@ class Server {
     app.set('view engine', 'pug');
     app.get('/', async (req, res) => {
       res.render('index')
+    })
+  }
+
+  connectToServer(url){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(this.conns[url] && this.conns[url].readyState === WebSocket.OPEN){
+        res();
+      } else {
+        if(!this.conns[url]) {
+          this.conns[url] = new WebSocket(url);
+        } 
+        this.conns[url].onopen = ( async () => {
+          try {
+            await this.setupWS(this.conns[url]);
+            res();
+          } catch (e){
+            console.log(e);
+            rej(e);
+          }
+        });
+        this.conns[url].onerror = (error) => {
+          rej(error);
+        }
+        this.conns[url].onclose = function clear() {
+          clearTimeout(self.conns[url].pingTimeout);
+        };
+      }
     })
   }
 
@@ -232,6 +268,18 @@ class Server {
     });
   }
 
+  async verifyIsSelf(url){
+    const self = this;
+    return new Promise(async(res, rej) => {
+      if(!self.conns[url]) return rej();
+      self.promises["Verified self with " + url] = {res, rej};
+      self.selfKey = Buffer.from(crypto.randomBytes(32)).toString('hex');
+      self.conns[url].send(JSON.stringify({
+        event: "Verify self"
+      }));
+    });
+  }
+
   setupWS = async (ws) => {
     const self = this;
     return new Promise(async(res, rej) => {
@@ -266,6 +314,12 @@ class Server {
           // case 'Got pubkey':
           //   await self.handleGotPubKey(ws, d.data);
           //   break;
+          case 'Verify self':
+            self.handleVerifySelf(ws);
+            break;
+          case 'Verified self':
+            self.handleVerifiedSelf(ws, d.data);
+            break;
           case 'Get groups':
             await self.handleGetGroups(ws);
             break;
@@ -349,6 +403,25 @@ class Server {
     }, 3500);
   }
 
+  handleVerifySelf(ws){
+    if(!this.selfKey) return;
+    ws.send(JSON.stringify({
+      event: "Verified self",
+      data: this.selfKey
+    }))
+  }
+
+  handleVerifiedSelf(ws, data){
+    const self = this;
+    if(!self.promises["Verified self with " + ws.url]) return;
+    if(self.selfKey == data){
+      self.promises["Verified self with " + ws.url].res()
+    } else {
+      self.promises["Verified self with " + ws.url].rej();
+    }
+    self.selfKey = "";
+  }
+
   handleGetGroups(ws){
     const self = this;
     return new Promise(async( res, rej) => {
@@ -363,8 +436,8 @@ class Server {
   handleGotGroups(ws, data){
     const self = this;
     return new Promise(async( res, rej) => {
-      if(self.promises["Got groups from " + ws.Url]){
-        self.promises["Got groups from " + ws.Url].res(data)
+      if(self.promises["Got groups from " + ws.url]){
+        self.promises["Got groups from " + ws.url].res(data)
       }
       return res();
     })
@@ -428,6 +501,8 @@ class Server {
       }
     }))
   }
+
+  
 
 }
 
