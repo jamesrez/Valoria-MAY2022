@@ -1,4 +1,3 @@
-const amountOfServers = 3;
 const isLocal = process.env.PORT ? false : true;
 const http = require('http');
 const fs = require('fs');
@@ -15,7 +14,6 @@ class Server {
     this.server = http.Server(this.app);
     this.port = port;
     this.wss = new WebSocket.Server({ server: this.server });
-    
     this.conns = {};
     this.promises = {};
     this.ECDSA = {publicKey: null, privateKey: null};
@@ -31,8 +29,8 @@ class Server {
       this.app.use(async (req, res, next) => {
         if(!self.url){
           const url = "ws://" + req.get('host') + "/";
-          await this.connectToServer(url);
           try {
+            await this.connectToServer(url);
             await this.verifyIsSelf(url);
             self.url = url;
             await this.setup();
@@ -506,9 +504,10 @@ class Server {
 
 }
 
+let localServerCount = 1;
 if(isLocal){
   (async () => {
-    for(let i=0;i<amountOfServers;i++){
+    for(let i=0;i<localServerCount;i++){
       const server = new Server(i + Port);
       await server.setup();
     }
