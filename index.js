@@ -28,7 +28,8 @@ class Server {
     } else {
       this.app.use(async (req, res, next) => {
         next();
-        if(!self.url && !self.selfKey){
+        if(!self.url && !self.verifyingSelf){
+          self.verifyingSelf = true;
           const url = "ws://" + req.get('host') + "/";
           try {
             console.log(url);
@@ -36,6 +37,7 @@ class Server {
             console.log("connected");
             await this.verifyIsSelf(url);
             self.url = url;
+            self.verifyingSelf = false;
             console.log("verified");
             await this.setup();
           } catch(e){
@@ -512,7 +514,7 @@ if(isLocal){
   (async () => {
     for(let i=0;i<localServerCount;i++){
       const server = new Server(i + Port);
-      await server.setup();
+      // await server.setup();
     }
   })();
 } else {
