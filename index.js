@@ -28,7 +28,7 @@ class Server {
     } else {
       this.app.use(async (req, res, next) => {
         next();
-        if(!self.url){
+        if(!self.url && !self.selfKey){
           const url = "ws://" + req.get('host') + "/";
           try {
             console.log(url);
