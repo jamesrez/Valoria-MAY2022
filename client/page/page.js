@@ -29,7 +29,7 @@ async function showJoin(){
     sampleRate: 44100
   }, video: false});
 
-  if(isMobile){
+  if(window.ReactNativeWebView){
     valoria.user.signInFromLocal().then((userId) => {
       alert("FOUND USER ID FROM LOCAL: " + userId)
     }).catch((e) => {

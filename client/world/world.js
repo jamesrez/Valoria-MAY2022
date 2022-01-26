@@ -9,18 +9,6 @@ const world = document.querySelector('.world');
 world.appendChild( renderer.domElement );
 world.appendChild( VRButton.createButton( renderer ) );
 
-// video = document.createElement('video');
-// video.setAttribute('autoplay', '');
-// video.setAttribute('playsinline', '');
-// video.setAttribute('loop', '');
-// video.setAttribute('crossorigin', 'anonymous');
-// video.setAttribute('data-yt2html5', 'https://www.youtube.com/embed/BOjmV32oD_4');
-// video.style.display = "none";
-// world.append(video);
-// new YouTubeToHtml5({
-//   withAudio: true
-// });
-
 const peerAvatars = {};
 
 const clock = new THREE.Clock();
@@ -105,7 +93,7 @@ let rightController;
 			hitTestDistance: 40
 		});
 		touchControls.addToScene(scene);
-    camera.position.z = -0.2
+    camera.position.z = -0.3
   }
  
   // const lcTransform = new THREE.TransformControls(camera, world);
@@ -379,7 +367,10 @@ async function addPeerToScene(id){
 }
 
 async function removePeerFromScene(id){
-  if(peerAvatars[id]) peerAvatars[id].clear();
+  if(peerAvatars[id]) {
+    peerAvatars[id].clear();
+    delete peerAvatars[id];
+  }
 }
 
 world.onmousedown = () => {
@@ -399,14 +390,14 @@ const bulb = new THREE.PointLight( 0xE735D5, 5, 3 );
 bulb.position.set( 0, 2, -2.5 );
 scene.add(bulb);
 
-const skySphere = new THREE.SphereGeometry(500, 300, 300);
+const skySphere = new THREE.SphereBufferGeometry(500, 300, 300);
 const skyTexture = TextureLoader.load("assets/valoriacity.png");
 const skyMat = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.BackSide, map: skyTexture } );
 const skyBox = new THREE.Mesh( skySphere, skyMat );
 skyBox.rotation.y = 90 * Math.PI / 180;
 scene.add( skyBox );
 
-const gridPlane = new THREE.PlaneGeometry(100, 100, 200, 200);
+const gridPlane = new THREE.PlaneBufferGeometry(100, 100, 200, 200);
 const gridTexture = TextureLoader.load("assets/grid.png");
 gridTexture.wrapS = THREE.RepeatWrapping;
 gridTexture.wrapT = THREE.RepeatWrapping;
@@ -440,4 +431,40 @@ function updateGridWave(){
 
 
 
+video = document.createElement('video');
+video.setAttribute('autoplay', '');
+video.setAttribute('playsinline', '');
+video.setAttribute('loop', '');
+video.volume = 0.25;
+// video.setAttribute('crossorigin', 'anonymous');
+video.style.display = "none";
+world.append(video);
 
+// const vidGeo = new THREE.PlaneGeometry(2, 2);
+// const vidTexture = new THREE.VideoTexture(video)
+// const vidMat = new THREE.MeshPhongMaterial({ color: 0xffffff, map: vidTexture})
+// const vidScreen = new THREE.Mesh(vidGeo, vidMat);
+// scene.add(vidScreen);
+// fetch("https://youtube-video-downloader2.p.rapidapi.com/?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3Dk3WkJq478To", {
+// 	"method": "GET",
+// 	"headers": {
+// 		"x-rapidapi-host": "youtube-video-downloader2.p.rapidapi.com",
+// 		"x-rapidapi-key": "iqHzcPB138mshXl5UkviablXYVsOp1z79fAjsnVUGBeH4n1hT7"
+// 	}
+// })
+// .then(response => {
+//   response.json().then(async (data) => {
+//     // console.log(data.medias);
+//     let blob = await fetch(data.medias[10].url, {mode: "no-cors"}).then(r => r.blob());
+//     let dataUrl = await new Promise(resolve => {
+//       let reader = new FileReader();
+//       reader.onload = () => resolve(reader.result);
+//       reader.readAsDataURL(blob);
+//     });
+//     console.log(dataUrl);
+//     video.src = dataUrl;
+//   })
+// })
+// .catch(err => {
+// 	console.error(err);
+// });
