@@ -1,11 +1,13 @@
 const isLocal = process.env.PORT ? false : true;
 const http = require('http');
 const fs = require('fs');
+const URL = require('url')
 const express = require('express');
 const Port = process.env.PORT || 3000;
 const crypto = require('crypto');
 const subtle = crypto.webcrypto.subtle;
 const WebSocket = require('ws');
+const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 
 class Server {
@@ -24,24 +26,24 @@ class Server {
       await self.setupWS(ws);
     })
     if(isLocal){
-      this.url = 'ws://localhost:' + port;
+      this.url = 'http://localhost:' + port;
     } else {
       this.app.use(async (req, res, next) => {
         next();
         if(!self.url && !self.verifyingSelf){
           self.verifyingSelf = true;
-          const url = "ws://" + req.get('host') + "/";
           try {
-            console.log(url);
-            await this.connectToServer(url);
-            console.log("connected");
-            await this.verifyIsSelf(url);
-            self.url = url;
+            let url = req.protocol + "://" + req.get('host') + "/";
+            self.selfKey = Buffer.from(crypto.randomBytes(32)).toString('hex');
+            const data = (await axios.get(url + "valoria/self-verification")).data;
+            if(data.key == self.selfKey){
+              self.url = url;
+              await this.setup();
+            }
             self.verifyingSelf = false;
-            console.log("verified");
-            await this.setup();
+            self.selfKey = "";
           } catch(e){
-
+            console.log(e)
           }
         }
       });
@@ -87,6 +89,9 @@ class Server {
     app.get('/', async (req, res) => {
       res.render('index')
     })
+    app.get('/valoria/self-verification', async(req, res) => {
+      res.send({key: self.selfKey});
+    })
   }
 
   connectToServer(url){
@@ -96,17 +101,14 @@ class Server {
         res();
       } else {
         if(!this.conns[url]) {
-          this.conns[url] = new WebSocket(url);
+          let wsUrl = "ws://" + new URL(url).host + "/"
+          this.conns[url] = new WebSocket(wsUrl);
         } 
-        console.log("created");
         this.conns[url].onopen = ( async () => {
-          console.log("OPEN")
           try {
             await this.setupWS(this.conns[url]);
-            console.log("connected")
             res();
           } catch (e){
-            console.log(e);
             rej(e);
           }
         });
@@ -274,18 +276,6 @@ class Server {
     });
   }
 
-  async verifyIsSelf(url){
-    const self = this;
-    return new Promise(async(res, rej) => {
-      if(!self.conns[url]) return rej();
-      self.promises["Verified self with " + url] = {res, rej};
-      self.selfKey = Buffer.from(crypto.randomBytes(32)).toString('hex');
-      self.conns[url].send(JSON.stringify({
-        event: "Verify self"
-      }));
-    });
-  }
-
   setupWS = async (ws) => {
     const self = this;
     return new Promise(async(res, rej) => {
@@ -320,12 +310,6 @@ class Server {
           // case 'Got pubkey':
           //   await self.handleGotPubKey(ws, d.data);
           //   break;
-          case 'Verify self':
-            self.handleVerifySelf(ws);
-            break;
-          case 'Verified self':
-            self.handleVerifiedSelf(ws, d.data);
-            break;
           case 'Get groups':
             await self.handleGetGroups(ws);
             break;
@@ -407,25 +391,6 @@ class Server {
     ws.pingTimeout = setTimeout(() => {
       ws.terminate();
     }, 3500);
-  }
-
-  handleVerifySelf(ws){
-    if(!this.selfKey) return;
-    ws.send(JSON.stringify({
-      event: "Verified self",
-      data: this.selfKey
-    }))
-  }
-
-  handleVerifiedSelf(ws, data){
-    const self = this;
-    if(!self.promises["Verified self with " + ws.url]) return;
-    if(self.selfKey == data){
-      self.promises["Verified self with " + ws.url].res()
-    } else {
-      self.promises["Verified self with " + ws.url].rej();
-    }
-    self.selfKey = "";
   }
 
   handleGetGroups(ws){

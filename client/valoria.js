@@ -35,7 +35,7 @@ class Valoria {
     this.user = new ValoriaUser();
     this.user.valoria = this;
     this.setupDeviceMessages();
-    this.connectToServer("ws://" + window.location.host)
+    this.connectToServer(window.location.origin)
   }
 
   setupDeviceMessages = async () => {
@@ -108,8 +108,10 @@ class Valoria {
         res();
       } else {
         if(!this.conns[url]) {
+          let wsUrl = "ws://" + new URL(url).host + "/"
           this.conns[url] = new WebSocket(url);
         } 
+        this.conns[url].Url = url;
         this.conns[url].onopen = ( async () => {
           try {
             await this.setupWS(this.conns[url]);
@@ -201,8 +203,8 @@ class Valoria {
   handleGotGroups(ws, data){
     const self = this;
     return new Promise(async( res, rej) => {
-      if(self.promises["Got groups from " + ws.url]){
-        self.promises["Got groups from " + ws.url].res(data)
+      if(self.promises["Got groups from " + ws.Url]){
+        self.promises["Got groups from " + ws.Url].res(data)
       }
       res();
     })
