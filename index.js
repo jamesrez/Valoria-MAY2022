@@ -34,7 +34,7 @@ class Server {
         if(!self.url && !self.verifyingSelf){
           self.verifyingSelf = true;
           try {
-            let url = "//" + req.get('host') + "/";
+            let url = req.protocol + "//" + req.get('host') + "/";
             self.selfKey = Buffer.from(crypto.randomBytes(32)).toString('hex');
             const data = (await axios.get(url + "valoria/self-verification")).data;
             if(data.key == self.selfKey){
