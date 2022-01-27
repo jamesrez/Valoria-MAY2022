@@ -109,7 +109,8 @@ class Valoria {
       } else {
         if(!this.conns[url]) {
           let wsUrl = "ws://" + new URL(url).host + "/"
-          this.conns[url] = new WebSocket(url);
+          this.conns[url] = new WebSocket(wsUrl);
+          this.conns[url].Url = url;
         } 
         this.conns[url].Url = url;
         this.conns[url].onopen = ( async () => {
