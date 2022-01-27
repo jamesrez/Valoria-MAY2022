@@ -45,12 +45,15 @@ class Server {
     this.conns = {};
     this.promises = {};
     this.groups = [];
+    this.verifying = {};
     this.ECDSA = {publicKey: null, privateKey: null};
     this.ECDH = {publicKey: null, privateKey: null};
     this.dimensions = {};
+    this.timeOffset = 0;
+    this.testOffset = 0;
     const self = this;
     if(isLocal){
-      this.url = 'http://localhost:' + port;
+      this.url = 'http://localhost:' + port + "/";
     } else {
       this.app.use(async (req, res, next) => {
         next();
@@ -107,6 +110,7 @@ class Server {
     await self.loadAllGroups();
     await self.joinGroup();
     console.log(self.groups)
+    console.log(self.group)
     // console.log(self.url + " is setup");
   }
 
@@ -138,6 +142,16 @@ class Server {
         this.conns[url].onopen = ( async () => {
           try {
             await this.setupWS(this.conns[url]);
+            // console.log("Gotta verify url");
+            await new Promise(async(res, rej) => {
+              self.promises["Url verified with " + url] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "Verify url request",
+                data: {
+                  url: self.url
+                }
+              }))
+            })
             res();
           } catch (e){
             console.log(e);
@@ -311,7 +325,7 @@ class Server {
 
   loadAllGroups = async () => {
     const self = this;
-    return new Promise(async(res, rej) => {
+    return new Promise(async (res, rej) => {
       let initialServers = isLocal ? ['http://localhost:3000/'] : require('servers.json');
       if(!initialServers || initialServers.length == 0) rej("No initial servers found.");
       let servers = [...initialServers];
@@ -332,7 +346,7 @@ class Server {
           break;
         }
         const url = servers[servers.length * Math.random() << 0];
-        const groups = new Promise(async(res, rej) => {
+        const groups = await new Promise(async (res, rej) => {
           await self.connectToServer(url);
           self.promises["Got groups from " + url] = {res, rej};
           self.conns[url].send(JSON.stringify({
@@ -345,7 +359,7 @@ class Server {
         used.push(url);
         servers = self.groups.flat();
         for(let i=0;i<used.length;i++){
-          if(servers.indexOf(used) !== -1){
+          if(servers.indexOf(used[i]) !== -1){
             servers.splice(servers.indexOf(used[i]), 1);
           }
         }
@@ -378,7 +392,7 @@ class Server {
           });
           willCreateGroup = false;
           console.log(self.url + " has joined group " + self.group.index);
-          self.groups[self.group.index] = self.group.servers;
+          self.groups[self.group.index] = self.group.members;
           self.conns[url].send(JSON.stringify({
             event: "Joined group success"
           }));
@@ -395,6 +409,7 @@ class Server {
           await self.joinGroup();
         }
       }
+      return res();
     });
   }
 
@@ -423,10 +438,10 @@ class Server {
           index : self.groups.length,
           members: [self.url],
           version: 0,
-          created: self.now()
+          updated: self.now(),
+          max: 3
         }
         self.groups.push([self.url]);
-        console.log(self.url + " created group " + self.group.index);
         if(self.group.index > 0){
           const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
           await self.connectToServer(url);
@@ -437,10 +452,9 @@ class Server {
               group: self.group
             }
           }));
-          return res()
-        } else {
-          return res();
         }
+        console.log(self.url + " has created group " + self.group.index);
+        return res();
       } catch (e){
         console.log(e)
       }
@@ -481,6 +495,18 @@ class Server {
           // case 'Got pubkey':
           //   await self.handleGotPubKey(ws, d.data);
           //   break;
+          case 'Verify url request':
+            await self.handleVerifyUrlRequest(ws, d.data);
+            break;
+          case 'Verify url with key':
+            await self.handleVerifyUrlKey(ws, d.data);
+            break;
+          case 'Verify url':
+            await self.handleVerifyUrl(ws)
+            break;
+          case 'Url verified':
+            await self.handleUrlVerified(ws, d.data);
+            break;
           case 'Get groups':
             await self.handleGetGroups(ws);
             break;
@@ -564,6 +590,79 @@ class Server {
     }, 3500);
   }
 
+  handleVerifyUrlRequest = async (ws, data) => {
+    const self = this;
+    return new Promise(async( res, rej) => {
+      if(ws.Url || !data.url) return res();
+      ws.verifyingUrl = data.url;
+      self.verifying[data.url] = Buffer.from(crypto.randomBytes(32)).toString('hex');
+      await new Promise(async(res, rej) => {
+        self.promises["Verified url " + data.url + " with key"] = {res, rej}
+        ws.send(JSON.stringify({
+          event: "Verify url with key",
+          data: {
+            key: self.verifying[data.url]
+          }
+        }))
+      })
+      return res();
+    })
+  }
+
+  handleVerifyUrlKey = async (ws, data) => {
+    const self = this;
+    return new Promise(async( res, rej) => {
+      if(!self.promises["Url verified with " + ws.Url] || !data.key) return res();
+      let pathUrl = ws.Url.replace(/\//g, "");
+      pathUrl = pathUrl.replace(/\:/g, "");
+      self.app.get("/valoria/verifying/" + pathUrl, (req, res) => {
+        res.send(data.key);
+      })
+      ws.send(JSON.stringify({
+        event: "Verify url"
+      }))
+      return res();
+    })
+  }
+
+  handleVerifyUrl = async (ws) => {
+    const self = this;
+    return new Promise(async( res, rej) => {
+      if(!ws.verifyingUrl || !self.verifying[ws.verifyingUrl]) return res();
+      const key = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
+      if(key == self.verifying[ws.verifyingUrl]){
+        ws.Url = ws.verifyingUrl;
+        self.conns[ws.Url] = ws;
+        ws.send(JSON.stringify({
+          event: "Url verified",
+          data: {
+            success: true
+          }
+        }))
+      } else {
+        ws.send(JSON.stringify({
+          event: "Url verified",
+          data: {
+            err: true
+          }
+        }))
+      }
+      return res();
+    })
+  }
+
+  handleUrlVerified = async (ws, data) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      if(!self.promises["Url verified with " + ws.Url]) return res();
+      if(data.success){
+        self.promises["Url verified with " + ws.Url].res()
+      } else {
+        self.promises["Url verified with " + ws.Url].rej();
+      }
+    })
+  }
+
   handleGetGroups(ws){
     const self = this;
     return new Promise(async( res, rej) => {
@@ -590,7 +689,7 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         const g = self.group;
-        if(g.servers.indexOf(ws.Url) !== -1){
+        if(g.members.indexOf(ws.Url) !== -1){
           ws.send(JSON.stringify({
             event: "Joined group",
             data: {err: "Already joined group"}
@@ -607,10 +706,8 @@ class Server {
             event: "Joined group",
             data: g
           }));
-          await (async () => {
-            return new Promise((res, rej) => {
-              self.promises["Joined group success from " + ws.Url] = {res, rej};
-            })
+          await new Promise((res, rej) => {
+            self.promises["Joined group success from " + ws.Url] = {res, rej};
           })
           for(let i=0;i<g.members?.length;i++){
             if(g.members[i] == self.url || g.members[i] == ws.Url) continue;
