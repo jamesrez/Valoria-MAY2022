@@ -13,6 +13,7 @@ const { v4: uuidv4 } = require('uuid');
 class Server {
   constructor(port){
     this.app = express();
+    this.app.enable('trust proxy');
     this.server = http.Server(this.app);
     this.port = port;
     this.wss = new WebSocket.Server({ server: this.server });
@@ -33,7 +34,7 @@ class Server {
         if(!self.url && !self.verifyingSelf){
           self.verifyingSelf = true;
           try {
-            let url = req.protocol + "://" + req.get('host') + "/";
+            let url = "//" + req.get('host') + "/";
             self.selfKey = Buffer.from(crypto.randomBytes(32)).toString('hex');
             const data = (await axios.get(url + "valoria/self-verification")).data;
             if(data.key == self.selfKey){
