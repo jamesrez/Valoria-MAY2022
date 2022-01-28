@@ -396,6 +396,8 @@ class Server {
           self.conns[url].send(JSON.stringify({
             event: "Joined group success"
           }));
+          await self.save("group.json", self.group);
+          await self.save("groups.json", self.groups);
         } catch (e){
           continue;
         }
@@ -453,6 +455,8 @@ class Server {
             }
           }));
         }
+        await self.save("group.json", self.group);
+        await self.save("groups.json", self.groups);
         console.log(self.url + " has created group " + self.group.index);
         return res();
       } catch (e){
@@ -735,6 +739,8 @@ class Server {
               data: g
             }))
           }
+          await self.save("group.json", self.group);
+          await self.save("groups.json", self.groups);
           res()
           return
         } else {
@@ -859,6 +865,8 @@ class Server {
       } catch(e){
         console.log(e)
       }
+      await self.save("group.json", self.group);
+      await self.save("groups.json", self.groups);
       res();
     })
   }
@@ -933,6 +941,8 @@ class Server {
       } catch (e){
         console.log(e)
       }
+      await self.save("group.json", self.group);
+      await self.save("groups.json", self.groups);
       res();
     })
   }
