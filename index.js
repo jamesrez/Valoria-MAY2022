@@ -109,8 +109,8 @@ class Server {
     });
     await self.loadAllGroups();
     await self.joinGroup();
-    console.log(self.groups)
-    console.log(self.group)
+    // console.log(self.groups)
+    console.log(self.group.members)
     // console.log(self.url + " is setup");
   }
 
@@ -534,8 +534,8 @@ class Server {
           // case 'Verify token signature':
           //   self.handleVerifyTokenSignature(ws, d.data);
           //   break;
-          case 'New server in group':
-            await self.handleNewServerInGroup(ws, d.data);
+          case 'New member in group':
+            await self.handleNewMemberInGroup(ws, d.data);
             break;
           case 'New group':
             await self.handleNewGroup(ws, d.data);
@@ -721,7 +721,6 @@ class Server {
             const servers = self.groups[g.index - 1];
             const url = servers[servers.length * Math.random() << 0];
             await self.connectToServer(url);
-            await self.verifyConnection(self.conns[url]);
             self.conns[url].send(JSON.stringify({
               event: "New member in group",
               data: g
@@ -731,9 +730,8 @@ class Server {
             const servers = self.groups[g.index + 1];
             const url = servers[servers.length * Math.random() << 0];
             await self.connectToServer(url);
-            await self.verifyConnection(self.conns[url]);
             self.conns[url].send(JSON.stringify({
-              event: "New server in group",
+              event: "New member in group",
               data: g
             }))
           }
@@ -844,7 +842,6 @@ class Server {
           if(self.group.index > 0 && self.groups[self.group.index - 1]){
             const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
             await self.connectToServer(url);
-            // await self.verifyConnection(self.conns[url]);
             self.conns[url].send(JSON.stringify({
               event: "New group",
               data: {
@@ -875,6 +872,66 @@ class Server {
         } else {
           self.promises["New group found at " + ws.Url].rej()
         }
+      }
+      res();
+    })
+  }
+
+  handleNewMemberInGroup(ws, data){
+    const self = this;  
+    return new Promise(async (res, rej) => {
+      if(!ws.Url || data.index < 0) return res();
+      try {
+        if(data.index < 0) return;
+        if(self.group.index == data.index  && self.group.members.indexOf(ws.Url) !== -1){
+          if(self.group.version !== data.version - 1) return;
+          self.group.members = Array.from(new Set([...self.group.members, ...data.members]));
+          self.groups[data.index] = self.group.members;
+          self.group.version += 1;
+          self.group.updated = data.updatedd;
+        } else if(self.group.index > 0 && self.groups[self.group.index - 1] && self.groups[self.group.index - 1]?.indexOf(ws.Url) !== -1){
+          self.groups[data.index] = Array.from(new Set([...self.groups[data.index], ...data.members]));
+          if(self.groups[self.group.index + 1]?.length > 0){
+            const servers = self.groups[self.group.index + 1];
+            const url = servers[servers.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "New member in group",
+              data
+            }))
+          }
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.group.members[i] == self.url) continue;
+            await self.connectToServer(self.group.members[i]);
+            self.conns[self.group.members[i]].send(JSON.stringify({
+              event: "New member in group",
+              data
+            }))
+          }
+        } else if(self.groups[self.group.index + 1] && self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1){
+          self.groups[data.index] = Array.from(new Set([...self.groups[data.index], ...data.members]));
+          if(self.group.index > 0 && self.groups[self.group.index - 1]?.length > 0){
+            const servers = self.groups[self.group.index - 1];
+            const url = servers[servers.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "New member in group",
+              data
+            }))
+          }
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.group.members[i] == self.url) continue;
+            await self.connectToServer(self.group.members[i]);
+            self.conns[self.group.members[i]].send(JSON.stringify({
+              event: "New member in group",
+              data
+            }))
+          }
+        } else if (self.group.members.indexOf(ws.Url) !== -1 && data.index !== self.group.index){
+          self.groups[data.index] = Array.from(new Set([...self.groups[data.index], ...data.members]));
+        }
+      } catch (e){
+        console.log(e)
       }
       res();
     })
@@ -943,7 +1000,7 @@ class Server {
 
 }
 
-let localServerCount = 3;
+let localServerCount = 99;
 if(isLocal){
   (async () => {
     for(let i=0;i<localServerCount;i++){
