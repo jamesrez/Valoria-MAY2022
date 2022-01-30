@@ -11,6 +11,24 @@ const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const { off } = require('process');
 
+function getDirContents(dir, results=[]){
+  if(!fs.existsSync(dir + "/")) return;
+  let list = fs.readdirSync(dir + "/");
+  list.forEach(function(file) {
+    if(dir !== __dirname){
+      file = dir + '/' + file;
+    }
+    const stat = fs.statSync(file);
+    if (stat && stat.isDirectory()) { 
+      getDirContents(file, results);
+    } else { 
+      file = file.substr((__dirname + "/data/").length);
+      results.push(file);
+    }
+  });
+  return results;
+};
+
 function simpleHash(str){
   var hash = 0;
   if (str.length == 0) {
@@ -155,7 +173,6 @@ class Server {
         this.conns[url].onopen = ( async () => {
           try {
             await this.setupWS(this.conns[url]);
-            // console.log("Gotta verify url");
             await new Promise(async(res, rej) => {
               self.promises["Url verified with " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
@@ -434,7 +451,18 @@ class Server {
       if(!self.group) return res();
       const groupIndex = jumpConsistentHash(path, self.groups.length);
       if(groupIndex == self.group.index){
-        await self.setLocal(path, data);
+        await self.setLocal("data/" + path, data);
+        for(let i=0;i<self.group.members.length;i++){
+          if(self.group.members[i] == self.url) continue;
+          await self.connectToServer(self.group.members[i]);
+          self.conns[self.group.members[i]].send(JSON.stringify({
+            event: "Group set",
+            data: {
+              path,
+              data
+            }
+          }));
+        }
         return res();
       } else {
         const members = self.groups[groupIndex];
@@ -511,7 +539,6 @@ class Server {
     return new Promise(async (res, rej) => {
       const groups = [...self.groups];
       let willCreateGroup = true;
-      console.log(self.url + " start")
       while(groups.length > 0 && !self.group){
         const group = groups[groups.length * Math.random() << 0];
         const url = group[group.length * Math.random() << 0];
@@ -551,7 +578,6 @@ class Server {
           await self.joinGroup();
         }
       }
-      console.log(self.url + " done")
       return res();
     });
   }
@@ -721,6 +747,30 @@ class Server {
       await self.set(`${self.id}/public.json`, self.public);
       return res();
     })
+  }
+
+  reassignGroupData = async () => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/data");
+      for(let i=0;i<paths.length;i++){
+        let path = paths[i].substr(paths[i].indexOf("/") + 1);
+        path = path.substr(path.indexOf("/") + 1);
+        path = path.substr(path.indexOf("/") + 1);
+        const groupIndex = jumpConsistentHash(path, self.groups.length);
+        if(groupIndex !== self.group.index){
+          const data = await self.getLocal("data/" + path);
+          await self.set(path, data);
+          await fs.unlinkSync(__dirname + "/data/" + paths[i]);
+          try {
+            let dir = __dirname + "/data/" + paths[i];
+            dir = dir.substring(0, dir.lastIndexOf("/"));
+            await fs.rmdirSync(dir)
+          } catch(e){}
+        }
+      }
+      res();
+    });
   }
 
   setupWS = async (ws) => {
@@ -1055,6 +1105,26 @@ class Server {
           await new Promise((res, rej) => {
             self.promises["Joined group success from " + ws.Url] = {res, rej};
           })
+
+          //SEND GROUP DATA TO NEW MEMBER
+          let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/data");
+          for(let i=0;i<paths.length;i++){
+            let path = paths[i].substr(paths[i].indexOf("/") + 1);
+            path = path.substr(path.indexOf("/") + 1);
+            path = path.substr(path.indexOf("/") + 1);
+            const groupIndex = jumpConsistentHash(path, self.groups.length);
+            if(groupIndex == self.group.index){
+              const data = await self.getLocal("data/" + path);
+              self.conns[ws.Url].send(JSON.stringify({
+                event: "Group set",
+                data: {
+                  path,
+                  data
+                }
+              }));
+            }
+          }
+
           if(self.groups[g.index - 1]?.length > 0){
             const servers = self.groups[g.index - 1];
             const url = servers[servers.length * Math.random() << 0];
@@ -1243,6 +1313,7 @@ class Server {
             event: "New group found",
             data: {success: false}
           }))
+          return res();
         }
         if(self.group.members.indexOf(ws.Url) !== -1){
           self.groups.push(data.group.members);
@@ -1274,6 +1345,7 @@ class Server {
             data: {success: true}
           }))
         }
+        self.reassignGroupData();
       } catch(e){
         console.log(e)
       }
@@ -1365,7 +1437,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!data.path) return;
       if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
-        const d = await self.getLocal(data.path);
+        const d = await self.getLocal("data/" + data.path);
         ws.send(JSON.stringify({
           event: "Got",
           data: {
@@ -1383,7 +1455,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!data.path || !data.data) return;
       if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
-        await self.setLocal(data.path, data.data);
+        await self.setLocal("data/" + data.path, data.data);
         ws.send(JSON.stringify({
           event: "Sot",
           data: {
@@ -1416,7 +1488,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!data.path || !data.data) return;
       if(ws.Url && self.group.members.indexOf[ws.Url] !== -1){
-        await self.setLocal(data.path, data.data);
+        await self.setLocal("data/" + data.path, data.data);
       }
       return res()
     })
@@ -1503,7 +1575,7 @@ class Server {
 
 }
 
-let localServerCount = 5;
+let localServerCount = 100;
 if(isLocal){
   (async () => {
     for(let i=0;i<localServerCount;i++){
