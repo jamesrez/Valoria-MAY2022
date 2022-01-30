@@ -12,9 +12,10 @@ const { v4: uuidv4 } = require('uuid');
 const { off } = require('process');
 
 function getDirContents(dir, results=[]){
-  if(!fs.existsSync(dir + "/")) return;
+  if(!fs.existsSync(dir + "/")) return [];
   let list = fs.readdirSync(dir + "/");
-  list.forEach(function(file) {
+  for(let i=0;i<list.length;i++){
+    let file = list[i];
     if(dir !== __dirname){
       file = dir + '/' + file;
     }
@@ -25,7 +26,7 @@ function getDirContents(dir, results=[]){
       file = file.substr((__dirname + "/data/").length);
       results.push(file);
     }
-  });
+  }
   return results;
 };
 
@@ -425,9 +426,9 @@ class Server {
   get = async (path, opts={}) => {
     const self = this;
     return new Promise(async(res, rej) => {
-      const groupIndex = jumpConsistentHash(path, self.groups.length);
+      const groupIndex = jumpConsistentHash("data/" + path, self.groups.length);
       if(groupIndex == self.group.index){
-        const data = await self.getLocal(path);
+        const data = await self.getLocal("all/data/" + path);
         return res(data);
       } else {
         const members = self.groups[groupIndex]
@@ -449,9 +450,46 @@ class Server {
     const self = this;
     return new Promise(async(res, rej) => {
       if(!self.group) return res();
-      const groupIndex = jumpConsistentHash(path, self.groups.length);
+      const groupIndex = jumpConsistentHash("data/" + path, self.groups.length);
       if(groupIndex == self.group.index){
-        await self.setLocal("data/" + path, data);
+        await self.setLocal("all/data/" + path, data);
+        for(let i=0;i<self.group.members.length;i++){
+          if(self.group.members[i] == self.url) continue;
+          await self.connectToServer(self.group.members[i]);
+          if(self.url == 'http://localhost:3011/') console.log(path)
+          self.conns[self.group.members[i]].send(JSON.stringify({
+            event: "Group set",
+            data: {
+              path: "data/" + path,
+              data: data
+            }
+          }));
+        }
+        return res();
+      } else {
+        const members = self.groups[groupIndex];
+        const url = members[members.length * Math.random() << 0];
+        await self.connectToServer(url);
+        self.promises["Set data from " + url + " for " + path] = {res, rej};
+        self.conns[url].send(JSON.stringify({
+          event: "Set",
+          data: {
+            path,
+            data,
+            group: self.group.index
+          }
+        }))
+      }
+    })
+  }
+
+  createSetRequest = async (path, data) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      if(!self.group) return res();
+      const groupIndex = jumpConsistentHash("requests/" + path, self.groups.length);
+      if(groupIndex == self.group.index){
+        await self.setLocal("all/requests/" + path, data);
         for(let i=0;i<self.group.members.length;i++){
           if(self.group.members[i] == self.url) continue;
           await self.connectToServer(self.group.members[i]);
@@ -725,7 +763,7 @@ class Server {
       const path = `groups/${self.lastSync + self.syncIntervalMs}.json`;
       if(!self.lastSync) self.lastSync = self.start;
       if(time - self.lastSync > self.syncIntervalMs){
-        const group = jumpConsistentHash(path, self.groups.length);
+        const group = jumpConsistentHash("data/" + path, self.groups.length);
         if(self.group && group == self.group.index){
           console.log(`${self.url} will save groups at time: ${self.lastSync + self.syncIntervalMs}`);
         }
@@ -752,15 +790,24 @@ class Server {
   reassignGroupData = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/data");
+      let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all");
       for(let i=0;i<paths.length;i++){
         let path = paths[i].substr(paths[i].indexOf("/") + 1);
         path = path.substr(path.indexOf("/") + 1);
         path = path.substr(path.indexOf("/") + 1);
         const groupIndex = jumpConsistentHash(path, self.groups.length);
         if(groupIndex !== self.group.index){
-          const data = await self.getLocal("data/" + path);
-          await self.set(path, data);
+          const data = await self.getLocal("all/" + path);
+          const url = await self.groups[groupIndex][self.groups[groupIndex].length * Math.random() << 0]
+          await self.connectToServer(url);
+          self.conns[url].send(JSON.stringify({
+            event: "Take over group data",
+            data: {
+              path,
+              data,
+              group: self.group.index
+            }
+          }))
           await fs.unlinkSync(__dirname + "/data/" + paths[i]);
           try {
             let dir = __dirname + "/data/" + paths[i];
@@ -897,6 +944,9 @@ class Server {
             break; 
           case "Group set":
             await self.handleGroupSet(ws, d.data);
+            break;
+          case "Take over group data":
+            await self.handleTakeOverGroupData(ws, d.data);
             break;
           case "Got":
             await self.handleGot(ws, d.data);
@@ -1107,14 +1157,14 @@ class Server {
           })
 
           //SEND GROUP DATA TO NEW MEMBER
-          let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/data");
+          let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all");
           for(let i=0;i<paths.length;i++){
             let path = paths[i].substr(paths[i].indexOf("/") + 1);
             path = path.substr(path.indexOf("/") + 1);
             path = path.substr(path.indexOf("/") + 1);
             const groupIndex = jumpConsistentHash(path, self.groups.length);
             if(groupIndex == self.group.index){
-              const data = await self.getLocal("data/" + path);
+              const data = await self.getLocal("all/" + path);
               self.conns[ws.Url].send(JSON.stringify({
                 event: "Group set",
                 data: {
@@ -1435,9 +1485,9 @@ class Server {
   handleGet = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!data.path) return;
+      if(!data.path) return res();
       if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
-        const d = await self.getLocal("data/" + data.path);
+        const d = await self.getLocal("all/data/" + data.path);
         ws.send(JSON.stringify({
           event: "Got",
           data: {
@@ -1453,9 +1503,9 @@ class Server {
   handleSet = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!data.path || !data.data) return;
+      if(!data.path || !data.data) return res();
       if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
-        await self.setLocal("data/" + data.path, data.data);
+        await self.setLocal("all/data/" + data.path, data.data);
         ws.send(JSON.stringify({
           event: "Sot",
           data: {
@@ -1464,10 +1514,14 @@ class Server {
           }
         }));
         for(let i=0;i<self.group.members.length;i++){
+          if(self.group.members[i] == self.url) continue;
           await self.connectToServer(self.group.members[i]);
           self.conns[self.group.members[i]].send(JSON.stringify({
             event: "Group set",
-            data: data
+            data: {
+              data: data.data,
+              path: "data/" + data.path
+            }
           }));
         }
       } else {
@@ -1486,9 +1540,42 @@ class Server {
   handleGroupSet = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!data.path || !data.data) return;
+      if(!data.path || !data.data) return res();
       if(ws.Url && self.group.members.indexOf[ws.Url] !== -1){
-        await self.setLocal("data/" + data.path, data.data);
+        await self.setLocal("all/" + data.path, data.data);
+        if(data.path.startsWith("data/")){
+
+        }
+      }
+      return res()
+    })
+  }
+
+  handleTakeOverGroupData = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!data.path || !data.data || !data.group) return res();
+      if(ws.Url && self.groups[data.group].indexOf[ws.Url] !== -1){
+
+        const pastLength = data.group > self.group.index ? self.group.index + 1 : self.group.length - 1;
+        console.log(jumpConsistentHash(data.path, pastLength) !== data.group)
+        if(jumpConsistentHash(data.path, pastLength) !== data.group)  return res();
+
+        await self.setLocal("all/" + data.path, data.data);
+        if(data.path.startsWith("data/")){
+
+        }
+        for(let i=0;i<self.group.members.length;i++){
+          if(self.group.members[i] == self.url) continue;
+          await self.connectToServer(self.group.members[i]);
+          self.conns[self.group.members[i]].send(JSON.stringify({
+            event: "Group set",
+            data: {
+              path: data.path,
+              data: data.data
+            }
+          }));
+        }
       }
       return res()
     })
@@ -1575,7 +1662,7 @@ class Server {
 
 }
 
-let localServerCount = 100;
+let localServerCount = 27;
 if(isLocal){
   (async () => {
     for(let i=0;i<localServerCount;i++){
