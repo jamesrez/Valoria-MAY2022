@@ -75,6 +75,7 @@ let rightController;
   //   }
   // })
   avatar.name = "Avatar";
+  avatar.position.z = -0.5;
   avatar.attach(camera);
   avatar.ray = new THREE.Raycaster();
   avatar.ray.set(new THREE.Vector3(avatar.position.x, 0.3, avatar.position.z), new THREE.Vector3(0, -1, 0));
