@@ -450,6 +450,7 @@ class Server {
     const self = this;
     return new Promise(async(res, rej) => {
       if(!self.group) return res();
+      // await self.createSetRequest(path, data);
       const groupIndex = jumpConsistentHash("data/" + path, self.groups.length);
       if(groupIndex == self.group.index){
         await self.setLocal("all/data/" + path, data);
@@ -488,8 +489,12 @@ class Server {
     return new Promise(async(res, rej) => {
       if(!self.group) return res();
       const groupIndex = jumpConsistentHash("requests/" + path, self.groups.length);
+      const request = {
+        from: self.id,
+
+      }
       if(groupIndex == self.group.index){
-        await self.setLocal("all/requests/" + path, data);
+        await self.setLocal("all/requests/" + path, );
         for(let i=0;i<self.group.members.length;i++){
           if(self.group.members[i] == self.url) continue;
           await self.connectToServer(self.group.members[i]);
@@ -781,8 +786,8 @@ class Server {
   sharePublic = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      await self.set(`${self.pathUrl}/public.json`, self.public);
       await self.set(`${self.id}/public.json`, self.public);
+      await self.set(`${self.pathUrl}/public.json`, self.public);
       return res();
     })
   }

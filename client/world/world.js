@@ -74,7 +74,11 @@ let rightController;
   //     node.frustumCulled = true;
   //   }
   // })
+  avatar.name = "Avatar";
   avatar.attach(camera);
+  avatar.ray = new THREE.Raycaster();
+  avatar.ray.set(new THREE.Vector3(avatar.position.x, 0.3, avatar.position.z), new THREE.Vector3(0, -1, 0));
+
   if(renderer.xr.getController(0).position.x <= renderer.xr.getController(1).position.x){
     leftController = renderer.xr.getController( 0 );
     rightController = renderer.xr.getController( 1 );
@@ -129,6 +133,17 @@ renderer.setAnimationLoop(async () => {
   handleXRControls();
   let delta = clock.getDelta();
   scene.traverse((node) => {
+    if(node.name == "Avatar" && node.ray){
+      node.ray.set(new THREE.Vector3(node.position.x, node.position.y + 0.6, node.position.z), new THREE.Vector3(0, -1, 0));
+      const intersects = node.ray.intersectObjects( scene.children );
+      if(intersects[0]){
+        if(intersects[0].object.type == "SkinnedMesh" && intersects[1]){
+          node.position.y = intersects[1].point.y;
+        } else {
+          node.position.y = intersects[0].point.y;
+        }
+      }
+    }
     if(node.mixer) node.mixer.update(delta);
   })
   updateAvatarAnimation();
@@ -159,7 +174,7 @@ document.addEventListener('keyup', (event) => {
   delete activeKeys[event.key];
 });
 
-const moveSpeed = 0.03;
+const moveSpeed = 0.07;
 function handleControls(){
   let direction;
   if(activeKeys["w"]){
@@ -325,6 +340,7 @@ function handleObjectsMoving(){
 
 async function addPeerToScene(id){
   peerAvatars[id] = await loadModel('assets/default.glb');
+  peerAvatars[id].name = "Avatar";
   peerAvatars[id].sound = new THREE.PositionalAudio(listener);
   peerAvatars[id].attach(peerAvatars[id].sound);
   setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
@@ -411,7 +427,7 @@ grid.scale.y = 2;
 grid.scale.z = 2;
 grid.position.y = -0.5;
 scene.add(grid)
-let gridWaveHeight = 0.03;
+let gridWaveHeight = 0.2;
 const gridVertices = gridPlane.attributes.position;
 const myZs = []
 for (let i=0;i<gridVertices.count;i++) {
@@ -422,13 +438,11 @@ let gridWaveCount = 0;
 function updateGridWave(){
   for (let i=0;i<gridVertices.count;i++) {
     const z = +gridVertices.getZ(i);
-    gridVertices.setZ(i, Math.sin( i + gridWaveCount * 0.0000033) * (myZs[i] - (myZs[i] * 0.00001)));
+    gridVertices.setZ(i, Math.sin( i + gridWaveCount * 0.000003) * (myZs[i] - (myZs[i] * 0.000001)));
     gridVertices.needsUpdate = true;
     gridWaveCount += 0.1
   }
 }
-
-
 
 
 video = document.createElement('video');
