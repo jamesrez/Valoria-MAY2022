@@ -527,7 +527,7 @@ class Server {
   loadAllGroups = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      let initialServers = isLocal ? ['http://localhost:3000/'] : require('servers.json');
+      let initialServers = isLocal ? ['http://localhost:3000/'] : require('./servers.json');
       if(!initialServers || initialServers.length == 0) rej("No initial servers found.");
       let servers = [...initialServers];
       let askAmount = 10;
