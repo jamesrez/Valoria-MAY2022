@@ -119,6 +119,7 @@ class Server {
       clearInterval(heartbeatInterval);
     });
     await self.loadAllGroups();
+    self.syncInterval();
     await self.joinGroup();
     // self.valor = await self.calculateValor(self.url);
     // console.log(self.url + " has " + self.valor + " valor");
@@ -430,6 +431,7 @@ class Server {
   set = async (path, data, opts={}) => {
     const self = this;
     return new Promise(async(res, rej) => {
+      if(!self.group) return res();
       const groupIndex = jumpConsistentHash(path, self.groups.length);
       if(groupIndex == self.group.index){
         await self.setLocal(path, data);
@@ -485,6 +487,9 @@ class Server {
         if(!self.start || data.start < self.start){
           self.start = data.start;
         }
+        if(!self.lastSync || data.lastSync > self.lastSync){
+          self.lastSync = data.lastSync;
+        }
         if(groups.length > self.groups.length){
           self.groups = [...groups];
         }
@@ -506,6 +511,7 @@ class Server {
     return new Promise(async (res, rej) => {
       const groups = [...self.groups];
       let willCreateGroup = true;
+      console.log(self.url + " start")
       while(groups.length > 0 && !self.group){
         const group = groups[groups.length * Math.random() << 0];
         const url = group[group.length * Math.random() << 0];
@@ -530,7 +536,6 @@ class Server {
           }));
           await self.syncTimeWithNearby();
           await self.sharePublic();
-          self.syncInterval();
           await self.setLocal("group.json", self.group);
           await self.setLocal("groups.json", self.groups);
         } catch (e){
@@ -546,6 +551,7 @@ class Server {
           await self.joinGroup();
         }
       }
+      console.log(self.url + " done")
       return res();
     });
   }
@@ -553,9 +559,12 @@ class Server {
   requestNewGroup(){
     const self = this;
     return new Promise(async(res, rej) => {
+      await self.loadAllGroups();
       const groupIndex = self.groups.length;
       if(groupIndex == 0) return res();
-      const url = self.groups[groupIndex - 1][self.groups[groupIndex - 1]?.length * Math.random() << 0];
+      if(self.groups[groupIndex]) return rej()
+      const group = self.groups[self.groups.length * Math.random() << 0];
+      const url = group[group.length * Math.random() << 0];
       await self.connectToServer(url);
       self.promises["New group response from " + url] = {res, rej};
       self.conns[url].send(JSON.stringify({
@@ -583,7 +592,7 @@ class Server {
         if(self.group.index > 0){
           const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
           await self.connectToServer(url);
-          self.promises["New group found at " + url] = {res, rej};
+          // self.promises["New group found at " + url] = {res, rej};
           self.conns[url].send(JSON.stringify({
             event: "New group",
             data: {
@@ -595,11 +604,10 @@ class Server {
         }
         await self.syncTimeWithNearby();
         await self.sharePublic();
-        self.syncInterval();
         await self.setLocal("group.json", self.group);
         await self.setLocal("groups.json", self.groups);
         console.log(self.url + " has created group " + self.group.index);
-        return res();
+        return res(true);
       } catch (e){
         console.log(e)
       }
@@ -639,6 +647,7 @@ class Server {
     const self = this;
     return new Promise(async(res, rej) => {
       let offsets = [];
+      if(!self.group) return res();
       for(let i=0;i<self.group.members.length;i++){
         const url = self.group.members[i];
         if(url == self.url) continue;
@@ -691,7 +700,7 @@ class Server {
       if(!self.lastSync) self.lastSync = self.start;
       if(time - self.lastSync > self.syncIntervalMs){
         const group = jumpConsistentHash(path, self.groups.length);
-        if(group == self.group.index){
+        if(self.group && group == self.group.index){
           console.log(`${self.url} will save groups at time: ${self.lastSync + self.syncIntervalMs}`);
         }
         self.lastSync += self.syncIntervalMs
@@ -772,8 +781,20 @@ class Server {
           case 'New group response':
             await self.handleNewGroupResponse(ws, d.data);
             break;
+          case 'Group can be created':
+            await self.handleGroupCanBeCreated(ws, d.data);
+            break;
+          case 'Group can be created response':
+            await self.handleGroupCanBeCreatedResponse(ws, d.data);
+            break;
           case 'Join group':
             await self.handleJoinGroupRequest(ws);
+            break;
+          case 'Group not full':
+            await self.handleGroupNotFull(ws);
+            break;
+          case 'Group not full response':
+            await self.handleGroupNotFullResponse(ws, d.data);
             break;
           case 'Joined group':
             await self.handleJoinedGroup(ws, d.data);
@@ -824,6 +845,9 @@ class Server {
           case "Set":
             await self.handleSet(ws, d.data);
             break; 
+          case "Group set":
+            await self.handleGroupSet(ws, d.data);
+            break;
           case "Got":
             await self.handleGot(ws, d.data);
             break;
@@ -951,6 +975,7 @@ class Server {
       } else {
         self.promises["Url verified with " + ws.Url].rej();
       }
+      res()
     })
   }
 
@@ -961,7 +986,8 @@ class Server {
         event: "Got groups",
         data: {
           groups: self.groups,
-          start: self.start
+          start: self.start,
+          lastSync: self.lastSync
         }
       }))
       return res();
@@ -992,9 +1018,27 @@ class Server {
           return
         }
         if(g.members.length < g.max){
+          try {
+            for(let i=0;i<g.members.length;i++){
+              if(g.members[i] == self.url) continue;
+              await self.connectToServer(g.members[i]);
+              await new Promise(async (res, rej) => {
+                self.promises["Group not full from " + g.members[i]] = {res, rej};
+                self.conns[g.members[i]].send(JSON.stringify({
+                  event: "Group not full",
+                }))
+              })
+            }
+          } catch (e){
+            ws.send(JSON.stringify({
+              event: "Joined group",
+              data: {err: "Not seeking new members"}
+            }));
+            return res();
+          }
+          g.members.push(ws.Url);
           g.updated = self.now();
           g.version += 1;
-          g.members.push(ws.Url);
           self.groups[g.index] = g.members;
           for(let i=0;i<g.members?.length;i++){
             if(g.members[i] == self.url || g.members[i] == ws.Url) continue;
@@ -1048,6 +1092,32 @@ class Server {
     })
   }
 
+  handleGroupNotFull = async (ws) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1) return res();
+      ws.send(JSON.stringify({
+        event: "Group not full response",
+        data: self.group.members.length < self.group.max
+      }))
+      return res()
+    })
+  }
+
+  
+  handleGroupNotFullResponse = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Group not full from " + ws.Url]) return res();
+      if(data){
+        self.promises["Group not full from " + ws.Url].res();
+      } else {
+        self.promises["Group not full from " + ws.Url].rej();
+      }
+      res();
+    })
+  }
+
   handleJoinedGroup(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
@@ -1077,6 +1147,30 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!data.index) return res();
       if(data.index == self.groups.length){
+        self.canCreate = data.index;
+        try {
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.group.members[i] == self.url) continue;
+            await self.connectToServer(self.group.members[i]);
+            await new Promise(async (res, rej) => {
+              self.promises[`Group ${data.index} can be created from ${self.group.members[i]}`] = {res, rej};
+              self.conns[self.group.members[i]].send(JSON.stringify({
+                event: "Group can be created",
+                data: {
+                  index: data.index
+                }
+              }))
+            })
+          }
+        } catch(e){
+          ws.send(JSON.stringify({
+            event: "New group response",
+            data: {
+              success: false
+            }
+          }))
+          return res();
+        }
         ws.send(JSON.stringify({
           event: "New group response",
           data: {
@@ -1104,6 +1198,35 @@ class Server {
       } else {
         self.promises["New group response from " + ws.Url].rej();
       }
+      res();
+    })
+  }
+
+  handleGroupCanBeCreated = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.index) return res();
+      ws.send(JSON.stringify({
+        event: "Group can be created response",
+        data: {
+          success: (data.index == self.groups.length && self.canCreate !== data.index),
+          index: data.index
+        }
+      }))
+      res();
+    })
+  }
+
+  handleGroupCanBeCreatedResponse = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises[`Group ${data.index} can be created from ${ws.Url}`]) return res();
+      if(data.success){
+        self.promises[`Group ${data.index} can be created from ${ws.Url}`].res();
+      } else {
+        self.promises[`Group ${data.index} can be created from ${ws.Url}`].rej();
+      }
+      res()
     })
   }
 
@@ -1177,15 +1300,16 @@ class Server {
   handleNewMemberInGroup(ws, data){
     const self = this;  
     return new Promise(async (res, rej) => {
-      if(!ws.Url || data.index < 0) return res();
+      if(!ws.Url || data.index < 0 || !self.group) return res();
       try {
         if(data.index < 0) return;
+        if(!self.groups[data.index]) self.groups[data.index] = [];
         if(self.group.index == data.index  && self.group.members.indexOf(ws.Url) !== -1){
           if(self.group.version !== data.version - 1) return;
           self.group.members = Array.from(new Set([...self.group.members, ...data.members]));
           self.groups[data.index] = self.group.members;
           self.group.version += 1;
-          self.group.updated = data.updatedd;
+          self.group.updated = data.updated;
         } else if(self.group.index > 0 && self.groups[self.group.index - 1] && self.groups[self.group.index - 1]?.indexOf(ws.Url) !== -1){
           self.groups[data.index] = Array.from(new Set([...self.groups[data.index], ...data.members]));
           if(self.groups[self.group.index + 1]?.length > 0){
@@ -1266,7 +1390,14 @@ class Server {
             path: data.path,
             success: true
           }
-        }))
+        }));
+        for(let i=0;i<self.group.members.length;i++){
+          await self.connectToServer(self.group.members[i]);
+          self.conns[self.group.members[i]].send(JSON.stringify({
+            event: "Group set",
+            data: data
+          }));
+        }
       } else {
         ws.send(JSON.stringify({
           event: "Sot",
@@ -1275,6 +1406,17 @@ class Server {
             err: true
           }
         }))
+      }
+      return res()
+    })
+  }
+
+  handleGroupSet = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!data.path || !data.data) return;
+      if(ws.Url && self.group.members.indexOf[ws.Url] !== -1){
+        await self.setLocal(data.path, data.data);
       }
       return res()
     })
@@ -1361,12 +1503,16 @@ class Server {
 
 }
 
-let localServerCount = 99;
+let localServerCount = 5;
 if(isLocal){
   (async () => {
     for(let i=0;i<localServerCount;i++){
       const server = new Server(i + Port);
-      await server.setup();
+      if(i == 0){
+        await server.setup();
+      } else {
+        await server.setup();
+      }
     }
   })();
 } else {
