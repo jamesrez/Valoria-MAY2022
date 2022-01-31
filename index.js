@@ -168,6 +168,9 @@ class Server {
       } else {
         if(!this.conns[url]) {
           let wsUrl = "ws://" + new URL(url).host + "/"
+          if(url.startsWith('https')){
+            wsUrl = "wss://" + new URL(url).host + "/"
+          }
           this.conns[url] = new WebSocket(wsUrl);
           this.conns[url].Url = url;
         } 
