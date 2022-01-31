@@ -715,6 +715,73 @@ class Server {
     })
   }
 
+  claimValorForData = async (path) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.group) return res();
+      const valorGroupIndex = jumpConsistentHash("valor/" + path, self.groups.length);
+      if(valorGroupIndex == self.group.index){
+        for(let i=0;i<self.group.members.length;i++){
+          if(self.group.members[i] == self.url) continue;
+          await self.connectToServer(self.group.members[i]);
+          await new Promise(async (res, rej) => {
+            self.promises["Claimed valor for path " + path + " from " + self.group.members[i]] = {res, rej};
+            self.conns[self.group.members[i]].send(JSON.stringify({
+              event: "Claim valor for path",
+              data: {
+                path,
+                url: self.url
+              }
+            }));
+          })
+        }
+        const request = await self.getSetRequest(path);
+        if(!request) return res();
+        let publicD = await self.getPublicFromId(request.from);
+        if(!publicD) return res();
+        const dataGroupIndex = jumpConsistentHash("data/" + path, self.groups.length);
+        if(dataGroupIndex !== self.group.index) return res()
+        const data = await self.getLocal("all/data/" + path);
+        try {
+          await self.verify(JSON.stringify(data), Buffer.from(request.data, "base64"), publicD.ecdsaPub);
+          const valor = {
+            data: {
+              from: self.id,
+              for: self.ownerId,
+              path: path,
+              size: Buffer.byteLength(JSON.stringify(data), 'utf8') / 1000000000,
+              sync: self.lastSync
+            }
+          }
+          valor.sig = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
+          await self.setLocal(`all/valor/${path}`, valor);
+          console.log("YAY")
+          //todo
+        } catch(e) {
+          return res();
+        }
+      } else {
+        for(let i=0;i<self.groups[valorGroupIndex].length;i++){
+          const url = self.groups[valorGroupIndex][i];
+          await self.connectToServer(url);
+          await new Promise(async (res, rej) => {
+            self.promises["Claimed valor for path " + path + " from " + url] = {res, rej};
+            self.conns[url].send(JSON.stringify({
+              event: "Claim valor for path",
+              data: {
+                path,
+                url: self.url
+              }
+            }));
+          })
+        }
+        //todo
+        console.log("YAY")
+      }
+      return res();
+    })
+  }
+
   calculateValor = async (id) => {
     const self = this;
     return new Promise(async (res, rej) => {
@@ -909,8 +976,8 @@ class Server {
       let publicD = await self.get(`${id}/public.json`);
       if(!publicD) return rej({err: "Could not find public"});
       const ecdsaPubHash = await subtle.digest("SHA-256", Buffer.from(publicD.ecdsaPub, 'base64'));
-      const id = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
-      if(publicD.id !== id) return rej({err: "Invalid public data"});
+      const pubId = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
+      if(publicD.id !== pubId) return rej({err: "Invalid public data"});
       publicD.ecdsaPub = await subtle.importKey(
         'raw',
         Buffer.from(publicD.ecdsaPub, 'base64'),
@@ -925,7 +992,7 @@ class Server {
         'raw',
         Buffer.from(publicD.ecdhPub, 'base64'),
         {
-          name: 'ECDSA',
+          name: 'ECDH',
           namedCurve: 'P-384'
         },
         true,
@@ -1094,7 +1161,6 @@ class Server {
           // case "Request group replication":
           //   await self.handleRequestGroupReplication(ws, d.data);
           //   break;
-
           case "Get":
             await self.handleGet(ws, d.data);
             break;
@@ -1125,6 +1191,12 @@ class Server {
           case "Sot":
             await self.handleSot(ws, d.data);
             break; 
+          case "Claim valor for path":
+            await self.handleClaimValorForPath(ws, d.data);
+            break;
+          case "Claimed valor for path":
+            await self.handleClaimedValorPath(ws, d.data);
+            break;
           case "Join dimension":
             await self.handleJoinDimension(ws, d.data);
             break;
@@ -1708,6 +1780,7 @@ class Server {
             }
           }));
         }
+        await self.claimValorForData(data.path);
       } else {
         return err();
       }
@@ -1880,6 +1953,78 @@ class Server {
     })
   }
 
+  handleClaimValorForPath = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!ws.Url || !data.path || !data.url) return err();
+      const valorGroupIndex = jumpConsistentHash("valor/" + data.path, self.groups.length);
+      if(valorGroupIndex !== self.group.index) return err();
+      const request = await self.getSetRequest(data.path);
+      if(!request) return err();
+      let reqPublicD = await self.getPublicFromId(request.from);
+      if(!reqPublicD) return err();
+      const dataGroupIndex = jumpConsistentHash("data/" + data.path, self.groups.length);
+      if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err();
+      await self.connectToServer(data.url);
+      const d = await new Promise(async(res, rej) => {
+        self.promises["Got data from " + data.url + " for " + data.path] = {res, rej};
+        self.conns[data.url].send(JSON.stringify({
+          event: "Get",
+          data: {
+            path: data.path,
+            group: self.group.index
+          }
+        }))
+      })
+      try {
+        await self.verify(JSON.stringify(d), Buffer.from(request.data, "base64"), reqPublicD.ecdsaPub);
+        let dataPublicD = await self.getPublicFromUrl(data.url);
+        if(!dataPublicD) return err();
+        const valor = {
+          data: {
+            from: self.id,
+            for: dataPublicD.ownerId,
+            path: data.path,
+            size: Buffer.byteLength(JSON.stringify(d), 'utf8') / 1000000000,
+            sync: self.lastSync
+          }
+        }
+        valor.sig = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
+        await self.setLocal(`all/valor/${data.path}`, valor);
+        ws.send(JSON.stringify({
+          event: "Claimed valor for path",
+          data: {
+            success: true,
+            path: data.path
+          }
+        }))
+        return res()
+      } catch(e) {
+        return res();
+      }
+      function err(){
+        ws.send(JSON.stringify({
+          event: "Claimed valor for path",
+          data: {
+            err: true,
+            path: data.path
+          }
+        }))
+        return res()
+      }
+    })
+  }
+
+  handleClaimedValorPath(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.promises["Claimed valor for path " + data.path + " from " + ws.Url]){
+        self.promises["Claimed valor for path " + data.path + " from " + ws.Url].res();
+      }
+      return res();
+    })
+  }
+
   handleJoinDimension(ws, data){
     const self = this;
     return new Promise(async( res, rej) => {
@@ -1943,7 +2088,7 @@ class Server {
 
 }
 
-let localServerCount = 100;
+let localServerCount = 9;
 if(isLocal){
   (async () => {
     for(let i=0;i<localServerCount;i++){
