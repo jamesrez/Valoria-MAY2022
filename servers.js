@@ -1,5 +1,5 @@
 const servers = [
-  'https://www.valoria.live/'
+  'https://valoria.live/'
 ]
 
 export default servers;
