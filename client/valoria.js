@@ -108,6 +108,8 @@ class Valoria {
         res();
       } else {
         if(!this.conns[url]) {
+          console.log(url);
+          console.log(new URL(url));
           let wsUrl = "ws://" + new URL(url).host + "/"
           // if(url.startsWith('https')){
           //   wsUrl = "wss://" + new URL(url).host + "/"
