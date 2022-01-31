@@ -168,12 +168,16 @@ class Server {
         res();
       } else {
         if(!this.conns[url]) {
-          let wsUrl = "ws://" + new URL(url).host + "/"
-          // if(url.startsWith('https')){
-          //   wsUrl = "wss://" + new URL(url).host + "/"
-          // }
-          this.conns[url] = new WebSocket(wsUrl);
-          this.conns[url].Url = url;
+          try {
+            let wsUrl = "ws://" + new URL(url).host + "/"
+            if(url.startsWith('https')){
+              wsUrl = "wss://" + new URL(url).host + "/"
+            }
+            this.conns[url] = new WebSocket(wsUrl);
+            this.conns[url].Url = url;
+          } catch(e){
+            console.log(e)
+          }
         } 
         this.conns[url].onopen = ( async () => {
           try {
