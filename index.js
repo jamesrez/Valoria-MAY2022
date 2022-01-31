@@ -170,9 +170,9 @@ class Server {
         if(!this.conns[url]) {
           try {
             let wsUrl = "ws://" + new URL(url).host + "/"
-            if(url.startsWith('https')){
-              wsUrl = "wss://" + new URL(url).host + "/"
-            }
+            // if(url.startsWith('https')){
+            //   wsUrl = "wss://" + new URL(url).host + "/"
+            // }
             this.conns[url] = new WebSocket(wsUrl);
             this.conns[url].Url = url;
           } catch(e){
