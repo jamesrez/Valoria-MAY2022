@@ -58,7 +58,7 @@ function jumpConsistentHash(key, numBuckets) {
 class Server {
   constructor(port){
     this.app = express();
-    this.app.enable('trust proxy');
+    // this.app.enable('trust proxy');
     this.server = http.Server(this.app);
     this.port = port;
     this.wss = new WebSocket.Server({ 
