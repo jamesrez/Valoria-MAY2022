@@ -90,6 +90,7 @@ class Server {
             const data = (await axios.get(url + "valoria/self-verification")).data;
             if(data.key == self.selfKey){
               self.url = url;
+              console.log(self.url)
               await this.setup();
             }
             self.verifyingSelf = false;
@@ -168,9 +169,9 @@ class Server {
       } else {
         if(!this.conns[url]) {
           let wsUrl = "ws://" + new URL(url).host + "/"
-          if(url.startsWith('https')){
-            wsUrl = "wss://" + new URL(url).host + "/"
-          }
+          // if(url.startsWith('https')){
+          //   wsUrl = "wss://" + new URL(url).host + "/"
+          // }
           this.conns[url] = new WebSocket(wsUrl);
           this.conns[url].Url = url;
         } 
