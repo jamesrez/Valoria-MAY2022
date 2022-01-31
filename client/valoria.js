@@ -145,12 +145,12 @@ class Valoria {
       ws.onmessage = async (e) => {
         const d = JSON.parse(e.data);
         switch (d.event) {
-          // case 'Get pubkey':
-          //   await self.handleGetPubKey(ws)
-          //   break;
-          // case 'Got pubkey':
-          //   await self.handleGotPubKey(ws, d.data);
-          //   break;
+          case 'Get public':
+            await self.handleGetPublic(ws, d.data)
+            break;
+          case 'Got public':
+            await self.handleGotPublic(ws, d.data);
+            break;
           case 'Got groups':
             await self.handleGotGroups(ws, d.data);
             break;

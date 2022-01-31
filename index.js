@@ -90,7 +90,6 @@ class Server {
             const data = (await axios.get(url + "valoria/self-verification")).data;
             if(data.key == self.selfKey){
               self.url = url;
-              console.log(self.url)
               await this.setup();
             }
             self.verifyingSelf = false;
@@ -295,8 +294,8 @@ class Server {
         self.ECDSA.privateKey = ecdsaPrv;
         self.ECDH.privateKey = ecdhPrv;
         self.public = {
-          ecdsaPub: Buffer.from(credentials.ecdsaPub).toString('base64'),
-          ecdhPub: Buffer.from(credentials.ecdhPub).toString('base64'),
+          ecdsaPub: credentials.ecdsaPub,
+          ecdhPub: credentials.ecdhPub,
           id,
           url: self.url
         }
@@ -443,13 +442,13 @@ class Server {
         const url = members[members.length * Math.random() << 0];
         await self.connectToServer(url);
         self.promises["Got data from " + url + " for " + path] = {res, rej};
-        self.conns[url].send({
+        self.conns[url].send(JSON.stringify({
           event: "Get",
           data: {
             path,
             group: self.group.index
           }
-        })
+        }))
       }
     })
   }
@@ -458,14 +457,13 @@ class Server {
     const self = this;
     return new Promise(async(res, rej) => {
       if(!self.group) return res();
-      // await self.createSetRequest(path, data);
+      await self.createSetRequest(path, data);
       const groupIndex = jumpConsistentHash("data/" + path, self.groups.length);
       if(groupIndex == self.group.index){
         await self.setLocal("all/data/" + path, data);
         for(let i=0;i<self.group.members.length;i++){
           if(self.group.members[i] == self.url) continue;
           await self.connectToServer(self.group.members[i]);
-          if(self.url == 'http://localhost:3011/') console.log(path)
           self.conns[self.group.members[i]].send(JSON.stringify({
             event: "Group set",
             data: {
@@ -497,20 +495,25 @@ class Server {
     return new Promise(async(res, rej) => {
       if(!self.group) return res();
       const groupIndex = jumpConsistentHash("requests/" + path, self.groups.length);
+      const dataHashSig = await self.sign(JSON.stringify(data));
       const request = {
         from: self.id,
-
+        url: self.url,
+        path,
+        data: Buffer.from(dataHashSig).toString('base64'),
+        group: self.group.index,
+        sync: self.lastSync
       }
       if(groupIndex == self.group.index){
-        await self.setLocal("all/requests/" + path, );
+        await self.setLocal("all/requests/" + path, request);
         for(let i=0;i<self.group.members.length;i++){
           if(self.group.members[i] == self.url) continue;
           await self.connectToServer(self.group.members[i]);
           self.conns[self.group.members[i]].send(JSON.stringify({
             event: "Group set",
             data: {
-              path,
-              data
+              path: "requests/" + path,
+              data: request
             }
           }));
         }
@@ -519,12 +522,33 @@ class Server {
         const members = self.groups[groupIndex];
         const url = members[members.length * Math.random() << 0];
         await self.connectToServer(url);
-        self.promises["Set data from " + url + " for " + path] = {res, rej};
+        self.promises["Sent request to " + url + " for " + path] = {res, rej};
         self.conns[url].send(JSON.stringify({
-          event: "Set",
+          event: "Set request",
+          data: {
+            request
+          }
+        }))
+      }
+    })
+  }
+
+  getSetRequest = async (path) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      const groupIndex = jumpConsistentHash("requests/" + path, self.groups.length);
+      if(groupIndex == self.group.index){
+        const data = await self.getLocal("all/requests/" + path);
+        return res(data);
+      } else {
+        const members = self.groups[groupIndex]
+        const url = members[members.length * Math.random() << 0];
+        await self.connectToServer(url);
+        self.promises["Got set request from " + url + " for " + path] = {res, rej};
+        self.conns[url].send(JSON.stringify({
+          event: "Get set request",
           data: {
             path,
-            data,
             group: self.group.index
           }
         }))
@@ -833,6 +857,128 @@ class Server {
     });
   }
 
+  getPublicFromUrl = async (url) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      let pathUrl = url.replace(/\//g, "");
+      pathUrl = pathUrl.replace(/\:/g, "");
+      let publicD = await self.get(`${pathUrl}/public.json`);
+      if(!publicD){
+        publicD = await new Promise(async (res, rej) => {
+          await self.connectToServer(url);
+          self.promises["Got public from " + url] = {res, rej};
+          self.conns[url].send(JSON.stringify({
+            event: "Get public",
+          }))
+        })
+      }
+      const ecdsaPubHash = await subtle.digest("SHA-256", Buffer.from(publicD.ecdsaPub, 'base64'));
+      const id = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
+      if(publicD.id !== id) return rej({err: "Invalid public data"});
+      try {
+        publicD.ecdsaPub = await subtle.importKey(
+          'raw',
+          Buffer.from(publicD.ecdsaPub, 'base64'),
+          {
+            name: 'ECDSA',
+            namedCurve: 'P-384'
+          },
+          true,
+          ['verify']
+        )
+        publicD.ecdhPub = await subtle.importKey(
+          'raw',
+          Buffer.from(publicD.ecdhPub, 'base64'),
+          {
+            name: 'ECDH',
+            namedCurve: 'P-384'
+          },
+          true,
+          ['deriveKey']
+        )
+      } catch(e){
+        return rej({err: "Invalid public data"});
+      }
+      return res(publicD);
+    });
+  };
+
+  getPublicFromId = async (id) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      let publicD = await self.get(`${id}/public.json`);
+      if(!publicD) return rej({err: "Could not find public"});
+      const ecdsaPubHash = await subtle.digest("SHA-256", Buffer.from(publicD.ecdsaPub, 'base64'));
+      const id = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
+      if(publicD.id !== id) return rej({err: "Invalid public data"});
+      publicD.ecdsaPub = await subtle.importKey(
+        'raw',
+        Buffer.from(publicD.ecdsaPub, 'base64'),
+        {
+          name: 'ECDSA',
+          namedCurve: 'P-384'
+        },
+        true,
+        ['verify']
+      )
+      publicD.ecdhPub = await subtle.importKey(
+        'raw',
+        Buffer.from(publicD.ecdhPub, 'base64'),
+        {
+          name: 'ECDSA',
+          namedCurve: 'P-384'
+        },
+        true,
+        ['deriveKey']
+      )
+      return res(publicD);
+    });
+  };
+
+  sign = async (msg) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        const signature = await subtle.sign(
+          {
+            name: "ECDSA",
+            hash: {name: "SHA-384"},
+          },
+          self.ECDSA.privateKey,
+          new TextEncoder().encode(msg)
+        );
+        return res(signature)
+      } catch(e){
+        rej(e)
+      }
+    })
+  }
+
+  verify = async (msg, sig, pubKey) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        const isValid = await subtle.verify(
+          {
+            name: "ECDSA",
+            hash: {name: "SHA-384"},
+          },
+          pubKey,
+          sig,
+          new TextEncoder().encode(msg)
+        );
+        if(isValid){
+          res(isValid);
+        } else {
+          rej({err: "Invalid"});
+        }
+        return 
+      } catch(e){
+        rej(e)
+      }
+    })
+  }
+
   setupWS = async (ws) => {
     const self = this;
     return new Promise(async(res, rej) => {
@@ -861,12 +1007,12 @@ class Server {
       ws.on('message', async (d) => {
         d = JSON.parse(d);
         switch (d.event) {
-          // case 'Get pubkey':
-          //   await self.handleGetPubKey(ws, d.data);
-          //   break;
-          // case 'Got pubkey':
-          //   await self.handleGotPubKey(ws, d.data);
-          //   break;
+          case 'Get public':
+            await self.handleGetPublic(ws, d.data);
+            break;
+          case 'Got public':
+            await self.handleGotPublic(ws, d.data);
+            break;
           case 'Verify url request':
             await self.handleVerifyUrlRequest(ws, d.data);
             break;
@@ -955,6 +1101,18 @@ class Server {
           case "Set":
             await self.handleSet(ws, d.data);
             break; 
+          case "Set request":
+            await self.handleSetRequest(ws, d.data);
+            break;
+          case "Set request saved":
+            await self.handleSetRequestSaved(ws, d.data);
+            break;
+          case "Get set request":
+            await self.handleGetSetRequest(ws, d.data);
+            break;
+          case "Got set request":
+            await self.handleGotSetRequest(ws, d.data);
+            break;
           case "Group set":
             await self.handleGroupSet(ws, d.data);
             break;
@@ -1518,6 +1676,19 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!data.path || !data.data) return res();
       if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
+        let request = await self.getSetRequest(data.path);
+        if(!request) return err();
+        if(request.url){
+          if(request.url !== ws.Url) return err();
+          try {
+            let publicD = await self.getPublicFromUrl(request.url);
+            if(!publicD) return err();
+            await self.verify(JSON.stringify(data.data), Buffer.from(request.data, "base64"), publicD.ecdsaPub);
+          } catch(e){
+            console.log(e);
+            return err()
+          }
+        }
         await self.setLocal("all/data/" + data.path, data.data);
         ws.send(JSON.stringify({
           event: "Sot",
@@ -1538,6 +1709,9 @@ class Server {
           }));
         }
       } else {
+        return err();
+      }
+      function err(){
         ws.send(JSON.stringify({
           event: "Sot",
           data: {
@@ -1545,7 +1719,81 @@ class Server {
             err: true
           }
         }))
+        return res()
       }
+      return res()
+    })
+  }
+
+  handleSetRequest = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!data.request) return res();
+      if(ws.Url && self.groups[data.request.group]?.indexOf(ws.Url) !== -1){
+        await self.setLocal("all/requests/" + data.request.path, data.request);
+        ws.send(JSON.stringify({
+          event: "Set request saved",
+          data: {
+            path: data.request.path,
+            success: true
+          }
+        }))
+        for(let i=0;i<self.group.members.length;i++){
+          if(self.group.members[i] == self.url) continue;
+          await self.connectToServer(self.group.members[i]);
+          self.conns[self.group.members[i]].send(JSON.stringify({
+            event: "Group set",
+            data: {
+              data: data.request,
+              path: "requests/" + data.request.path
+            }
+          }));
+        }
+      } else {
+        ws.send(JSON.stringify({
+          event: "Set request saved",
+          data: {
+            path: data.request.path,
+            err: true
+          }
+        }))
+      }
+      return res()
+    })
+  }
+
+  handleSetRequestSaved = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Sent request to " + ws.Url + " for " + data.path]) return res();
+      self.promises["Sent request to " + ws.Url + " for " + data.path].res();
+      return res()
+    })
+  }
+
+  handleGetSetRequest = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!data.path) return res();
+      if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
+        const d = await self.getLocal("all/requests/" + data.path);
+        ws.send(JSON.stringify({
+          event: "Got set request",
+          data: {
+            path: data.path,
+            request: d
+          }
+        }))
+      }
+      return res()
+    })
+  }
+
+  handleGotSetRequest = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Got set request from " + ws.Url + " for " + data.path]) return res();
+      self.promises["Got set request from " + ws.Url + " for " + data.path].res(data.request);
       return res()
     })
   }
@@ -1571,7 +1819,6 @@ class Server {
       if(ws.Url && self.groups[data.group].indexOf[ws.Url] !== -1){
 
         const pastLength = data.group > self.group.index ? self.group.index + 1 : self.group.length - 1;
-        console.log(jumpConsistentHash(data.path, pastLength) !== data.group)
         if(jumpConsistentHash(data.path, pastLength) !== data.group)  return res();
 
         await self.setLocal("all/" + data.path, data.data);
@@ -1608,6 +1855,27 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!self.promises["Set data from " + ws.Url + " for " + data.path]) return res();
       self.promises["Set data from " + ws.Url + " for " + data.path].res(data.success);
+      return res()
+    })
+  }
+
+  handleGetPublic = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!ws.Url) return res();
+      ws.send(JSON.stringify({
+        event: "Got public",
+        data: self.public
+      }));
+      return res()
+    })
+  }
+
+  handleGotPublic = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Got public from " + ws.Url]) return res();
+      self.promises["Got public from " + ws.Url].res(data);
       return res()
     })
   }
@@ -1675,7 +1943,7 @@ class Server {
 
 }
 
-let localServerCount = 27;
+let localServerCount = 100;
 if(isLocal){
   (async () => {
     for(let i=0;i<localServerCount;i++){
