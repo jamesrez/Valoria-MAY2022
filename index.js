@@ -794,7 +794,7 @@ class Server {
             data: {
               for: self.ownerId,
               path: path,
-              size: Buffer.byteLength(JSON.stringify(data), 'utf8') / 100000000,
+              size: Buffer.byteLength(JSON.stringify(data), 'utf8'),
               sync: self.lastSync || self.start
             }
           }
@@ -843,6 +843,11 @@ class Server {
             }
           }))
         } else {
+          let d = await self.getLocal("all/ledgers/" + self.ownerId + ".json");
+          if(!d) d = {
+            paths: []
+          }
+          if(d.paths.indexOf(path) !== -1) return res();
           const valorGroupIndex = jumpConsistentHash("valor/" + path, self.groups.length);
           const valorGroup = self.groups[valorGroupIndex];
           let valor;
@@ -873,10 +878,6 @@ class Server {
             }
           }
           if(isValid){
-            let d = await self.getLocal("all/ledgers/" + self.ownerId + ".json");
-            if(!d) d = {
-              paths: []
-            }
             d.paths.push(path);
             d.sig = Buffer.from(await self.sign(JSON.stringify(d.paths))).toString("base64");
             d.from = self.id;
@@ -893,13 +894,19 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         const ledger = await self.getLedger(id);
+        if(!ledger) return res();
         const ledgerPublic = await self.getPublicFromId(ledger.from);
         await self.verify(JSON.stringify(ledger.paths), Buffer.from(ledger.sig, "base64"), ledgerPublic.ecdsaPub);
         let valor = 0;
         for(let i=0;i<ledger.paths.length;i++){
           const v = await self.getValorPath(ledger.paths[i]);
           if(!v || !v.data) continue;
-          valor += v.data.size + (((self.lastSync || self.start) - v.data.sync) * 0.00000000001)
+          valor += (v.data.size / 10000000) + ((self.now() - v.data.sync) * 0.0000000005);
+          if(valor == undefined){
+            console.log(self.lastSync);
+            console.log(self.start);
+            console.log(v.data.size);
+          }
         }
         res(valor);
       } catch(e){
@@ -988,7 +995,7 @@ class Server {
       if(time - self.lastSync > self.syncIntervalMs){
         const group = jumpConsistentHash("data/" + path, self.groups.length);
         if(self.group && group == self.group.index){
-          console.log(`${self.url} will save groups at time: ${self.lastSync + self.syncIntervalMs}`);
+          // console.log(`${self.url} will save groups at time: ${self.lastSync + self.syncIntervalMs}`);
         }
         self.lastSync += self.syncIntervalMs
       }
@@ -2120,7 +2127,7 @@ class Server {
           data: {
             for: dataPublicD.ownerId,
             path: data.path,
-            size: Buffer.byteLength(JSON.stringify(d), 'utf8') / 100000000,
+            size: Buffer.byteLength(JSON.stringify(d), 'utf8'),
             sync: self.lastSync || self.start
           }
         }
@@ -2221,6 +2228,11 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!ws.Url || !data.path || !data.id) return res();
+      let d = await self.getLocal("all/ledgers/" + data.id + ".json");
+      if(!d) d = {
+        paths: []
+      }
+      if(d.paths.indexOf(data.path) !== -1) return res();
       const valorGroupIndex = jumpConsistentHash("valor/" + data.path, self.groups.length);
       const valorGroup = self.groups[valorGroupIndex];
       let valor;
@@ -2253,10 +2265,6 @@ class Server {
         }
       }
       if(isValid){
-        let d = await self.getLocal("all/ledgers/" + data.id + ".json");
-        if(!d) d = {
-          paths: []
-        }
         d.paths.push(data.path);
         d.sig = Buffer.from(await self.sign(JSON.stringify(d.paths))).toString("base64");
         d.from = self.id;
@@ -2329,7 +2337,7 @@ class Server {
 
 }
 
-let localServerCount = 9;
+let localServerCount = 24;
 if(isLocal){
   (async () => {
     let servers = [];
@@ -2348,7 +2356,7 @@ if(isLocal){
         }  
       }
       console.log("\n\n\n")
-    }, 3000)
+    }, 10000)
   })();
 } else {
   const server = new Server(Port);
