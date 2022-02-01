@@ -414,7 +414,7 @@ const skyBox = new THREE.Mesh( skySphere, skyMat );
 skyBox.rotation.y = 90 * Math.PI / 180;
 scene.add( skyBox );
 
-const gridPlane = new THREE.PlaneBufferGeometry(100, 100, 200, 200);
+const gridPlane = new THREE.PlaneBufferGeometry(100, 100, 150, 150);
 const gridTexture = TextureLoader.load("assets/grid.png");
 gridTexture.wrapS = THREE.RepeatWrapping;
 gridTexture.wrapT = THREE.RepeatWrapping;
