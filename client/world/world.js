@@ -90,9 +90,9 @@ let rightController;
   if(isMobile){
     mobControls = new THREE.DeviceOrientationControls(camera);
 		touchControls = new TouchControls(world, camera, {
-			speedFactor: 0.01,
+			speedFactor: 0.015,
 			delta: 1,
-			rotationFactor: 0.005,
+			rotationFactor: 0.015,
 			maxPitch: 55,
 			hitTest: false,
 			hitTestDistance: 40
@@ -134,17 +134,17 @@ renderer.setAnimationLoop(async () => {
   handleXRControls();
   let delta = clock.getDelta();
   scene.traverse((node) => {
-    if(node.name == "Avatar" && node.ray){
-      node.ray.set(new THREE.Vector3(node.position.x, node.position.y + 0.6, node.position.z), new THREE.Vector3(0, -1, 0));
-      const intersects = node.ray.intersectObjects( scene.children );
-      if(intersects[0]){
-        if(intersects[0].object.type == "SkinnedMesh" && intersects[1]){
-          node.position.y = intersects[1].point.y;
-        } else {
-          node.position.y = intersects[0].point.y;
-        }
-      }
-    }
+    // if(node.name == "Avatar" && node.ray){
+    //   node.ray.set(new THREE.Vector3(node.position.x, node.position.y + 0.6, node.position.z), new THREE.Vector3(0, -1, 0));
+    //   const intersects = node.ray.intersectObjects( scene.children );
+    //   if(intersects[0]){
+    //     if(intersects[0].object.type == "SkinnedMesh" && intersects[1]){
+    //       node.position.y = intersects[1].point.y;
+    //     } else {
+    //       node.position.y = intersects[0].point.y;
+    //     }
+    //   }
+    // }
     if(node.mixer) node.mixer.update(delta);
   })
   updateAvatarAnimation();
@@ -175,7 +175,7 @@ document.addEventListener('keyup', (event) => {
   delete activeKeys[event.key];
 });
 
-const moveSpeed = 0.07;
+const moveSpeed = 0.045;
 function handleControls(){
   let direction;
   if(activeKeys["w"]){

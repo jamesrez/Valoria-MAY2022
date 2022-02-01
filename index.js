@@ -179,10 +179,9 @@ class Server {
             }
             self.conns[url] = new WebSocket(wsUrl);
             self.conns[url].Url = url;
-
             self.conns[url].onopen = ( async () => {
               try {
-                await self.setupWS(this.conns[url]);
+                await self.setupWS(self.conns[url]);
                 await new Promise(async(res, rej) => {
                   self.promises["Url verified with " + url] = {res, rej};
                   self.conns[url].send(JSON.stringify({
@@ -192,9 +191,9 @@ class Server {
                     }
                   }))
                 })
-                res();
+                return res();
               } catch (e){
-                console.log(e);
+                console.log(e)
                 rej(e);
               }
             });
@@ -205,7 +204,6 @@ class Server {
             self.conns[url].onclose = function clear() {
               clearTimeout(self.conns[url].pingTimeout);
             };
-
           } catch(e){
             console.log(e)
             rej(e);
@@ -978,18 +976,16 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       try {
-        const resp = await (async () => {
-          return new Promise(async (res2, rej2) => {
-            const start = self.now();
-            ws.send(JSON.stringify({
-              event: "Sync ping",
-              data: {
-                start
-              }
-            }))
-            self.promises["Pong from " + ws.Url + " at " + start] = {res: res2, rej: rej2};
-          })
-        })();
+        const resp = await new Promise(async (res, rej) => {
+          const start = self.now();
+          ws.send(JSON.stringify({
+            event: "Sync ping",
+            data: {
+              start
+            }
+          }))
+          self.promises["Pong from " + ws.Url + " at " + start] = {res, rej};
+        })
         resp.roundTrip = resp.end - resp.start;
         resp.latency = resp.roundTrip / 2;
         resp.offset = resp.pingReceived - resp.end + resp.latency;
@@ -2500,7 +2496,7 @@ class Server {
 
 }
 
-let localServerCount = 24;
+let localServerCount = 20;
 if(isLocal){
   (async () => {
     let servers = [];
@@ -2509,7 +2505,6 @@ if(isLocal){
       try {
         await server.setup();
       } catch(e){
-        // console.log(e);
       }
       servers.push(server);
     }

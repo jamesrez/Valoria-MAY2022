@@ -505,19 +505,7 @@ class ValoriaUser {
         salt: await arrayBufferToBase64(ecdhSalt),
         iv: await arrayBufferToBase64(ecdhIv)
       });
-      // sessionStorage.setItem('valoria-user-secret', password + self.secret);
-      // const group =  self.valoria.groups[jumpConsistentHash(self.id, self.valoria.groups.length)];
-      // const url = group[group.length * Math.random() << 0];
-      // console.log("SAVE USER TO " + url);
       await localforage.setItem("ValoriaUserId", self.id)
-      if(window.ReactNativeWebView){
-        window.ReactNativeWebView.postMessage(JSON.stringify({
-          event: "SaveValoriaUserId",
-          data: {
-            userId: self.id
-          }
-        }))
-      }
       
       res(self);
     })
