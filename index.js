@@ -746,17 +746,16 @@ class Server {
           await self.verify(JSON.stringify(data), Buffer.from(request.data, "base64"), publicD.ecdsaPub);
           const valor = {
             data: {
-              from: self.id,
               for: self.ownerId,
               path: path,
               size: Buffer.byteLength(JSON.stringify(data), 'utf8') / 1000000000,
-              sync: self.lastSync
+              sync: self.lastSync || self.start
             }
           }
           valor.sig = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
+          valor.from = self.id;
           await self.setLocal(`all/valor/${path}`, valor);
-          console.log("YAY")
-          //todo
+          await self.sendPathToLedger(path);
         } catch(e) {
           return res();
         }
@@ -775,10 +774,70 @@ class Server {
             }));
           })
         }
-        //todo
-        console.log("YAY")
+        await self.sendPathToLedger(path);
       }
       return res();
+    })
+  }
+
+  sendPathToLedger = async (path) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      const ledgerGroupIndex = jumpConsistentHash("ledgers/" + self.ownerId + ".json", self.groups.length);
+      const ledgerGroup = [...self.groups[ledgerGroupIndex]];
+      for(let i=0;i<ledgerGroup.length;i++){
+        const url = ledgerGroup[i];
+        if(url !== self.url){
+          await this.connectToServer(url);
+          self.conns[url].send(JSON.stringify({
+            event: "Add path to ledger",
+            data: {
+              id: self.ownerId,
+              path
+            }
+          }))
+        } else {
+          const valorGroupIndex = jumpConsistentHash("valor/" + path, self.groups.length);
+          const valorGroup = self.groups[valorGroupIndex];
+          let valor;
+          let isValid = true;
+          for(let j=0;j<valorGroup.length;j++){
+            const url = valorGroup[j];
+            let v;
+            if(url == self.url) {
+              v = await self.getLocal("all/valor/" + path);
+            } else {
+              v = await new Promise(async(res, rej) => {
+                await self.connectToServer(url);
+                self.promises["Got valor path " + path + " from " + url] = {res, rej};
+                self.conns[url].send(JSON.stringify({
+                  event: "Get valor path",
+                  data: {
+                    path,
+                    group: self.group.index
+                  }
+                }))
+              })
+            }
+            if(!valor) {
+              valor = JSON.stringify(v.data);
+            } else if(valor !== JSON.stringify(v.data)){
+              isValid = false;
+              break;
+            }
+          }
+          if(isValid){
+            let d = await self.getLocal("all/ledgers/" + self.ownerId + ".json");
+            if(!d) d = {
+              paths: []
+            }
+            d.paths.push(path);
+            d.sig = Buffer.from(await self.sign(JSON.stringify(d.paths))).toString("base64");
+            await self.setLocal("all/ledgers/" + self.ownerId + ".json", d);
+          }
+        }
+      }   
+      return res()   
     })
   }
 
@@ -899,6 +958,7 @@ class Server {
         let path = paths[i].substr(paths[i].indexOf("/") + 1);
         path = path.substr(path.indexOf("/") + 1);
         path = path.substr(path.indexOf("/") + 1);
+        // if(path.startsWith("valor/")) continue;
         const groupIndex = jumpConsistentHash(path, self.groups.length);
         if(groupIndex !== self.group.index){
           const data = await self.getLocal("all/" + path);
@@ -1197,6 +1257,15 @@ class Server {
           case "Claimed valor for path":
             await self.handleClaimedValorPath(ws, d.data);
             break;
+          case "Get valor path":
+            await self.handleGetValorPath(ws, d.data);
+            break;
+          case "Got valor path":
+            await self.handleGotValorPath(ws, d.data);
+            break;
+          case "Add path to ledger":
+            await self.handleAddPathToLedger(ws, d.data);
+            break;
           case "Join dimension":
             await self.handleJoinDimension(ws, d.data);
             break;
@@ -1405,6 +1474,7 @@ class Server {
             let path = paths[i].substr(paths[i].indexOf("/") + 1);
             path = path.substr(path.indexOf("/") + 1);
             path = path.substr(path.indexOf("/") + 1);
+            // if(path.startsWith("valor/")) continue;
             const groupIndex = jumpConsistentHash(path, self.groups.length);
             if(groupIndex == self.group.index){
               const data = await self.getLocal("all/" + path);
@@ -1982,14 +2052,14 @@ class Server {
         if(!dataPublicD) return err();
         const valor = {
           data: {
-            from: self.id,
             for: dataPublicD.ownerId,
             path: data.path,
             size: Buffer.byteLength(JSON.stringify(d), 'utf8') / 1000000000,
-            sync: self.lastSync
+            sync: self.lastSync || self.start
           }
         }
         valor.sig = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
+        valor.from = self.id;
         await self.setLocal(`all/valor/${data.path}`, valor);
         ws.send(JSON.stringify({
           event: "Claimed valor for path",
@@ -2020,6 +2090,82 @@ class Server {
     return new Promise(async (res, rej) => {
       if(self.promises["Claimed valor for path " + data.path + " from " + ws.Url]){
         self.promises["Claimed valor for path " + data.path + " from " + ws.Url].res();
+      }
+      return res();
+    })
+  }
+
+  handleGetValorPath(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!data.path) return res();
+      if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
+        const d = await self.getLocal("all/valor/" + data.path);
+        ws.send(JSON.stringify({
+          event: "Got valor path",
+          data: {
+            path: data.path,
+            valor: d
+          }
+        }))
+      }
+      return res();
+    })
+  }
+
+  handleGotValorPath(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.promises["Got valor path " + data.path + " from " + ws.Url]){
+        self.promises["Got valor path " + data.path + " from " + ws.Url].res(data.valor);
+      }
+      return res();
+    })
+  }
+
+  handleAddPathToLedger(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!ws.Url || !data.path || !data.id) return res();
+      const valorGroupIndex = jumpConsistentHash("valor/" + data.path, self.groups.length);
+      const valorGroup = self.groups[valorGroupIndex];
+      let valor;
+      let isValid = true;
+      for(let j=0;j<valorGroup.length;j++){
+        const url = valorGroup[j];
+        let v;
+        if(url == self.url) {
+          v = await self.getLocal("all/valor/" + data.path);
+        } else {
+          v = await new Promise(async(res, rej) => {
+            await self.connectToServer(url);
+            self.promises["Got valor path " + data.path + " from " + url] = {res, rej};
+            self.conns[url].send(JSON.stringify({
+              event: "Get valor path",
+              data: {
+                path: data.path,
+                group: self.group.index
+              }
+            }))
+          })
+        }
+        if(!v || v.data.for !== data.id){
+          break;
+        } else if(!valor) {
+          valor = JSON.stringify(v.data);
+        } else if(valor !== JSON.stringify(v.data)){
+          isValid = false;
+          break;
+        }
+      }
+      if(isValid){
+        let d = await self.getLocal("all/ledgers/" + data.id + ".json");
+        if(!d) d = {
+          paths: []
+        }
+        d.paths.push(data.path);
+        d.sig = Buffer.from(await self.sign(JSON.stringify(d.paths))).toString("base64");
+        await self.setLocal("all/ledgers/" + data.id + ".json", d);
       }
       return res();
     })
