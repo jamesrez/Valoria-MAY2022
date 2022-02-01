@@ -556,6 +556,52 @@ class Server {
     })
   }
 
+  getValorPath = async (path) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      const groupIndex = jumpConsistentHash("valor/" + path, self.groups.length);
+      if(groupIndex == self.group.index){
+        const data = await self.getLocal("all/valor/" + path);
+        return res(data);
+      } else {
+        const members = self.groups[groupIndex]
+        const url = members[members.length * Math.random() << 0];
+        await self.connectToServer(url);
+        self.promises["Got valor path " + path + " from " + url] = {res, rej};
+        self.conns[url].send(JSON.stringify({
+          event: "Get valor path",
+          data: {
+            path,
+            group: self.group.index
+          }
+        }))
+      }
+    })
+  }
+
+  getLedger = async (id) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      const groupIndex = jumpConsistentHash("ledgers/" + id + ".json", self.groups.length);
+      if(groupIndex == self.group.index){
+        const data = await self.getLocal("all/ledgers/" + id + ".json");
+        return res(data);
+      } else {
+        const members = self.groups[groupIndex]
+        const url = members[members.length * Math.random() << 0];
+        await self.connectToServer(url);
+        self.promises["Got ledger " + id + " from " + url] = {res, rej};
+        self.conns[url].send(JSON.stringify({
+          event: "Get ledger",
+          data: {
+            id,
+            group: self.group.index
+          }
+        }))
+      }
+    })
+  }
+
   loadAllGroups = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
@@ -748,7 +794,7 @@ class Server {
             data: {
               for: self.ownerId,
               path: path,
-              size: Buffer.byteLength(JSON.stringify(data), 'utf8') / 1000000000,
+              size: Buffer.byteLength(JSON.stringify(data), 'utf8') / 100000000,
               sync: self.lastSync || self.start
             }
           }
@@ -833,6 +879,7 @@ class Server {
             }
             d.paths.push(path);
             d.sig = Buffer.from(await self.sign(JSON.stringify(d.paths))).toString("base64");
+            d.from = self.id;
             await self.setLocal("all/ledgers/" + self.ownerId + ".json", d);
           }
         }
@@ -844,7 +891,20 @@ class Server {
   calculateValor = async (id) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      
+      try {
+        const ledger = await self.getLedger(id);
+        const ledgerPublic = await self.getPublicFromId(ledger.from);
+        await self.verify(JSON.stringify(ledger.paths), Buffer.from(ledger.sig, "base64"), ledgerPublic.ecdsaPub);
+        let valor = 0;
+        for(let i=0;i<ledger.paths.length;i++){
+          const v = await self.getValorPath(ledger.paths[i]);
+          if(!v || !v.data) continue;
+          valor += v.data.size + (((self.lastSync || self.start) - v.data.sync) * 0.00000000001)
+        }
+        res(valor);
+      } catch(e){
+        rej(e);
+      }
     })
   }
 
@@ -1262,6 +1322,12 @@ class Server {
             break;
           case "Got valor path":
             await self.handleGotValorPath(ws, d.data);
+            break;
+          case "Get ledger":
+            await self.handleGetLedger(ws, d.data);
+            break;
+          case "Got ledger":
+            await self.handleGotLedger(ws, d.data);
             break;
           case "Add path to ledger":
             await self.handleAddPathToLedger(ws, d.data);
@@ -2054,7 +2120,7 @@ class Server {
           data: {
             for: dataPublicD.ownerId,
             path: data.path,
-            size: Buffer.byteLength(JSON.stringify(d), 'utf8') / 1000000000,
+            size: Buffer.byteLength(JSON.stringify(d), 'utf8') / 100000000,
             sync: self.lastSync || self.start
           }
         }
@@ -2123,6 +2189,34 @@ class Server {
     })
   }
 
+  handleGetLedger(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!data.id) return res();
+      if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
+        const d = await self.getLocal("all/ledgers/" + data.id + ".json");
+        ws.send(JSON.stringify({
+          event: "Got ledger",
+          data: {
+            id: data.id,
+            ledger: d
+          }
+        }))
+      }
+      return res();
+    })
+  }
+
+  handleGotLedger(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.promises["Got ledger " + data.id + " from " + ws.Url]){
+        self.promises["Got ledger " + data.id + " from " + ws.Url].res(data.ledger);
+      }
+      return res();
+    })
+  }
+
   handleAddPathToLedger(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
@@ -2165,6 +2259,7 @@ class Server {
         }
         d.paths.push(data.path);
         d.sig = Buffer.from(await self.sign(JSON.stringify(d.paths))).toString("base64");
+        d.from = self.id;
         await self.setLocal("all/ledgers/" + data.id + ".json", d);
       }
       return res();
@@ -2237,14 +2332,23 @@ class Server {
 let localServerCount = 9;
 if(isLocal){
   (async () => {
+    let servers = [];
     for(let i=0;i<localServerCount;i++){
       const server = new Server(i + Port);
-      if(i == 0){
-        await server.setup();
-      } else {
-        await server.setup();
-      }
+      await server.setup();
+      servers.push(server);
     }
+    setInterval(async () => {
+      for(let i=0;i<servers.length;i++){
+        try {
+          const valor = await servers[i].calculateValor(servers[i].id);
+          console.log(`Server ${i} Valor: ${valor}`);
+        } catch(e){
+          console.log(e)
+        }  
+      }
+      console.log("\n\n\n")
+    }, 3000)
   })();
 } else {
   const server = new Server(Port);
