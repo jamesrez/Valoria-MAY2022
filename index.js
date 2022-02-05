@@ -1,6 +1,7 @@
 const isLocal = process.env.PORT ? false : true;
 const http = require('http');
 const fs = require('fs');
+const fsPromises = require("fs/promises");
 const URL = require('url').URL;
 const express = require('express');
 const Port = process.env.PORT || 3000;
@@ -416,16 +417,15 @@ class Server {
     const self = this;
     return new Promise(async(res, rej) => {
       try {
-        await fs.mkdirSync(`${self.path}${path.substr(0, path.lastIndexOf("/"))}`, {recursive: true});
+        await fsPromises.mkdir(`${self.path}${path.substr(0, path.lastIndexOf("/"))}`, {recursive: true});
         if(typeof data == "object"){
           data =  JSON.stringify(data, null, 2);
         }
-        fs.writeFile(`${self.path}${path}`, data, () => {
-          res();
-        });
+        await fsPromises.writeFile(`${self.path}${path}`, data);
       } catch(e){
-        res()
+
       }
+      res();
     })
   }
 
@@ -434,7 +434,7 @@ class Server {
     return new Promise(async(res, rej) => {
       try {
         if(!fs.existsSync(`${self.path}${path}`)) throw null;
-        let data = fs.readFileSync(`${self.path}${path}`, "utf-8");
+        let data = await fsPromises.readFile(`${self.path}${path}`, "utf-8");
         try {
           data = JSON.parse(data);
         } catch(e){
@@ -972,19 +972,29 @@ class Server {
                 }
               }
               if(isValid){
+                if(self.url == 'http://localhost:3002/'){
+                  console.log("GETTING")
+              }
                 let d = await self.getLocal("all/ledgers/" + self.ownerId + ".json");
-                if(!d) d = {
-                  data: {
-                    paths: [],
-                    from: self.id,
-                    for: self.ownerId
+                if(!d || !d.data) {
+                    d = {
+                    data: {
+                      paths: [],
+                      from: self.id,
+                      for: self.ownerId
+                    }
                   }
                 }
                 if(d.data.paths.indexOf(path) == -1){
                   d.data.paths.push(path);
                   d.sig = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
-                  // console.log(self.url + " Added " + path)
+                  if(self.url == 'http://localhost:3002/'){
+                    console.log("SAVING")
+                  }
                   await self.setLocal("all/ledgers/" + self.ownerId + ".json", d);
+                  if(self.url == 'http://localhost:3002/'){
+                    console.log("SAVED")
+                  }
                 }
               }
             } catch(e){
@@ -1008,7 +1018,7 @@ class Server {
           console.log("LEDGER NOT FOUND FOR " + id);
           return res(0)
         };
-        const ledgerPublic = await self.getPublicFromId(ledger.data.from);
+        const ledgerPublic = await self.getPublicFromId(ledger.data?.from);
         await self.verify(JSON.stringify(ledger.data), Buffer.from(ledger.sig, "base64"), ledgerPublic.ecdsaPub);
         let valor = 0;
         for(let i=0;i<ledger.data.paths.length;i++){
@@ -2254,6 +2264,9 @@ class Server {
         if(!data.path || !data.data) return err();
         if(ws.Url && self.group.members.indexOf[ws.Url] !== -1){
           await self.setLocal("all/" + data.path, data.data);
+          if(data.path.startsWith("data/")){
+            await self.claimValorForData(data.path.substr(5));
+          }
           ws.send(JSON.stringify({
             event: "Group sot",
             data: {
@@ -2261,9 +2274,6 @@ class Server {
               success: true
             }
           }));
-          if(data.path.startsWith("data/")){
-            await self.claimValorForData(data.path.substr(5));
-          }
         } else return err;
       } catch(e){
         return err();
@@ -2548,15 +2558,6 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         if(!ws.Url || !data.path || !data.id) return res();
-        let d = await self.getLocal("all/ledgers/" + data.id + ".json");
-        if(!d) d = {
-          data: {
-            paths: [],
-            from: self.id,
-            for: data.id
-          }
-        }
-        if(d.data.paths.indexOf(data.path) !== -1) return res();
         const valorGroupIndex = jumpConsistentHash(`valor/${data.id}/${data.path}`, self.groups.length);
         const valorGroup = self.groups[valorGroupIndex];
         let valor;
@@ -2594,6 +2595,15 @@ class Server {
           }
         }
         if(isValid){
+          let d = await self.getLocal("all/ledgers/" + data.id + ".json");
+          if(!d) d = {
+            data: {
+              paths: [],
+              from: self.id,
+              for: data.id
+            }
+          }
+        if(d.data.paths.indexOf(data.path) !== -1) return res();
           d.data.paths.push(data.path);
           d.sig = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
           await self.setLocal("all/ledgers/" + data.id + ".json", d);
