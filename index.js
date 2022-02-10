@@ -913,12 +913,14 @@ class Server {
                 path: path,
                 size: Buffer.byteLength(JSON.stringify(data), 'utf8'),
                 sync: self.sync || self.start
-              }
+              },
+              sigs : {}
             }
           }
-          valor.sig = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
-          valor.from = self.id;
+          valor.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
+          self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] = valor;
           await self.setLocal(`all/valor/${self.ownerId}/${path}`, valor);
+          await self.shareGroupSig(`valor/${self.ownerId}/${path}`);
           await self.addPathToLedger(path);
         } else {
           for(let i=0;i<self.groups[valorGroupIndex].length;i++){
@@ -1005,20 +1007,22 @@ class Server {
                 }
               }
               if(isValid){
-                let d = await self.getLocal("all/ledgers/" + self.ownerId + ".json");
+                let d = self.saving[self.sync]["all/ledgers/" + self.ownerId + ".json"] || await self.getLocal("all/ledgers/" + self.ownerId + ".json");
                 if(!d || !d.data) {
-                    d = {
+                  d = {
                     data: {
                       paths: [],
-                      from: self.id,
                       for: self.ownerId
-                    }
+                    },
+                    sigs: {}
                   }
                 }
                 if(d.data.paths.indexOf(path) == -1){
                   d.data.paths.push(path);
-                  d.sig = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
+                  d.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
+                  self.saving[self.sync]["all/ledgers/" + self.ownerId + ".json"] = d;
                   await self.setLocal("all/ledgers/" + self.ownerId + ".json", d);
+                  await self.shareGroupSig("ledgers/" + self.ownerId + ".json");
                 }
               }
             } catch(e){
@@ -1042,8 +1046,11 @@ class Server {
           console.log("LEDGER NOT FOUND FOR " + id);
           return res(0)
         };
-        const ledgerPublic = await self.getPublicFromId(ledger.data?.from);
-        await self.verify(JSON.stringify(ledger.data), Buffer.from(ledger.sig, "base64"), ledgerPublic.ecdsaPub);
+        const sigUrls = Object.keys(ledger.sigs);
+        for(let i=0;i<sigUrls.length;i++){
+          const ledgerPublic = await self.getPublicFromUrl(sigUrls[i]);
+          await self.verify(JSON.stringify(ledger.data), Buffer.from(ledger.sigs[sigUrls[i]], "base64"), ledgerPublic.ecdsaPub);
+        }
         let valor = 0;
         const sync = self.sync || self.start;
         for(let i=0;i<ledger.data.paths.length;i++){
@@ -1134,6 +1141,7 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       if(self.now() >= self.nextSync || self.sync == self.start){
+        self.saving[self.sync] = {};
         self.group = Object.assign({}, self.nextGroup);
         self.groups = [...self.nextGroups];
         await self.saveGroups();
@@ -1148,10 +1156,10 @@ class Server {
         } catch(e){
           
         }
+        delete self.saving[self.sync - (self.syncIntervalMs * 2)];
         self.sync = self.nextSync;
         self.nextSync += self.syncIntervalMs;
-        // delete self.saving;
-        // self.saving = {};
+        self.saving[self.sync] = {};
       }, self.syncIntervalMs);
       res();
     })
@@ -1171,10 +1179,7 @@ class Server {
           sigs: {}
         };
         d.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
-        self.saving["all/" + path] = d;
-        if(self.saving[`all/groups/${self.sync - (self.syncIntervalMs * 2)}.json`]){
-          delete self.saving[`all/groups/${self.sync - (self.syncIntervalMs * 2)}.json`];
-        }
+        self.saving[self.sync]["all/" + path] = d;
         await self.setLocal("all/" + path, d);
         await self.shareGroupSig(path);
       }
@@ -1185,7 +1190,7 @@ class Server {
   shareGroupSig = async (path) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      const d = self.saving["all/" + path];
+      const d = self.saving[self.sync]["all/" + path];
       if(!d || !d.sigs || !d.sigs[self.url]) return res();
       for(let i=0;i<self.group.members.length;i++){
         const url = self.group.members[i];
@@ -1201,14 +1206,8 @@ class Server {
             }
           }));
         })
-        if(!sig) {
-          // console.log(self.url + " SIG I SHARED WAS INVALID");
-          // console.log(path);
-          // console.log(self.url + "did got sig from " + url);
-          continue;
-        }
+        if(!sig) continue;
         d.sigs[url] = sig;
-        console.log(self.url + " got sig from " + url);
       }
       await self.setLocal("all/" + path, d);
       return res();
@@ -1255,17 +1254,17 @@ class Server {
                   }
                 }))
               });
+              try {
+                // THERE SHOULD BE A GOOD WAY TO REMOVE DATA, MAYBE THIS IS IT FOR NOW.
+                await fs.unlinkSync(__dirname + "/data/" + paths[i]);
+                let dir = __dirname + "/data/" + paths[i];
+                dir = dir.substring(0, dir.lastIndexOf("/"));
+                await fs.rmdirSync(dir)
+              } catch(e){}
             }
           } catch(e){
             // console.log(e);
           }
-          try {
-            // THERE SHOULD BE A GOOD WAY TO REMOVE DATA, MAYBE THIS IS IT FOR NOW.
-            await fs.unlinkSync(__dirname + "/data/" + paths[i]);
-            let dir = __dirname + "/data/" + paths[i];
-            dir = dir.substring(0, dir.lastIndexOf("/"));
-            await fs.rmdirSync(dir)
-          } catch(e){}
         }
       } catch(e){
         // console.log(e)
@@ -1807,6 +1806,7 @@ class Server {
           await new Promise((res, rej) => {
             self.promises["Joined group success from " + ws.Url] = {res, rej};
           })
+
           //SEND GROUP DATA TO NEW MEMBER
           let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all");
           for(let i=0;i<paths.length;i++){
@@ -2346,7 +2346,7 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         if(!data.path || !data.data) return err();
-        if(ws.Url && self.group.members.indexOf[ws.Url] !== -1){
+        if(ws.Url && (self.group?.members.indexOf(ws.Url) !== -1 || self.nextGroup?.members.indexOf(ws.Url) !== -1)){
           if(data.path.startsWith("ledgers/")) return err();
           await self.setLocal("all/" + data.path, data.data);
           if(data.path.startsWith("data/")){
@@ -2361,6 +2361,7 @@ class Server {
           }));
         } else return err;
       } catch(e){
+        console.log(e);
         return err();
       }
       function err(){
@@ -2382,7 +2383,7 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         if(!data.path || !data.data) return err();
-        if(ws.Url && self.groups[data.group].indexOf[ws.Url] !== -1){
+        if(ws.Url && self.groups[data.group].indexOf(ws.Url) !== -1){
           const pastLength = data.group > self.group.index ? self.group.index + 1 : self.group.index;
           if(jumpConsistentHash(data.path, pastLength) !== data.group)  return err();
           await self.setLocal("all/" + data.path, data.data);
@@ -2502,10 +2503,7 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.path || !data.sig) return err();
-      const d = self.saving["all/" + data.path];
-      if(self.url == 'http://localhost:3000/'){
-        console.log(d);
-      }
+      const d = self.saving[self.sync]["all/" + data.path];
       if(!d || !d.data || !d.sigs || !d.sigs[self.url]) {
         return err()
       }
@@ -2513,7 +2511,6 @@ class Server {
       if(!publicD || !publicD.ecdsaPub) return err();
       try {
         await self.verify(JSON.stringify(d.data), Buffer.from(data.sig, "base64"), publicD.ecdsaPub);
-        console.log(self.url + " GOT sig from " + ws.Url);
         d.sigs[ws.Url] = data.sig;
         await self.setLocal("all/" + data.path, d);
         ws.send(JSON.stringify({
@@ -2525,9 +2522,6 @@ class Server {
         }));
         return res();
       } catch(e){
-        console.log(self.url + " invalid group sig");
-        console.log(data.path)
-        console.log(d.data);
         return err();
       }
       function err(){
@@ -2578,8 +2572,8 @@ class Server {
           }))
         })
         await self.verify(JSON.stringify(d), Buffer.from(request.data, "base64"), reqPublicD.ecdsaPub);
-        let valor = await self.getLocal(`all/valor/${self.ownerId}/${path}`);
-        if(valor && valor.data && valor.sig && valor.data.for == data.id && valor.data.path == data.path){
+        let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.getLocal(`all/valor/${self.ownerId}/${path}`);
+        if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path){
           valor.data.size = Buffer.byteLength(JSON.stringify(d), 'utf8');
         } else {
           valor = {
@@ -2588,12 +2582,14 @@ class Server {
               path: data.path,
               size: Buffer.byteLength(JSON.stringify(d), 'utf8'),
               sync: self.sync || self.start
-            }
+            },
+            sigs: {}
           }
         }
-        valor.sig = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
-        valor.from = self.id;
+        valor.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
+        self.saving[self.sync][`all/valor/${data.id}/${data.path}`] = valor;
         await self.setLocal(`all/valor/${data.id}/${data.path}`, valor);
+        await self.shareGroupSig(`valor/${data.id}/${data.path}`);
         ws.send(JSON.stringify({
           event: "Claimed valor for path",
           data: {
@@ -2735,18 +2731,20 @@ class Server {
           }
         }
         if(isValid){
-          let d = await self.getLocal("all/ledgers/" + data.id + ".json");
-          if(!d || d.data) d = {
+          let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json");
+          if(!d || !d.data) d = {
             data: {
               paths: [],
-              from: self.id,
               for: data.id
-            }
+            },
+            sigs: {}
           }
         if(d.data.paths.indexOf(data.path) !== -1) return res();
           d.data.paths.push(data.path);
-          d.sig = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
+          d.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
+          self.saving[self.sync]["all/ledgers/" + data.id + ".json"] = d;
           await self.setLocal("all/ledgers/" + data.id + ".json", d);
+          await self.shareGroupSig("ledgers/" + data.id + ".json");
           ws.send(JSON.stringify({
             event: "Path added to ledger",
             data: {
