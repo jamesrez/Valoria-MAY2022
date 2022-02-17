@@ -913,7 +913,7 @@ class Server {
           }
           const request = await self.getSetRequest(path);
           if(!request) return res();
-          let publicD = await self.getPublicFromId(request.from);
+          let publicD = await self.getPublicFromUrl(request.url);
           if(!publicD) return res();
           const dataGroupIndex = jumpConsistentHash("data/" + path, self.groups.length);
           if(dataGroupIndex !== self.group.index) return res()
@@ -1217,6 +1217,7 @@ class Server {
         try {
           await self.syncTimeWithNearby();
           await self.saveGroups();
+          // await self.syncGroupData();
           // await self.updateValorClaims();
           // await self.reassignGroupData();
         } catch(e){
@@ -2689,7 +2690,7 @@ class Server {
         if(valorGroupIndex !== self.group.index) return err();
         const request = await self.getSetRequest(data.path);
         if(!request) return err();
-        let reqPublicD = await self.getPublicFromId(request.from);
+        let reqPublicD = await self.getPublicFromUrl(request.url);
         if(!reqPublicD) return err();
         const dataGroupIndex = jumpConsistentHash("data/" + data.path, self.groups.length);
         if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err();
@@ -2766,7 +2767,7 @@ class Server {
       try {
         if(!data.path || !data.id) return res();
         if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
-          const d = await self.getLocal(`all/valor/${data.id}/${data.path}`);
+          const d = await self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
           ws.send(JSON.stringify({
             event: "Got valor path",
             data: {
@@ -2799,7 +2800,7 @@ class Server {
       try {
         if(!data.id) return res();
         if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
-          const d = await self.getLocal("all/ledgers/" + data.id + ".json");
+          const d = await self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json");
           ws.send(JSON.stringify({
             event: "Got ledger",
             data: {
@@ -2838,7 +2839,7 @@ class Server {
           const url = valorGroup[j];
           let v;
           if(url == self.url) {
-            v = await self.getLocal(`all/valor/${data.id}/${data.path}`);
+            v = await self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
           } else {
             try {
               v = await new Promise(async(res, rej) => {
@@ -2988,7 +2989,7 @@ class Server {
 
 }
 
-let localServerCount = 6;
+let localServerCount = 24;
 let localServers = [];
 if(isLocal){
   (async () => {
