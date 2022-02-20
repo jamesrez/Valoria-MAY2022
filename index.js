@@ -2738,9 +2738,6 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         if(!ws.Url || !data.path || !data.url) return err();
-        if(ws.Url == 'http://localhost:3003/'){
-          console.log(self.url + " CLAIMING")
-        } 
         const valorGroupIndex = jumpConsistentHash("valor/" + data.id + "/" + data.path, self.groups.length);
         if(valorGroupIndex !== self.group.index) return err();
         const request = await self.getSetRequest(data.path);
@@ -2750,9 +2747,6 @@ class Server {
         const dataGroupIndex = jumpConsistentHash("data/" + data.path, self.groups.length);
         if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err();
         const now = self.now();
-        if(ws.Url == 'http://localhost:3003/'){
-          console.log(self.url + " GETTING DATA FOR " + data.path + " at " + now);
-        } 
         await self.connectToServer(data.url);
         const d = await new Promise(async(res, rej) => {
           self.promises["Got data from " + data.url + " for data/" + data.path + " at " + now] = {res, rej};
@@ -2765,15 +2759,14 @@ class Server {
             }
           }))
         })
-        if(ws.Url == 'http://localhost:3003/'){
-          console.log(self.url + " GOT DATA FOR " + data.path + " at " + now)
-        } 
         if(!d) return err();
         const size = Buffer.byteLength(JSON.stringify(d), 'utf8')
-        await self.verify(JSON.stringify(d), Buffer.from(request.data, "base64"), reqPublicD.ecdsaPub);
-        if(ws.Url == 'http://localhost:3003/'){
-          console.log(self.url + " Verified request")
-        } 
+        try {
+          await self.verify(JSON.stringify(d), Buffer.from(request.data, "base64"), reqPublicD.ecdsaPub);
+        } catch(e){
+          console.log(d);
+          throw e;
+        }
         let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.time?.length > 0){
           if(valor.data.size !== size){
@@ -2799,9 +2792,6 @@ class Server {
             sigs: {}
           }
         }
-        if(ws.Url == 'http://localhost:3003/'){
-          console.log(self.url + " Claimed")
-        } 
         valor.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
         self.saving[self.sync][`all/valor/${data.id}/${data.path}`] = valor;
         await self.setLocal(`all/valor/${data.id}/${data.path}`, valor);
@@ -2947,9 +2937,6 @@ class Server {
             break;
           }
         }
-        if(ws.Url == 'http://localhost:3003/'){
-          console.log("VALOR IS VALID");
-        }
         if(isValid){
           let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json");
           if(!d || !d.data) d = {
@@ -3073,7 +3060,7 @@ class Server {
 
 }
 
-let localServerCount = 4;
+let localServerCount = 24;
 let localServers = [];
 if(isLocal){
   (async () => {
