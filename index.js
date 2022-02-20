@@ -146,7 +146,7 @@ class Server {
       self.pathUrl = pathUrl.replace(/\:/g, "");
       self.path = `${__dirname}/data/servers/${self.pathUrl}/`;
       fs.mkdirSync(self.path, {recursive: true});
-      // await this.reset();
+      await this.reset();
       try {
         await this.loadCredentials()
       } catch(e){
@@ -177,13 +177,12 @@ class Server {
       try {
         await self.loadAllGroups();
         await self.joinGroup();
-        self.saving[self.sync] = {};
+        await self.sharePublic();
         const stall = (self.sync + self.syncIntervalMs) - self.now();
         setTimeout(async () => {
           await self.syncInterval();
-          await self.sharePublic();
-          res();
         }, self.sync == self.start ? 0 : stall > 0 ? stall : 0)
+        res();
       } catch(e){
         // console.log(e)
         rej()
@@ -243,7 +242,7 @@ class Server {
             }
             self.conns[url].onclose = function clear() {
               clearTimeout(self.conns[url].pingTimeout);
-              rej(error);
+              rej();
             };
           } catch(e){
             console.log(e)
@@ -490,7 +489,7 @@ class Server {
       try {
         const groupIndex = jumpConsistentHash(path, self.groups.length);
         // if(groupIndex == self.group.index){
-          const data = await self.getLocal("all/" + path);
+          const data = self.saving[self.sync]["all/" + path] || await self.getLocal("all/" + path);
           if(data){
             return res(data);
           }
@@ -500,12 +499,14 @@ class Server {
         if(members.length == 0) return res();
         const url = members[members.length * Math.random() << 0];
         await self.connectToServer(url);
-        self.promises["Got data from " + url + " for " + path] = {res, rej};
+        const now = self.now();
+        self.promises["Got data from " + url + " for " + path + " at " + now] = {res, rej};
         self.conns[url].send(JSON.stringify({
           event: "Get",
           data: {
             path,
-            group: self.group.index
+            group: self.group.index,
+            now
           }
         }))
       } catch(e){
@@ -724,8 +725,11 @@ class Server {
         let askCount = 0
         if(servers.length == 1 && servers[0] == self.url){
           //FIRST SERVER IN NETWORK
-          res();
-          return;
+          self.start = self.now();
+          self.sync = self.start;
+          self.nextSync = self.sync + self.syncIntervalMs;
+          self.saving[self.sync] = {};
+          return res();
         }
         if(servers.indexOf(self.url) !== -1){
           servers.splice(servers.indexOf(this.url), 1);
@@ -871,9 +875,9 @@ class Server {
             }));
           })
         } else if(self.group.index == 0){
-          self.start = now;
-          self.sync = self.start;
-          self.nextSync = self.sync + self.syncIntervalMs;
+          // self.start = now;
+          // self.sync = self.start;
+          // self.nextSync = self.sync + self.syncIntervalMs;
         }
         await self.syncTimeWithNearby();
         // await self.setLocal("group.json", self.group);
@@ -894,7 +898,7 @@ class Server {
         if(!self.group || self.groups.length <= 0) return res();
         const valorGroupIndex = jumpConsistentHash(`valor/${self.ownerId}/${path}`, self.groups.length);
         const sync = self.sync;
-        if(valorGroupIndex == self.group.index){       
+        if(valorGroupIndex == self.group.index){     
           for(let i=0;i<self.group.members.length;i++){
             if(self.group.members[i] == self.url) continue;
             await self.connectToServer(self.group.members[i]);
@@ -911,25 +915,48 @@ class Server {
               }));
             })
           }
-          const request = await self.getSetRequest(path);
-          if(!request) return res();
+          const request = await self.get("requests/" + path);
+          if(!request) {
+            console.log(self.url + " NO REQUEST FOR PATH " + path);
+            return res();
+          }
           let publicD = await self.getPublicFromUrl(request.url);
-          if(!publicD) return res();
+          if(!publicD) {
+            console.log("NO PUBLIC");
+            return res();
+          }
           const dataGroupIndex = jumpConsistentHash("data/" + path, self.groups.length);
           if(dataGroupIndex !== self.group.index) return res()
           const data = await self.getLocal("all/data/" + path);
-          await self.verify(JSON.stringify(data), Buffer.from(request.data, "base64"), publicD.ecdsaPub);
+          if(!data){
+            console.log("NO DATA");
+          }
+          const size = Buffer.byteLength(JSON.stringify(data), 'utf8');
+          try {
+            await self.verify(JSON.stringify(data), Buffer.from(request.data, "base64"), publicD.ecdsaPub);
+          } catch(e){
+            console.log(data);
+            throw e;
+          }
           let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.getLocal(`all/valor/${self.ownerId}/${path}`);
           if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.time?.length > 0){
-            valor.data.size = Buffer.byteLength(JSON.stringify(data), 'utf8');
-            valor.data.time.push([sync]);
+            if(valor.data.size !== size){
+              valor.data.size = size;
+              delete valor.sigs;
+              valor.sigs = {};
+            }
+            if(valor.data.time[valor.data.time.length - 1].length == 2){
+              valor.data.time.push([sync]);
+              delete valor.sigs;
+              valor.sigs = {};
+            }
           } else {
             valor = {
               data: {
                 for: self.ownerId,
                 url: self.url,
                 path: path,
-                size: Buffer.byteLength(JSON.stringify(data), 'utf8'),
+                size,
                 sync,
                 time: [[sync]]
               },
@@ -939,11 +966,12 @@ class Server {
           valor.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
           self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] = valor;
           await self.setLocal(`all/valor/${self.ownerId}/${path}`, valor);
-          await self.shareGroupSig(`valor/${self.ownerId}/${path}`);     
+          await self.shareGroupSig(`valor/${self.ownerId}/${path}`);
           await self.addPathToLedger(path);
-        } else { 
+        } else {  
           for(let i=0;i<self.groups[valorGroupIndex].length;i++){
             const url = self.groups[valorGroupIndex][i];
+            if(self.promises["Claimed valor for path " + path + " from " + url]) continue;
             await self.connectToServer(url);
             await new Promise(async (res, rej) => {
               self.promises["Claimed valor for path " + path + " from " + url] = {res, rej};
@@ -957,8 +985,8 @@ class Server {
                 }
               }));
             })
-          }       
-          await self.addPathToLedger(path);
+          }
+          await self.addPathToLedger(path); 
         }
       } catch(e){
         console.log(e);
@@ -998,6 +1026,7 @@ class Server {
           const url = ledgerGroup[i];
           if(url !== self.url){
             try {
+              if(self.promises[`Path ${path} added to ledger ${self.ownerId} from ${url}`]) continue;
               await self.connectToServer(url);
               await new Promise(async(res, rej) => {
                 self.promises[`Path ${path} added to ledger ${self.ownerId} from ${url}`] = {res, rej};
@@ -1085,10 +1114,14 @@ class Server {
   calculateValor = async (id) => {
     const self = this;
     return new Promise(async (res, rej) => {
+      if(id.startsWith('http')){
+        const publicD = await self.getPublicFromUrl(id);
+        id = publicD.id;
+      }
       try {
         const ledger = await self.getLedger(id);
         if(!ledger) {
-          console.log("LEDGER NOT FOUND FOR " + id);
+          // console.log("LEDGER NOT FOUND FOR " + id);
           return res(0)
         };
         const sigUrls = Object.keys(ledger.sigs);
@@ -1124,7 +1157,7 @@ class Server {
       if(timeArr[i].length == 2){
         dur += Math.abs(timeArr[i][1] - timeArr[i][0]);
       }else if(timeArr[i].length == 1){
-        dur += Math.abs(self.sync - timeArr[i][0]);
+        dur += Math.abs(self.nextSync - timeArr[i][0]);
       }
     }
     return dur;
@@ -1217,6 +1250,7 @@ class Server {
         try {
           await self.syncTimeWithNearby();
           await self.saveGroups();
+          // await self.sharePublic();
           // await self.syncGroupData();
           // await self.updateValorClaims();
           // await self.reassignGroupData();
@@ -1227,6 +1261,22 @@ class Server {
         self.sync = self.nextSync;
         self.nextSync += self.syncIntervalMs;
         self.saving[self.sync] = {};
+
+        //VALOR TESTS
+        if(self.url == 'http://localhost:3000/'){
+          for(let i=0;i<self.groups.length;i++){
+            for(let j=0;j<self.groups[i].length;j++){
+              try {
+                const valor = await self.calculateValor(self.groups[i][j]);
+                console.log(`${self.groups[i][j]} Valor: ${valor}`);
+              } catch(e){
+                console.log(e)
+              } 
+            }
+          }
+          console.log("\n\n")
+        }
+
       }, self.syncIntervalMs);
       res();
     })
@@ -1504,7 +1554,6 @@ class Server {
           rej({err: "Invalid"});
         }
       } catch(e){
-        console.log(sig);
         rej(e)
       }
     })
@@ -2267,14 +2316,15 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       try {
-        if(!data.path) return res();
+        if(!data.path || !data.now) return res();
         if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
-          const d = self.saving["all/" + data.path] || await self.getLocal("all/" + data.path);
+          const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
           ws.send(JSON.stringify({
             event: "Got",
             data: {
               path: data.path,
-              data: d
+              data: d,
+              now: data.now
             }
           }))
         }
@@ -2291,7 +2341,7 @@ class Server {
       try {
         if(!data.path || !data.data) return res();
         if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
-          let request = await self.getSetRequest(data.path);
+          let request = await self.get("requests/" + data.path);
           if(!request) return err();
           if(request.url){
             if(request.url !== ws.Url) return err();
@@ -2300,7 +2350,6 @@ class Server {
               if(!publicD) return err();
               await self.verify(JSON.stringify(data.data), Buffer.from(request.data, "base64"), publicD.ecdsaPub);
             } catch(e){
-              console.log(e);
               return err()
             }
           }
@@ -2518,12 +2567,14 @@ class Server {
                 dataPaths.push(paths[i].substr(paths[i].indexOf("/") + 1));
               }
               const d = await new Promise(async(res, rej) => {
-                self.promises["Got data from " + ws.Url + " for " + paths[i]] = {res, rej};
+                const now = self.now()
+                self.promises["Got data from " + ws.Url + " for " + paths[i] + " at " + now] = {res, rej};
                 self.conns[ws.Url].send(JSON.stringify({
                   event: "Get",
                   data: {
                     path : paths[i],
-                    group: self.group.index
+                    group: self.group.index,
+                    now
                   }
                 }))
               });
@@ -2543,6 +2594,7 @@ class Server {
               success: true
             }
           }))
+          res();
           for(let j=0;j<dataPaths.length;j++){
             try {
               await self.claimValorForData(dataPaths[j]);
@@ -2588,8 +2640,8 @@ class Server {
   handleGot = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!self.promises["Got data from " + ws.Url + " for " + data.path]) return res();
-      self.promises["Got data from " + ws.Url + " for " + data.path].res(data.data);
+      if(!self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]) return res();
+      self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now].res(data.data);
       return res()
     })
   }
@@ -2686,6 +2738,9 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         if(!ws.Url || !data.path || !data.url) return err();
+        if(ws.Url == 'http://localhost:3003/'){
+          console.log(self.url + " CLAIMING")
+        } 
         const valorGroupIndex = jumpConsistentHash("valor/" + data.id + "/" + data.path, self.groups.length);
         if(valorGroupIndex !== self.group.index) return err();
         const request = await self.getSetRequest(data.path);
@@ -2694,35 +2749,59 @@ class Server {
         if(!reqPublicD) return err();
         const dataGroupIndex = jumpConsistentHash("data/" + data.path, self.groups.length);
         if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err();
+        const now = self.now();
+        if(ws.Url == 'http://localhost:3003/'){
+          console.log(self.url + " GETTING DATA FOR " + data.path + " at " + now);
+        } 
         await self.connectToServer(data.url);
         const d = await new Promise(async(res, rej) => {
-          self.promises["Got data from " + data.url + " for data/" + data.path] = {res, rej};
+          self.promises["Got data from " + data.url + " for data/" + data.path + " at " + now] = {res, rej};
           self.conns[data.url].send(JSON.stringify({
             event: "Get",
             data: {
               path: "data/" + data.path,
-              group: self.group.index
+              group: self.group.index,
+              now
             }
           }))
         })
+        if(ws.Url == 'http://localhost:3003/'){
+          console.log(self.url + " GOT DATA FOR " + data.path + " at " + now)
+        } 
+        if(!d) return err();
+        const size = Buffer.byteLength(JSON.stringify(d), 'utf8')
         await self.verify(JSON.stringify(d), Buffer.from(request.data, "base64"), reqPublicD.ecdsaPub);
+        if(ws.Url == 'http://localhost:3003/'){
+          console.log(self.url + " Verified request")
+        } 
         let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.time?.length > 0){
-          valor.data.size = Buffer.byteLength(JSON.stringify(d), 'utf8');
-          valor.data.time.push([data.sync]);
+          if(valor.data.size !== size){
+            valor.data.size = size;
+            delete valor.sigs;
+            valor.sigs = {};
+          }
+          if(valor.data.time[valor.data.time.length - 1].length == 2){
+            valor.data.time.push([data.sync]);
+            delete valor.sigs;
+            valor.sigs = {};
+          }
         } else {
           valor = {
             data: {
               for: data.id,
               url: data.url,
               path: data.path,
-              size: Buffer.byteLength(JSON.stringify(d), 'utf8'),
+              size,
               sync: data.sync,
               time: [[data.sync]]
             },
             sigs: {}
           }
         }
+        if(ws.Url == 'http://localhost:3003/'){
+          console.log(self.url + " Claimed")
+        } 
         valor.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
         self.saving[self.sync][`all/valor/${data.id}/${data.path}`] = valor;
         await self.setLocal(`all/valor/${data.id}/${data.path}`, valor);
@@ -2756,6 +2835,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(self.promises["Claimed valor for path " + data.path + " from " + ws.Url]){
         self.promises["Claimed valor for path " + data.path + " from " + ws.Url].res();
+        delete self.promises["Claimed valor for path " + data.path + " from " + ws.Url]
       }
       return res();
     })
@@ -2867,6 +2947,9 @@ class Server {
             break;
           }
         }
+        if(ws.Url == 'http://localhost:3003/'){
+          console.log("VALOR IS VALID");
+        }
         if(isValid){
           let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json");
           if(!d || !d.data) d = {
@@ -2923,6 +3006,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(self.promises[`Path ${data.path} added to ledger ${data.id} from ${ws.Url}`]){
         self.promises[`Path ${data.path} added to ledger ${data.id} from ${ws.Url}`].res();
+        delete self.promises[`Path ${data.path} added to ledger ${data.id} from ${ws.Url}`];
       }
       return res();
     })
@@ -2989,19 +3073,24 @@ class Server {
 
 }
 
-let localServerCount = 24;
+let localServerCount = 4;
 let localServers = [];
 if(isLocal){
   (async () => {
     for(let i=0;i<localServerCount;i++){
-      try {
-        const server = new Server(i + Port);
-        await server.setup();
-        localServers.push(server);
-      } catch(e){
-      }
+      // await new Promise(async (res, rej) => {
+      //   setTimeout(async () => {
+          try {
+            const server = new Server(i + Port);
+            await server.setup();
+            localServers.push(server);
+          } catch(e){
+          }
+        //   return res();
+        // }, 300)
+      // })
     }
-    calculateValorInterval();
+    // calculateValorInterval();
   })();
 } else {
   const server = new Server(Port);
