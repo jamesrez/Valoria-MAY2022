@@ -1089,10 +1089,8 @@ class Server {
                 }
                 if(!d.data.paths[path]){
                   d.data.paths[path] = 1;
-                  if(self.group.members.indexOf(Object.keys(d.sigs)[0]) == -1){
-                    delete d.sigs;
-                    d.sigs = {};
-                  }
+                  delete d.sigs;
+                  d.sigs = {};
                   d.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
                   self.saving[self.sync]["all/ledgers/" + self.ownerId + ".json"] = d;
                   await self.setLocal("all/ledgers/" + self.ownerId + ".json", d);
@@ -1120,14 +1118,19 @@ class Server {
       }
       try {
         const ledger = await self.getLedger(id);
-        if(!ledger) {
+        if(!ledger || !ledger.sigs) {
           // console.log("LEDGER NOT FOUND FOR " + id);
           return res(0)
         };
         const sigUrls = Object.keys(ledger.sigs);
         for(let i=0;i<sigUrls.length;i++){
-          const ledgerPublic = await self.getPublicFromUrl(sigUrls[i]);
-          await self.verify(JSON.stringify(ledger.data), Buffer.from(ledger.sigs[sigUrls[i]], "base64"), ledgerPublic.ecdsaPub);
+          try {
+            const ledgerPublic = await self.getPublicFromUrl(sigUrls[i]);
+            await self.verify(JSON.stringify(ledger.data), Buffer.from(ledger.sigs[sigUrls[i]], "base64"), ledgerPublic.ecdsaPub);
+          } catch(e){
+            console.log(Buffer.from(ledger.sigs[sigUrls[i]]));
+            throw e;
+          }
         }
         let valor = 0;
         const sync = self.sync || self.start;
@@ -1243,6 +1246,7 @@ class Server {
         self.syncGroups = [...self.groups];
         await self.saveGroups();
       }
+      res();
       const main = setInterval(async () => {
         if(!self.saving[self.sync]) self.saving[self.sync] = {};
         self.syncGroup = Object.assign({}, self.group);
@@ -1278,7 +1282,6 @@ class Server {
         }
 
       }, self.syncIntervalMs);
-      res();
     })
   }
 
@@ -1324,9 +1327,18 @@ class Server {
           }));
         })
         if(!sig) continue;
-        d.sigs[url] = sig;
+        const publicD = await self.getPublicFromUrl(url);
+        if(!publicD || !publicD.ecdsaPub) return err();
+        try {
+          await self.verify(JSON.stringify(d.data), Buffer.from(sig, "base64"), publicD.ecdsaPub);
+          d.sigs[ws.Url] = data.sig;
+          d.sigs[url] = sig;
+          self.saving[self.sync]["all/" + path] = d;
+          await self.setLocal("all/" + path, d);
+        } catch(e){
+
+        }
       }
-      await self.setLocal("all/" + path, d);
       return res();
     })
   }
@@ -2689,7 +2701,7 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.path || !data.sig) return err();
-      const d = self.saving[self.sync]["all/" + data.path];
+      const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
       if(!d || !d.data || !d.sigs || !d.sigs[self.url]) {
         return err()
       }
@@ -2698,8 +2710,8 @@ class Server {
       try {
         await self.verify(JSON.stringify(d.data), Buffer.from(data.sig, "base64"), publicD.ecdsaPub);
         d.sigs[ws.Url] = data.sig;
-        await self.setLocal("all/" + data.path, d);
-        ws.send(JSON.stringify({
+        self.saving[self.sync]["all/" + data.path] = d;
+        await self.setLocal("all/" + data.path, d);ws.send(JSON.stringify({
           event: "Got group sig",
           data: {
             path: data.path,
@@ -2948,10 +2960,8 @@ class Server {
           }
           if(d.data.paths[data.path]) return res();
           d.data.paths[data.path] = 1
-          if(self.group.members.indexOf(Object.keys(d.sigs)[0]) == -1){
-            delete d.sigs;
-            d.sigs = {};
-          }
+          delete d.sigs;
+          d.sigs = {};
           d.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
           self.saving[self.sync]["all/ledgers/" + data.id + ".json"] = d;
           await self.setLocal("all/ledgers/" + data.id + ".json", d);
@@ -3060,7 +3070,7 @@ class Server {
 
 }
 
-let localServerCount = 24;
+let localServerCount = 9;
 let localServers = [];
 if(isLocal){
   (async () => {
@@ -3073,8 +3083,8 @@ if(isLocal){
             localServers.push(server);
           } catch(e){
           }
-        //   return res();
-        // }, 300)
+      //     return res();
+      //   }, 300)
       // })
     }
     // calculateValorInterval();
