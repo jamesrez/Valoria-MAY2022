@@ -2993,7 +2993,11 @@ class Server {
   reset = async () => {
     const self = this;
     return new Promise(async(res, rej) => {
-      await fs.rmdirSync(__dirname + "/data/servers/" + self.pathUrl + "/all", {recursive: true, force: true});
+      try {
+        await fs.rmdirSync(__dirname + "/data/servers/" + self.pathUrl + "/all", {recursive: true, force: true});
+      } catch(e){
+
+      }
       res();
     })
   }

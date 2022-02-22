@@ -154,39 +154,6 @@ class Valoria {
           case 'Got groups':
             await self.handleGotGroups(ws, d.data);
             break;
-          // case 'Join group':
-          //   await self.handleJoinGroupRequest(ws);
-          //   break;
-          // case 'Joined group':
-          //   await self.handleJoinedGroup(ws, d.data);
-          //   break;
-          // case 'Sign verification token':
-          //   await self.handleSignVerificationToken(ws, d.data);
-          //   break;
-          // case 'Verify token signature':
-          //   await self.handleVerifyTokenSignature(ws, d.data);
-          //   break;
-          // case 'New server in group':
-          //   await self.handleNewServerInGroup(ws, d.data);
-          //   break;
-          // case 'New group':
-          //   await self.handleNewGroup(ws, d.data);
-          //   break;
-          // case 'New group found':
-          //   await self.handleNewGroupFound(ws, d.data);
-          //   break;
-          // case "Ping":
-          //   await self.handlePing(ws, d.data)
-          //   break;
-          // case "Pong":
-          //   await self.handlePong(ws, d.data)
-          //   break;
-          // case "Time sync request":
-          //   await self.handleSyncTimeRequest(ws, d.data)
-          //   break;
-          // case "Refer sync interval":
-          //   await self.handleReferSyncInterval(ws, d.data)
-          //   break;
           case "Joined dimension":
             await self.handleJoinedDimension(ws, d.data);
             break;
