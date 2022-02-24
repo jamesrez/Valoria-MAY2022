@@ -20,25 +20,32 @@ async function showHome(){
 }
 
 async function showJoin(){
-  // auth.style.display = "flex";
-  // join.style.display = "flex";
-  mainModal.style.display = "none";
-  await valoria.startMediaStream({audio: {
-    echoCancellation: true,
-    noiseSuppression: true,
-    sampleRate: 44100
-  }, video: false});
-
-  if(window.ReactNativeWebView){
-    valoria.user.signInFromLocal().then((userId) => {
-      alert("FOUND USER ID FROM LOCAL: " + userId)
-    }).catch((e) => {
-      alert("COULD NOT GET USER ID FROM LOCAL")
-    })
+  if(valoria.id && valoria.ecdsa.privateKey){
+    await valoria.startMediaStream({audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      sampleRate: 44100
+    }, video: false});
+    valoria.onJoin();
+  } else {
+    auth.style.display = "flex";
+    join.style.display = "flex";
+    mainModal.style.display = "none";
   }
+  
+  
 
-  await valoria.user.create("123");
-  valoria.onJoin();
+ 
+
+  // if(window.ReactNativeWebView){
+  //   valoria.user.signInFromLocal().then((userId) => {
+  //     alert("FOUND USER ID FROM LOCAL: " + userId)
+  //   }).catch((e) => {
+  //     alert("COULD NOT GET USER ID FROM LOCAL")
+  //   })
+  // }
+
+  // await valoria.user.create("123");
 }
 
 async function showAbout(){
@@ -131,6 +138,7 @@ let QRrecoverySave = document.querySelector('.valUINewQRSave');
 let QRrecoveryNext = document.querySelector('.valUINewQRNext');
 
 async function createAccount(){
+  const newPass = newPassInput.value;
   const confirmPass = confirmPassInput.value;
   if(newPass !== confirmPass) {
     newPassError.style.display = "block";
@@ -139,23 +147,22 @@ async function createAccount(){
     newPassError.style.display = "none";
     newPasswordForm.style.display = "none";
     newQRForm.style.display = "flex";
-    const account = await valoria.user.create(newPass);
+    const account = await valoria.generateCredentials(newPass);
     let qr = new QRious({
       value: JSON.stringify({
         id: account.id,
         secret: account.secret
       }),
       size: 1000,
-      backgroundAlpha: 0
     });
     let canvas = document.querySelector('.valUINewQRCanvas');
-    canvas.width = 720;
-    canvas.height = 1280;
+    canvas.width = 500;
+    canvas.height = 500;
     let ctx = canvas.getContext('2d');
     newQRCodePhoto.setAttribute('src', qr.toDataURL('image/png'));
     newQRCodePhoto.onload = () => {
-      ctx.drawImage(QRtemplatePhoto, 0, 0, 720, 1280)
-      ctx.drawImage(newQRCodePhoto, 110, 62, 500, 500)
+      // ctx.drawImage(QRtemplatePhoto, 0, 0, 720, 1280)
+      ctx.drawImage(newQRCodePhoto, 0, 0, 500, 500)
       const qrSrc = canvas.toDataURL();
       QRrecoveryPhoto.setAttribute('src', qrSrc);
       QRrecoverySave.style.display = "block";
@@ -167,7 +174,7 @@ async function saveQRPhoto(){
   let download = document.createElement('a');
   download.style.position = "absolute";
   download.style.top = "-1250000px";
-  download.download = "Valoria-Recovery-Photo-" + valoria.user.id + ".png";
+  download.download = "Valoria-Recovery-Photo-" + valoria.id + ".png";
   download.href = QRrecoveryPhoto.src
   newQRForm.append(download)
   download.click();
@@ -176,6 +183,11 @@ async function saveQRPhoto(){
 
 async function QRNext(){
   auth.style.display = "none";
+  await valoria.startMediaStream({audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    sampleRate: 44100
+  }, video: false});
   valoria.onJoin();
 }
 
@@ -186,7 +198,8 @@ let signInPassword = document.querySelector('.valUISignInPassword');
 let signInPasswordInput = document.querySelector('.valUISignInPassInput');
 
 async function showSignIn(){
-  landing.style.display = "none";
+  mainModal.style.display = "none";
+  join.style.display = "none";
   auth.style.display = "flex";
   signInEl.style.display = "flex";
   signInQrSelect.style.display = "block";
@@ -200,6 +213,7 @@ async function selectRecoveryPhoto(){
 let qrcode;
 async function loadRecoveryPhoto(){
   try {
+    console.log(signInQRInput.files);
     qrcode = await QrScanner.scanImage(signInQRInput.files[0]);
     signInQrSelect.style.display = "none";
     signInQrMsg.style.display = "block";
@@ -212,7 +226,8 @@ async function loadRecoveryPhoto(){
 async function signIn(){
   const pass = signInPasswordInput.value;
   if(pass.length < 1 || !qrcode) return;
-  const user = await valoria.signIn(JSON.parse(qrcode), pass);
+  const qr = JSON.parse(qrcode);
+  const user = await valoria.signIn(qr.id, pass + qr.secret);
   console.log("GOT USER");
   console.log(user);
   auth.style.display = "none";

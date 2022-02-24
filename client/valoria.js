@@ -21,6 +21,16 @@ const iceServers = [
 class Valoria {
  
   constructor(){ 
+    this.id = null;
+    this.verified = false;
+    this.ecdsa = {
+      publicKey: null,
+      privateKey: null,
+    };
+    this.ecdh = {
+      publicKey: null,
+      privateKey: null,
+    };
     this.users = {};
     this.groups = [];
     this.conns = {};
@@ -31,28 +41,126 @@ class Valoria {
   }
   
   setup = async () => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        await self.loadCredentials();
+      } catch(e){
+        console.log(e)
+      }
+      this.connectToServer(window.location.origin)
+    })
     // await this.loadAllGroups();
-    this.user = new ValoriaUser();
-    this.user.valoria = this;
-    this.setupDeviceMessages();
-    this.connectToServer(window.location.origin)
   }
 
-  setupDeviceMessages = async () => {
+
+  signIn = async (id, password) => {
     const self = this;
-    if(window.ReactNativeWebView){
-      window.ReactNativeWebView.onmessage = (e) => {
-        const d = JSON.parse(e.data);
-        const event = d.event;
-        const data = d.data;
-        switch(event){
-          case "GotValoriaUserId":
-            if(self.user.promises["GotValoriaUserId"]){
-              self.user.promises["GotValoriaUserId"].res(data.userId);
-            }
-        }
+    return new Promise(async(res, rej) => {
+      res();
+    })
+  }
+
+  loadCredentials = async () => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        let creds = await localforage.getItem("ValoriaCredentials");
+        let password = await localforage.getItem("ValoriaPassword");
+        if(creds) creds = JSON.parse(creds);
+        let ecdhPairToSave = creds.ecdh;
+        let ecdsaPairToSave = creds.ecdsa;
+        const ecdhPrivData = ecdhPairToSave.privateKey;
+        const ecdsaPrivData = ecdsaPairToSave.privateKey;
+        let ecdhSalt = base64ToArrayBuffer(ecdhPrivData.salt);
+        let ecdhIv = base64ToArrayBuffer(ecdhPrivData.iv);
+        let ecdsaSalt = base64ToArrayBuffer(ecdsaPrivData.salt);
+        let ecdsaIv = base64ToArrayBuffer(ecdsaPrivData.iv);
+        const encryptKey = await window.crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(password),
+          {name: "PBKDF2"},
+          false,
+          ["deriveBits", "deriveKey"]
+        );
+        const ecdhPrivUnwrappingKey = await getKeyGCM(encryptKey, ecdhSalt);
+        const ecdsaPrivUnwrappingKey = await getKeyGCM(encryptKey, ecdsaSalt)
+        const ecdhPubKey = await window.crypto.subtle.importKey(
+          "raw", base64ToArrayBuffer(ecdhPairToSave.publicKey), { name: "ECDH", namedCurve: "P-384"}, true, []
+        )
+        const ecdhPrivKey = await window.crypto.subtle.unwrapKey(
+          "jwk", base64ToArrayBuffer(ecdhPrivData.wrapped),
+          ecdhPrivUnwrappingKey, {name: "AES-GCM", iv: ecdhIv}, { name: "ECDH", namedCurve: "P-384"},  
+          true, ["deriveKey", "deriveBits"]
+        );
+        const ecdsaPubKey = await window.crypto.subtle.importKey(
+          "raw", base64ToArrayBuffer(ecdsaPairToSave.publicKey), { name: "ECDSA", namedCurve: "P-384"}, true, ["verify"]
+        )
+        const ecdsaPrivKey = await window.crypto.subtle.unwrapKey(
+          "jwk", base64ToArrayBuffer(ecdsaPrivData.wrapped),
+          ecdsaPrivUnwrappingKey, {name: "AES-GCM", iv: ecdsaIv}, { name: "ECDSA", namedCurve: "P-384"},  
+          true, ["sign"]
+        );
+        const ecdsaPubHash = await crypto.subtle.digest("SHA-256", base64ToArrayBuffer(ecdsaPairToSave.publicKey));
+        const userId = buf2hex(ecdsaPubHash).substr(24, 64)
+        self.ecdh = {publicKey: ecdhPubKey, privateKey: ecdhPrivKey},
+        self.ecdsa = {publicKey: ecdsaPubKey, privateKey: ecdsaPrivKey},
+        self.id = userId;
+        res();
+      } catch(e){
+        console.log(e)
+        rej();
       }
-    }
+    })
+  }
+
+  generateCredentials = async (password) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      self.ecdsa = await window.crypto.subtle.generateKey(
+        {name: "ECDSA", namedCurve: "P-384"}, true, ["sign", "verify"]
+      );
+      self.ecdh = await window.crypto.subtle.generateKey(
+        {name: "ECDH", namedCurve: "P-384"}, true, ["deriveKey", "deriveBits"]
+      );
+      const ecdsaPubHash = await crypto.subtle.digest("SHA-256", await window.crypto.subtle.exportKey("raw", self.ecdsa.publicKey));
+      self.id = buf2hex(ecdsaPubHash).substr(24, 64)
+      const ecdsaSalt = window.crypto.getRandomValues(new Uint8Array(16))
+      const ecdsaIv = window.crypto.getRandomValues(new Uint8Array(12))
+      const ecdhSalt = window.crypto.getRandomValues(new Uint8Array(16))
+      const ecdhIv = window.crypto.getRandomValues(new Uint8Array(12));
+      self.secret = await arrayBufferToBase64(window.crypto.getRandomValues(new Uint8Array(32)));
+      const encryptKey = await window.crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(password + self.secret),
+        {name: "PBKDF2"},
+        false,
+        ["deriveBits", "deriveKey"]
+      );
+      let ecdhToSave = {}
+      let ecdsaToSave = {}
+      const ecdsaPrivWrapped = await wrapCryptoKeyGCM(self.ecdsa.privateKey, ecdsaSalt, encryptKey, ecdsaIv);
+      ecdsaToSave.publicKey = await arrayBufferToBase64(await window.crypto.subtle.exportKey("raw", self.ecdsa.publicKey));
+      ecdsaToSave.privateKey = {
+        wrapped : ecdsaPrivWrapped,
+        salt: await arrayBufferToBase64(ecdsaSalt),
+        iv: await arrayBufferToBase64(ecdsaIv)
+      };
+      const ecdhPrivWrapped = await wrapCryptoKeyGCM(self.ecdh.privateKey, ecdhSalt, encryptKey, ecdhIv);
+      ecdhToSave.publicKey = await arrayBufferToBase64(await window.crypto.subtle.exportKey("raw", self.ecdh.publicKey));
+      ecdhToSave.privateKey = {
+        wrapped : ecdhPrivWrapped,
+        salt: await arrayBufferToBase64(ecdhSalt),
+        iv: await arrayBufferToBase64(ecdhIv)
+      };
+      await localforage.setItem("ValoriaCredentials", JSON.stringify({
+        id: self.id,
+        ecdsa: ecdsaToSave,
+        ecdh: ecdhToSave
+      }));
+      await localforage.setItem("ValoriaPassword", password + self.secret);
+      res(self);
+    })
   }
 
   startMediaStream = async(opts) => {
@@ -420,64 +528,6 @@ class ValoriaUser {
     }
   }
 
-  signIn = async (id, password) => {
-    return new Promise(async(res, rej) => {
-      res();
-    })
-  }
-
-  signInFromLocal = async () => {
-    const self = this;
-    return new Promise((res, rej) => {
-      self.promises["GotValoriaUserId"] = {res, rej}
-    })
-  }
-
-  create = async (password) => {
-    const self = this;
-    return new Promise(async(res, rej) => {
-      self.ecdsa = await window.crypto.subtle.generateKey(
-        {name: "ECDSA", namedCurve: "P-384"}, true, ["sign", "verify"]
-      );
-      self.ecdh = await window.crypto.subtle.generateKey(
-        {name: "ECDH", namedCurve: "P-384"}, true, ["deriveKey", "deriveBits"]
-      );
-      const ecdsaPubHash = await crypto.subtle.digest("SHA-256", await window.crypto.subtle.exportKey("raw", self.ecdsa.publicKey));
-      self.id = buf2hex(ecdsaPubHash).substr(24, 64)
-      const ecdsaSalt = window.crypto.getRandomValues(new Uint8Array(16))
-      const ecdsaIv = window.crypto.getRandomValues(new Uint8Array(12))
-      const ecdhSalt = window.crypto.getRandomValues(new Uint8Array(16))
-      const ecdhIv = window.crypto.getRandomValues(new Uint8Array(12));
-      self.secret = await arrayBufferToBase64(window.crypto.getRandomValues(new Uint8Array(32)));
-      const encryptKey = await window.crypto.subtle.importKey(
-        "raw",
-        new TextEncoder().encode(password + self.secret),
-        {name: "PBKDF2"},
-        false,
-        ["deriveBits", "deriveKey"]
-      );
-      let ecdhToSave = {}
-      let ecdsaToSave = {}
-      const ecdsaPrivWrapped = await wrapCryptoKeyGCM(self.ecdsa.privateKey, ecdsaSalt, encryptKey, ecdsaIv);
-      ecdsaToSave.publicKey = await arrayBufferToBase64(await window.crypto.subtle.exportKey("raw", self.ecdsa.publicKey));
-      ecdsaToSave.privateKey = JSON.stringify({
-        wrapped : ecdsaPrivWrapped,
-        salt: await arrayBufferToBase64(ecdsaSalt),
-        iv: await arrayBufferToBase64(ecdsaIv)
-      });
-      const ecdhPrivWrapped = await wrapCryptoKeyGCM(self.ecdh.privateKey, ecdhSalt, encryptKey, ecdhIv);
-      ecdhToSave.publicKey = await arrayBufferToBase64(await window.crypto.subtle.exportKey("raw", self.ecdh.publicKey));
-      ecdhToSave.privateKey = JSON.stringify({
-        wrapped : ecdhPrivWrapped,
-        salt: await arrayBufferToBase64(ecdhSalt),
-        iv: await arrayBufferToBase64(ecdhIv)
-      });
-      await localforage.setItem("ValoriaUserId", self.id)
-      
-      res(self);
-    })
-  }
-
 }
 
 async function arrayBufferToBase64(buffer){
@@ -533,6 +583,21 @@ async function wrapCryptoKeyGCM(keyToWrap, salt, encryptKey, iv) {
     const base64 = await arrayBufferToBase64(wrappedKey);
     res(base64);
   })
+}
+
+function getKeyGCM(keyMaterial, salt) {
+  return window.crypto.subtle.deriveKey(
+    {
+      "name": "PBKDF2",
+      salt: salt,
+      "iterations": 100000,
+      "hash": "SHA-256"
+    },
+    keyMaterial,
+    { "name": "AES-GCM", "length": 256},
+    true,
+    [ "wrapKey", "unwrapKey" ]
+  );
 }
 
 const mean = (array) => array.reduce((a, b) => a + b) / array.length;
