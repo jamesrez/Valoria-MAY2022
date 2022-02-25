@@ -37,26 +37,33 @@ class Valoria {
     this.peers = {};
     this.promises = {};
     this.dimension = {};
-    (async () => await this.setup())()
+    (async () => {
+      try {
+        await this.loadCredentials();
+      } catch(e){
+
+      }
+    })()
   }
   
   setup = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
+      if(!self.id || !self.ecdsa.publicKey) return rej();
       try {
-        await self.loadCredentials();
+        await self.loadAllGroups();
       } catch(e){
         console.log(e)
       }
-      this.connectToServer(window.location.origin)
+      res();
     })
     // await this.loadAllGroups();
   }
 
-
   signIn = async (id, password) => {
     const self = this;
     return new Promise(async(res, rej) => {
+
       res();
     })
   }
@@ -106,6 +113,7 @@ class Valoria {
         self.ecdh = {publicKey: ecdhPubKey, privateKey: ecdhPrivKey},
         self.ecdsa = {publicKey: ecdsaPubKey, privateKey: ecdsaPrivKey},
         self.id = userId;
+        await self.setup();
         res();
       } catch(e){
         console.log(e)
@@ -159,6 +167,7 @@ class Valoria {
         ecdh: ecdhToSave
       }));
       await localforage.setItem("ValoriaPassword", password + self.secret);
+      await self.setup();
       res(self);
     })
   }
@@ -172,40 +181,53 @@ class Valoria {
   }
 
   loadAllGroups = async () => {
-    return new Promise(async(res, rej) => {
-      if(!initialServers || initialServers.length == 0) rej("No initial servers found.");
-      let servers = [...initialServers];
-      let askAmount = 10;
-      let askCount = 0;
-      let used = [];
-      while(askCount < askAmount){
-        if(servers.length < 1){
-          break;
-        }
-        const url = servers[servers.length * Math.random() << 0];
-        const groups = await this.askServerForGroups(url);
-        used.push(url);
-        this.groups = [...new Set(groups, this.groups)];
-        servers = this.groups.flat();
-        for(let i=0;i<used.length;i++){
-          if(servers.indexOf(used) !== -1){
-            servers.splice(servers.indexOf(used[i]), 1);
-          }
-        }
-        askCount += 1;
-      }
-      res();
-    })
-  }
-
-  askServerForGroups(url){
     const self = this;
     return new Promise(async(res, rej) => {
-      await self.connectToServer(url);
-      self.promises["Got groups from " + url] = {res, rej};
-      self.conns[url].send(JSON.stringify({
-        event: "Get groups"
-      }));
+      if(!initialServers || initialServers.length == 0) rej("No initial servers found.");
+      try {
+        if(!initialServers || initialServers.length == 0) rej("No initial servers found.");
+        let servers = [...initialServers];
+        let askAmount = 10;
+        let askCount = 0
+        let used = [];
+        let startClaims = [];
+        let syncClaims = [];
+        while(askCount < askAmount){
+          if(servers.length < 1){
+            break;
+          }
+          const url = servers[servers.length * Math.random() << 0];
+          const data = await new Promise(async (res, rej) => {
+            await self.connectToServer(url);
+            self.promises["Got groups from " + url] = {res, rej};
+            self.conns[url].send(JSON.stringify({
+              event: "Get groups"
+            }));
+          })
+          const groups = data.groups;
+          startClaims.push(data.stat);
+          syncClaims.push(data.sync);
+          if(groups.length > self.groups.length){
+            self.groups = [...groups];
+            self.syncGroups = [...groups];
+          }
+          used.push(url);
+          servers = self.groups.flat();
+          for(let i=0;i<used.length;i++){
+            if(servers.indexOf(used[i]) !== -1){
+              servers.splice(servers.indexOf(used[i]), 1);
+            }
+          }
+          askCount += 1;
+        }
+        self.start = mode(startClaims)
+        self.sync = mode(syncClaims)
+        self.nextSync = self.sync + self.syncIntervalMs;
+        self.saving[self.sync] = {};
+        res();
+      } catch(e){
+        return rej();
+      }
     })
   }
 
@@ -288,6 +310,7 @@ class Valoria {
     return new Promise(async( res, rej) => {
       if(self.promises["Got groups from " + ws.Url]){
         self.promises["Got groups from " + ws.Url].res(data)
+        delete self.promises["Got groups from " + ws.Url];
       }
       res();
     })
@@ -325,6 +348,7 @@ class Valoria {
       }
       if(self.promises["Joined " + data.dimension + " dimension"]){
         self.promises["Joined " + data.dimension + " dimension"].res();
+        delete self.promises["Joined " + data.dimension + " dimension"];
       }
       res();
     });
@@ -603,6 +627,27 @@ function getKeyGCM(keyMaterial, salt) {
 const mean = (array) => array.reduce((a, b) => a + b) / array.length;
 const variance = (array) => array.length < 2 ? 0 : array.map(x => Math.pow(x - mean(array), 2)).reduce((a, b) => a + b) / (array.length - 1);
 const std = (array) => Math.sqrt(variance(array));
+function mode (arr){
+  const mode = {};
+  let max = 0, count = 0;
+
+  for(let i = 0; i < arr.length; i++) {
+    const item = arr[i];
+    
+    if(mode[item]) {
+      mode[item]++;
+    } else {
+      mode[item] = 1;
+    }
+    
+    if(count < mode[item]) {
+      max = item;
+      count = mode[item];
+    }
+  }
+   
+  return max;
+};
 
 function simpleHash(str){
   var hash = 0;

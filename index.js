@@ -1794,6 +1794,7 @@ class Server {
       data.end = self.now();
       if(self.promises["Pong from " + ws.Url + " at " + data.start]){
         self.promises["Pong from " + ws.Url + " at " + data.start].res(data);
+        delete self.promises["Pong from " + ws.Url + " at " + data.start]
       }
       return res();
     })
@@ -1883,6 +1884,7 @@ class Server {
       } else {
         self.promises["Url verified with " + ws.Url].rej();
       }
+      delete self.promises["Url verified with " + ws.Url]
       res()
     })
   }
@@ -1907,6 +1909,7 @@ class Server {
     return new Promise(async( res, rej) => {
       if(self.promises["Got groups from " + ws.Url]){
         self.promises["Got groups from " + ws.Url].res(data)
+        delete self.promises["Got groups from " + ws.Url]
       }
       return res();
     })
@@ -1931,6 +1934,7 @@ class Server {
     return new Promise(async( res, rej) => {
       if(self.promises["Got group paths from " + ws.Url]){
         self.promises["Got group paths from " + ws.Url].res(data.paths)
+        delete self.promises["Got group paths from " + ws.Url]
       }
       return res();
     })
@@ -2073,6 +2077,7 @@ class Server {
       } else {
         self.promises["Group not full from " + ws.Url].rej();
       }
+      delete self.promises["Group not full from " + ws.Url].rej();
       res();
     })
   }
@@ -2086,6 +2091,7 @@ class Server {
         } else {
           self.promises["Joined group from " + ws.Url].res(data)
         }
+        delete self.promises["Joined group from " + ws.Url]
       }
       res();
     })
@@ -2096,6 +2102,7 @@ class Server {
     return new Promise((res, rej) => {
       if(self.promises["Joined group success from " + ws.Url]){
         self.promises["Joined group success from " + ws.Url].res();
+        delete self.promises["Joined group success from " + ws.Url];
       }
       res()
     })
@@ -2157,6 +2164,7 @@ class Server {
       } else {
         self.promises["New group response from " + ws.Url].rej();
       }
+      delete self.promises["New group response from " + ws.Url]
       res();
     })
   }
@@ -2185,6 +2193,7 @@ class Server {
       } else {
         self.promises[`Group ${data.index} can be created from ${ws.Url}`].rej();
       }
+      delete self.promises[`Group ${data.index} can be created from ${ws.Url}`]
       res()
     })
   }
@@ -2256,6 +2265,7 @@ class Server {
         } else {
           self.promises["New group found at " + ws.Url].rej()
         }
+        delete self.promises["New group found at " + ws.Url];
       }
       res();
     })
@@ -2492,6 +2502,7 @@ class Server {
       } else {
         self.promises["Sent request to " + ws.Url + " for " + data.path].rej();
       }
+      delete self.promises["Sent request to " + ws.Url + " for " + data.path]
       return res()
     })
   }
@@ -2522,6 +2533,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!self.promises["Got set request from " + ws.Url + " for " + data.path]) return res();
       self.promises["Got set request from " + ws.Url + " for " + data.path].res(data.request);
+      delete self.promises["Got set request from " + ws.Url + " for " + data.path];
       return res()
     })
   }
@@ -2644,6 +2656,7 @@ class Server {
       } else {
         self.promises["Group " + data.group + " data taken over from " + ws.Url].rej()
       }
+      delete self.promises["Group " + data.group + " data taken over from " + ws.Url]
       return res()
     })
   }
@@ -2654,6 +2667,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]) return res();
       self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now].res(data.data);
+      delete self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]
       return res()
     })
   }
@@ -2663,6 +2677,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!self.promises["Set data from " + ws.Url + " for " + data.path]) return res();
       self.promises["Set data from " + ws.Url + " for " + data.path].res(data.success);
+      delete self.promises["Set data from " + ws.Url + " for " + data.path]
       return res()
     })
   }
@@ -2672,6 +2687,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!self.promises["Group sot for " + data.path + " from " + ws.Url]) return res();
       self.promises["Group sot for " + data.path + " from " + ws.Url].res();
+      delete self.promises["Group sot for " + data.path + " from " + ws.Url];
       return res()
     })
   }
@@ -2693,6 +2709,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!self.promises["Got public from " + ws.Url]) return res();
       self.promises["Got public from " + ws.Url].res(data);
+      delete self.promises["Got public from " + ws.Url]
       return res()
     })
   }
@@ -2740,6 +2757,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(!self.promises["Got group sig for " + data.path + " from " + ws.Url]) return res();
       self.promises["Got group sig for " + data.path + " from " + ws.Url].res(data.sig)
+      delete self.promises["Got group sig for " + data.path + " from " + ws.Url];
       return res()
     })
   }
@@ -2871,6 +2889,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(self.promises["Got valor path " + data.path + " from " + ws.Url + " for " + data.id]){
         self.promises["Got valor path " + data.path + " from " + ws.Url + " for " + data.id].res(data.valor);
+        delete self.promises["Got valor path " + data.path + " from " + ws.Url + " for " + data.id]
       }
       return res();
     })
@@ -2903,6 +2922,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(self.promises["Got ledger " + data.id + " from " + ws.Url]){
         self.promises["Got ledger " + data.id + " from " + ws.Url].res(data.ledger);
+        delete self.promises["Got ledger " + data.id + " from " + ws.Url]
       }
       return res();
     })
