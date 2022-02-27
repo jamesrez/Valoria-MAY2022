@@ -10,7 +10,19 @@ const subtle = crypto.webcrypto.subtle;
 const WebSocket = require('ws');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
+const nodeDataChannel = require('node-datachannel');
 const res = require('express/lib/response');
+
+const iceServers = [
+  "stun:stun.l.google.com:19302",
+  "stun:stun2.l.google.com:19302",
+  "stun:stun3.l.google.com:19302",
+  "stun:stu4.l.google.com:19302",
+  "stun:stunserver.org",
+  "stun:stun.voiparound.com",
+  "stun:stun.voipbuster.com",
+  "stun:stun.voipstunt.com"
+];
 
 function getDirContents(dir, results=[]){
   try {
@@ -96,6 +108,7 @@ class Server {
       maxPayload: 512 * 1024 * 1024
     });
     this.conns = {};
+    this.wsConns = {}
     this.promises = {};
     this.groups = [];
     this.syncGroups = [];
@@ -216,32 +229,61 @@ class Server {
             if(url.startsWith('https')){
               wsUrl = "wss://" + new URL(url).host + "/"
             }
-            self.conns[url] = new WebSocket(wsUrl);
-            self.conns[url].Url = url;
-            self.conns[url].onopen = ( async () => {
+            self.wsConns[url] = new WebSocket(wsUrl);
+            self.wsConns[url].Url = url;
+            self.wsConns[url].onopen = ( async () => {
               try {
-                await self.setupWS(self.conns[url]);
+                await self.setupWS(self.wsConns[url]);
                 await new Promise(async(res, rej) => {
                   self.promises["Url verified with " + url] = {res, rej};
-                  self.conns[url].send(JSON.stringify({
+                  self.wsConns[url].send(JSON.stringify({
                     event: "Verify url request",
                     data: {
                       url: self.url
                     }
                   }))
                 })
+                self.conns[url] = new nodeDataChannel.PeerConnection(url, { iceServers });
+                self.conns[url].onLocalDescription((sdp, type) => {
+                  self.wsConns[url].send(JSON.stringify({
+                    event: "Set remote description",
+                    data: {
+                      sdp,
+                      type
+                    }
+                  }));
+                });
+                self.conns[url].onLocalCandidate((candidate, mid) => {
+                  self.wsConns[url].send(JSON.stringify({
+                    event: "Add remote candidate",
+                    data: {
+                      candidate,
+                      mid
+                    }
+                  }));
+                });
+
+                self.conns[url].dc = self.conns[url].createDataChannel("data");
+                self.conns[url].dc.onOpen(() => {
+                  self.conns[url].dc.sendMessage("Hello from " + self.url);
+                  return res();
+                });
+                self.conns[url].dc.onMessage((msg) => {
+                  console.log(self.url + ' Received Msg:', msg);
+                });
+
                 return res();
               } catch (e){
                 console.log(e)
                 rej(e);
               }
             });
-            self.conns[url].onerror = (error) => {
+            self.wsConns[url].onerror = (error) => {
               console.log(error)
               rej(error);
             }
-            self.conns[url].onclose = function clear() {
-              clearTimeout(self.conns[url].pingTimeout);
+            self.wsConns[url].onclose = function clear() {
+              clearTimeout(self.wsConns[url].pingTimeout);
               rej();
             };
           } catch(e){
@@ -746,7 +788,7 @@ class Server {
           const data = await new Promise(async (res, rej) => {
             await self.connectToServer(url);
             self.promises["Got groups from " + url] = {res, rej};
-            self.conns[url].send(JSON.stringify({
+            self.wsConns[url].send(JSON.stringify({
               event: "Get groups"
             }));
           })
@@ -1451,7 +1493,7 @@ class Server {
           publicD = await new Promise(async (res, rej) => {
             await self.connectToServer(url);
             self.promises["Got public from " + url] = {res, rej};
-            self.conns[url].send(JSON.stringify({
+            self.wsConns[url].send(JSON.stringify({
               event: "Get public",
             }))
           })
@@ -1754,6 +1796,12 @@ class Server {
             case "Send rtc candidate":
               self.handleSendRtcCandidate(ws, d.data);
               break;
+            case "Set remote description":
+              self.handleSetRemoteDescription(ws, d.data);
+              break;
+            case "Add remote candidate":
+              self.handleAddRemoteCandidate(ws, d.data);
+              break;
           }
         } catch(e){
 
@@ -1848,7 +1896,7 @@ class Server {
         const key = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
         if(key == self.verifying[ws.verifyingUrl]){
           ws.Url = ws.verifyingUrl;
-          self.conns[ws.Url] = ws;
+          self.wsConns[ws.Url] = ws;
           ws.send(JSON.stringify({
             event: "Url verified",
             data: {
@@ -3092,9 +3140,50 @@ class Server {
     }))
   }
 
+  handleSetRemoteDescription(ws, data){
+    const self = this;
+    if(!ws.Url) return;
+    if(!self.conns[ws.Url]) {
+      self.conns[ws.Url] = new nodeDataChannel.PeerConnection(ws.Url, { iceServers});
+      self.conns[ws.Url].onLocalDescription((sdp, type) => {
+        ws.send(JSON.stringify({
+          event: "Set remote description",
+          data: {
+            sdp,
+            type
+          }
+        }));
+      });
+      self.conns[ws.Url].onLocalCandidate((candidate, mid) => {
+        ws.send(JSON.stringify({
+          event: "Add remote candidate",
+          data: {
+            candidate,
+            mid
+          }
+        }));
+      });
+      self.conns[ws.Url].onDataChannel((dc) => {
+        self.conns[ws.Url].dc = dc;
+        self.conns[ws.Url].dc.onMessage((msg) => {
+          console.log(self.url + ' Received Msg:', msg);
+        });
+        self.conns[ws.Url].dc.sendMessage("Hello From " + self.url);
+      });
+    }
+    self.conns[ws.Url].setRemoteDescription(data.sdp, data.type)
+  }
+
+  handleAddRemoteCandidate(ws, data){
+    const self = this;
+    if(!ws.Url) return;
+    if(!self.conns[ws.Url]) return;
+    self.conns[ws.Url].addRemoteCandidate(data.candidate, data.mid)
+  }
+
 }
 
-let localServerCount = 9;
+let localServerCount = 2;
 let localServers = [];
 if(isLocal){
   (async () => {

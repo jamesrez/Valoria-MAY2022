@@ -52,12 +52,12 @@ class Valoria {
       if(!self.id || !self.ecdsa.publicKey) return rej();
       try {
         await self.loadAllGroups();
+        await self.joinGroup();
       } catch(e){
         console.log(e)
       }
       res();
     })
-    // await this.loadAllGroups();
   }
 
   signIn = async (id, password) => {
@@ -267,6 +267,13 @@ class Valoria {
         };
       }
     })
+  }
+
+  joinGroup = async () => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+
+    });
   }
 
   setupWS = async (ws) => {
