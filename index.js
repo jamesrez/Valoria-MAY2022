@@ -10,8 +10,6 @@ const subtle = crypto.webcrypto.subtle;
 const WebSocket = require('ws');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
-const nodeDataChannel = require('node-datachannel');
-const res = require('express/lib/response');
 
 const iceServers = [
   "stun:stun.l.google.com:19302",
@@ -108,7 +106,6 @@ class Server {
       maxPayload: 512 * 1024 * 1024
     });
     this.conns = {};
-    this.wsConns = {}
     this.promises = {};
     this.groups = [];
     this.syncGroups = [];
@@ -229,59 +226,32 @@ class Server {
             if(url.startsWith('https')){
               wsUrl = "wss://" + new URL(url).host + "/"
             }
-            self.wsConns[url] = new WebSocket(wsUrl);
-            self.wsConns[url].Url = url;
-            self.wsConns[url].onopen = ( async () => {
+            self.conns[url] = new WebSocket(wsUrl);
+            self.conns[url].Url = url;
+            self.conns[url].onopen = ( async () => {
               try {
-                await self.setupWS(self.wsConns[url]);
+                await self.setupWS(self.conns[url]);
                 await new Promise(async(res, rej) => {
                   self.promises["Url verified with " + url] = {res, rej};
-                  self.wsConns[url].send(JSON.stringify({
+                  self.conns[url].send(JSON.stringify({
                     event: "Verify url request",
                     data: {
                       url: self.url
                     }
                   }))
                 })
-                self.conns[url] = new nodeDataChannel.PeerConnection(url, { iceServers });
-                self.conns[url].onLocalDescription((sdp, type) => {
-                  self.wsConns[url].send(JSON.stringify({
-                    event: "Set remote description",
-                    data: {
-                      sdp,
-                      type
-                    }
-                  }));
-                });
-                self.conns[url].onLocalCandidate((candidate, mid) => {
-                  self.wsConns[url].send(JSON.stringify({
-                    event: "Add remote candidate",
-                    data: {
-                      candidate,
-                      mid
-                    }
-                  }));
-                });
-
-                self.conns[url].dc = self.conns[url].createDataChannel("data");
-                self.conns[url].dc.onOpen(() => {
-                  self.conns[url].dc.sendMessage("Hello from " + self.url);
-                  res();
-                });
-                self.conns[url].dc.onMessage((msg) => {
-                  console.log(self.url + ' Received Msg:', msg);
-                });
+                return res();
               } catch (e){
-                console.log(e)
+                // console.log(e)
                 rej(e);
               }
             });
-            self.wsConns[url].onerror = (error) => {
+            self.conns[url].onerror = (error) => {
               console.log(error)
               rej(error);
             }
-            self.wsConns[url].onclose = function clear() {
-              clearTimeout(self.wsConns[url].pingTimeout);
+            self.conns[url].onclose = function clear() {
+              clearTimeout(self.conns[url].pingTimeout);
               rej();
             };
           } catch(e){
@@ -786,7 +756,7 @@ class Server {
           const data = await new Promise(async (res, rej) => {
             await self.connectToServer(url);
             self.promises["Got groups from " + url] = {res, rej};
-            self.wsConns[url].send(JSON.stringify({
+            self.conns[url].send(JSON.stringify({
               event: "Get groups"
             }));
           })
@@ -1495,7 +1465,7 @@ class Server {
             publicD = await new Promise(async (res, rej) => {
               await self.connectToServer(url);
               self.promises["Got public from " + url] = {res, rej};
-              self.wsConns[url].send(JSON.stringify({
+              self.conns[url].send(JSON.stringify({
                 event: "Get public",
               }))
             })
@@ -1896,7 +1866,7 @@ class Server {
         const key = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
         if(key == self.verifying[ws.verifyingUrl]){
           ws.Url = ws.verifyingUrl;
-          self.wsConns[ws.Url] = ws;
+          self.conns[ws.Url] = ws;
           ws.send(JSON.stringify({
             event: "Url verified",
             data: {
