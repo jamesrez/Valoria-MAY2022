@@ -266,13 +266,11 @@ class Server {
                 self.conns[url].dc = self.conns[url].createDataChannel("data");
                 self.conns[url].dc.onOpen(() => {
                   self.conns[url].dc.sendMessage("Hello from " + self.url);
-                  return res();
+                  res();
                 });
                 self.conns[url].dc.onMessage((msg) => {
                   console.log(self.url + ' Received Msg:', msg);
                 });
-
-                return res();
               } catch (e){
                 console.log(e)
                 rej(e);
@@ -1485,50 +1483,52 @@ class Server {
   getPublicFromUrl = async (url) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      try {
-        let pathUrl = url.replace(/\//g, "");
-        pathUrl = pathUrl.replace(/\:/g, "");
-        let publicD = await self.get(`data/${pathUrl}/public.json`);
-        if(!publicD){
-          publicD = await new Promise(async (res, rej) => {
-            await self.connectToServer(url);
-            self.promises["Got public from " + url] = {res, rej};
-            self.wsConns[url].send(JSON.stringify({
-              event: "Get public",
-            }))
-          })
-        }
-        const ecdsaPubHash = await subtle.digest("SHA-256", Buffer.from(publicD.ecdsaPub, 'base64'));
-        const id = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
-        if(publicD.id !== id) return rej({err: "Invalid public data"});
+      let publicD;
+      if(url == self.url) {
+        publicD = Object.assign({}, self.public);
+      } else {
         try {
-          publicD.ecdsaPub = await subtle.importKey(
-            'raw',
-            Buffer.from(publicD.ecdsaPub, 'base64'),
-            {
-              name: 'ECDSA',
-              namedCurve: 'P-384'
-            },
-            true,
-            ['verify']
-          )
-          publicD.ecdhPub = await subtle.importKey(
-            'raw',
-            Buffer.from(publicD.ecdhPub, 'base64'),
-            {
-              name: 'ECDH',
-              namedCurve: 'P-384'
-            },
-            true,
-            ['deriveKey']
-          )
+          let pathUrl = url.replace(/\//g, "");
+          pathUrl = pathUrl.replace(/\:/g, "");
+          publicD = await self.get(`data/${pathUrl}/public.json`);
+          if(!publicD){
+            publicD = await new Promise(async (res, rej) => {
+              await self.connectToServer(url);
+              self.promises["Got public from " + url] = {res, rej};
+              self.wsConns[url].send(JSON.stringify({
+                event: "Get public",
+              }))
+            })
+          }
+          const ecdsaPubHash = await subtle.digest("SHA-256", Buffer.from(publicD.ecdsaPub, 'base64'));
+          const id = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
+          if(publicD.id !== id) return rej({err: "Invalid public data"});
+          
         } catch(e){
-          return rej({err: "Invalid public data"});
+          rej(e)
         }
-        return res(publicD);
-      } catch(e){
-        rej(e)
       }
+      publicD.ecdsaPub = await subtle.importKey(
+        'raw',
+        Buffer.from(publicD.ecdsaPub, 'base64'),
+        {
+          name: 'ECDSA',
+          namedCurve: 'P-384'
+        },
+        true,
+        ['verify']
+      )
+      publicD.ecdhPub = await subtle.importKey(
+        'raw',
+        Buffer.from(publicD.ecdhPub, 'base64'),
+        {
+          name: 'ECDH',
+          namedCurve: 'P-384'
+        },
+        true,
+        ['deriveKey']
+      )         
+      return res(publicD);
     });
   };
 
