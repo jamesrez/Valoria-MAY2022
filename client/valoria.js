@@ -4,6 +4,10 @@
 //LOCALFORAGE
 !function(a){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=a();else if("function"==typeof define&&define.amd)define([],a);else{var b;b="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:this,b.localforage=a()}}(function(){return function a(b,c,d){function e(g,h){if(!c[g]){if(!b[g]){var i="function"==typeof require&&require;if(!h&&i)return i(g,!0);if(f)return f(g,!0);var j=new Error("Cannot find module '"+g+"'");throw j.code="MODULE_NOT_FOUND",j}var k=c[g]={exports:{}};b[g][0].call(k.exports,function(a){var c=b[g][1][a];return e(c||a)},k,k.exports,a,b,c,d)}return c[g].exports}for(var f="function"==typeof require&&require,g=0;g<d.length;g++)e(d[g]);return e}({1:[function(a,b,c){(function(a){"use strict";function c(){k=!0;for(var a,b,c=l.length;c;){for(b=l,l=[],a=-1;++a<c;)b[a]();c=l.length}k=!1}function d(a){1!==l.push(a)||k||e()}var e,f=a.MutationObserver||a.WebKitMutationObserver;if(f){var g=0,h=new f(c),i=a.document.createTextNode("");h.observe(i,{characterData:!0}),e=function(){i.data=g=++g%2}}else if(a.setImmediate||void 0===a.MessageChannel)e="document"in a&&"onreadystatechange"in a.document.createElement("script")?function(){var b=a.document.createElement("script");b.onreadystatechange=function(){c(),b.onreadystatechange=null,b.parentNode.removeChild(b),b=null},a.document.documentElement.appendChild(b)}:function(){setTimeout(c,0)};else{var j=new a.MessageChannel;j.port1.onmessage=c,e=function(){j.port2.postMessage(0)}}var k,l=[];b.exports=d}).call(this,"undefined"!=typeof global?global:"undefined"!=typeof self?self:"undefined"!=typeof window?window:{})},{}],2:[function(a,b,c){"use strict";function d(){}function e(a){if("function"!=typeof a)throw new TypeError("resolver must be a function");this.state=s,this.queue=[],this.outcome=void 0,a!==d&&i(this,a)}function f(a,b,c){this.promise=a,"function"==typeof b&&(this.onFulfilled=b,this.callFulfilled=this.otherCallFulfilled),"function"==typeof c&&(this.onRejected=c,this.callRejected=this.otherCallRejected)}function g(a,b,c){o(function(){var d;try{d=b(c)}catch(b){return p.reject(a,b)}d===a?p.reject(a,new TypeError("Cannot resolve promise with itself")):p.resolve(a,d)})}function h(a){var b=a&&a.then;if(a&&("object"==typeof a||"function"==typeof a)&&"function"==typeof b)return function(){b.apply(a,arguments)}}function i(a,b){function c(b){f||(f=!0,p.reject(a,b))}function d(b){f||(f=!0,p.resolve(a,b))}function e(){b(d,c)}var f=!1,g=j(e);"error"===g.status&&c(g.value)}function j(a,b){var c={};try{c.value=a(b),c.status="success"}catch(a){c.status="error",c.value=a}return c}function k(a){return a instanceof this?a:p.resolve(new this(d),a)}function l(a){var b=new this(d);return p.reject(b,a)}function m(a){function b(a,b){function d(a){g[b]=a,++h!==e||f||(f=!0,p.resolve(j,g))}c.resolve(a).then(d,function(a){f||(f=!0,p.reject(j,a))})}var c=this;if("[object Array]"!==Object.prototype.toString.call(a))return this.reject(new TypeError("must be an array"));var e=a.length,f=!1;if(!e)return this.resolve([]);for(var g=new Array(e),h=0,i=-1,j=new this(d);++i<e;)b(a[i],i);return j}function n(a){function b(a){c.resolve(a).then(function(a){f||(f=!0,p.resolve(h,a))},function(a){f||(f=!0,p.reject(h,a))})}var c=this;if("[object Array]"!==Object.prototype.toString.call(a))return this.reject(new TypeError("must be an array"));var e=a.length,f=!1;if(!e)return this.resolve([]);for(var g=-1,h=new this(d);++g<e;)b(a[g]);return h}var o=a(1),p={},q=["REJECTED"],r=["FULFILLED"],s=["PENDING"];b.exports=e,e.prototype.catch=function(a){return this.then(null,a)},e.prototype.then=function(a,b){if("function"!=typeof a&&this.state===r||"function"!=typeof b&&this.state===q)return this;var c=new this.constructor(d);if(this.state!==s){g(c,this.state===r?a:b,this.outcome)}else this.queue.push(new f(c,a,b));return c},f.prototype.callFulfilled=function(a){p.resolve(this.promise,a)},f.prototype.otherCallFulfilled=function(a){g(this.promise,this.onFulfilled,a)},f.prototype.callRejected=function(a){p.reject(this.promise,a)},f.prototype.otherCallRejected=function(a){g(this.promise,this.onRejected,a)},p.resolve=function(a,b){var c=j(h,b);if("error"===c.status)return p.reject(a,c.value);var d=c.value;if(d)i(a,d);else{a.state=r,a.outcome=b;for(var e=-1,f=a.queue.length;++e<f;)a.queue[e].callFulfilled(b)}return a},p.reject=function(a,b){a.state=q,a.outcome=b;for(var c=-1,d=a.queue.length;++c<d;)a.queue[c].callRejected(b);return a},e.resolve=k,e.reject=l,e.all=m,e.race=n},{1:1}],3:[function(a,b,c){(function(b){"use strict";"function"!=typeof b.Promise&&(b.Promise=a(2))}).call(this,"undefined"!=typeof global?global:"undefined"!=typeof self?self:"undefined"!=typeof window?window:{})},{2:2}],4:[function(a,b,c){"use strict";function d(a,b){if(!(a instanceof b))throw new TypeError("Cannot call a class as a function")}function e(){try{if("undefined"!=typeof indexedDB)return indexedDB;if("undefined"!=typeof webkitIndexedDB)return webkitIndexedDB;if("undefined"!=typeof mozIndexedDB)return mozIndexedDB;if("undefined"!=typeof OIndexedDB)return OIndexedDB;if("undefined"!=typeof msIndexedDB)return msIndexedDB}catch(a){return}}function f(){try{if(!ua||!ua.open)return!1;var a="undefined"!=typeof openDatabase&&/(Safari|iPhone|iPad|iPod)/.test(navigator.userAgent)&&!/Chrome/.test(navigator.userAgent)&&!/BlackBerry/.test(navigator.platform),b="function"==typeof fetch&&-1!==fetch.toString().indexOf("[native code");return(!a||b)&&"undefined"!=typeof indexedDB&&"undefined"!=typeof IDBKeyRange}catch(a){return!1}}function g(a,b){a=a||[],b=b||{};try{return new Blob(a,b)}catch(f){if("TypeError"!==f.name)throw f;for(var c="undefined"!=typeof BlobBuilder?BlobBuilder:"undefined"!=typeof MSBlobBuilder?MSBlobBuilder:"undefined"!=typeof MozBlobBuilder?MozBlobBuilder:WebKitBlobBuilder,d=new c,e=0;e<a.length;e+=1)d.append(a[e]);return d.getBlob(b.type)}}function h(a,b){b&&a.then(function(a){b(null,a)},function(a){b(a)})}function i(a,b,c){"function"==typeof b&&a.then(b),"function"==typeof c&&a.catch(c)}function j(a){return"string"!=typeof a&&(console.warn(a+" used as a key, but it is not a string."),a=String(a)),a}function k(){if(arguments.length&&"function"==typeof arguments[arguments.length-1])return arguments[arguments.length-1]}function l(a){for(var b=a.length,c=new ArrayBuffer(b),d=new Uint8Array(c),e=0;e<b;e++)d[e]=a.charCodeAt(e);return c}function m(a){return new va(function(b){var c=a.transaction(wa,Ba),d=g([""]);c.objectStore(wa).put(d,"key"),c.onabort=function(a){a.preventDefault(),a.stopPropagation(),b(!1)},c.oncomplete=function(){var a=navigator.userAgent.match(/Chrome\/(\d+)/),c=navigator.userAgent.match(/Edge\//);b(c||!a||parseInt(a[1],10)>=43)}}).catch(function(){return!1})}function n(a){return"boolean"==typeof xa?va.resolve(xa):m(a).then(function(a){return xa=a})}function o(a){var b=ya[a.name],c={};c.promise=new va(function(a,b){c.resolve=a,c.reject=b}),b.deferredOperations.push(c),b.dbReady?b.dbReady=b.dbReady.then(function(){return c.promise}):b.dbReady=c.promise}function p(a){var b=ya[a.name],c=b.deferredOperations.pop();if(c)return c.resolve(),c.promise}function q(a,b){var c=ya[a.name],d=c.deferredOperations.pop();if(d)return d.reject(b),d.promise}function r(a,b){return new va(function(c,d){if(ya[a.name]=ya[a.name]||B(),a.db){if(!b)return c(a.db);o(a),a.db.close()}var e=[a.name];b&&e.push(a.version);var f=ua.open.apply(ua,e);b&&(f.onupgradeneeded=function(b){var c=f.result;try{c.createObjectStore(a.storeName),b.oldVersion<=1&&c.createObjectStore(wa)}catch(c){if("ConstraintError"!==c.name)throw c;console.warn('The database "'+a.name+'" has been upgraded from version '+b.oldVersion+" to version "+b.newVersion+', but the storage "'+a.storeName+'" already exists.')}}),f.onerror=function(a){a.preventDefault(),d(f.error)},f.onsuccess=function(){c(f.result),p(a)}})}function s(a){return r(a,!1)}function t(a){return r(a,!0)}function u(a,b){if(!a.db)return!0;var c=!a.db.objectStoreNames.contains(a.storeName),d=a.version<a.db.version,e=a.version>a.db.version;if(d&&(a.version!==b&&console.warn('The database "'+a.name+"\" can't be downgraded from version "+a.db.version+" to version "+a.version+"."),a.version=a.db.version),e||c){if(c){var f=a.db.version+1;f>a.version&&(a.version=f)}return!0}return!1}function v(a){return new va(function(b,c){var d=new FileReader;d.onerror=c,d.onloadend=function(c){var d=btoa(c.target.result||"");b({__local_forage_encoded_blob:!0,data:d,type:a.type})},d.readAsBinaryString(a)})}function w(a){return g([l(atob(a.data))],{type:a.type})}function x(a){return a&&a.__local_forage_encoded_blob}function y(a){var b=this,c=b._initReady().then(function(){var a=ya[b._dbInfo.name];if(a&&a.dbReady)return a.dbReady});return i(c,a,a),c}function z(a){o(a);for(var b=ya[a.name],c=b.forages,d=0;d<c.length;d++){var e=c[d];e._dbInfo.db&&(e._dbInfo.db.close(),e._dbInfo.db=null)}return a.db=null,s(a).then(function(b){return a.db=b,u(a)?t(a):b}).then(function(d){a.db=b.db=d;for(var e=0;e<c.length;e++)c[e]._dbInfo.db=d}).catch(function(b){throw q(a,b),b})}function A(a,b,c,d){void 0===d&&(d=1);try{var e=a.db.transaction(a.storeName,b);c(null,e)}catch(e){if(d>0&&(!a.db||"InvalidStateError"===e.name||"NotFoundError"===e.name))return va.resolve().then(function(){if(!a.db||"NotFoundError"===e.name&&!a.db.objectStoreNames.contains(a.storeName)&&a.version<=a.db.version)return a.db&&(a.version=a.db.version+1),t(a)}).then(function(){return z(a).then(function(){A(a,b,c,d-1)})}).catch(c);c(e)}}function B(){return{forages:[],db:null,dbReady:null,deferredOperations:[]}}function C(a){function b(){return va.resolve()}var c=this,d={db:null};if(a)for(var e in a)d[e]=a[e];var f=ya[d.name];f||(f=B(),ya[d.name]=f),f.forages.push(c),c._initReady||(c._initReady=c.ready,c.ready=y);for(var g=[],h=0;h<f.forages.length;h++){var i=f.forages[h];i!==c&&g.push(i._initReady().catch(b))}var j=f.forages.slice(0);return va.all(g).then(function(){return d.db=f.db,s(d)}).then(function(a){return d.db=a,u(d,c._defaultConfig.version)?t(d):a}).then(function(a){d.db=f.db=a,c._dbInfo=d;for(var b=0;b<j.length;b++){var e=j[b];e!==c&&(e._dbInfo.db=d.db,e._dbInfo.version=d.version)}})}function D(a,b){var c=this;a=j(a);var d=new va(function(b,d){c.ready().then(function(){A(c._dbInfo,Aa,function(e,f){if(e)return d(e);try{var g=f.objectStore(c._dbInfo.storeName),h=g.get(a);h.onsuccess=function(){var a=h.result;void 0===a&&(a=null),x(a)&&(a=w(a)),b(a)},h.onerror=function(){d(h.error)}}catch(a){d(a)}})}).catch(d)});return h(d,b),d}function E(a,b){var c=this,d=new va(function(b,d){c.ready().then(function(){A(c._dbInfo,Aa,function(e,f){if(e)return d(e);try{var g=f.objectStore(c._dbInfo.storeName),h=g.openCursor(),i=1;h.onsuccess=function(){var c=h.result;if(c){var d=c.value;x(d)&&(d=w(d));var e=a(d,c.key,i++);void 0!==e?b(e):c.continue()}else b()},h.onerror=function(){d(h.error)}}catch(a){d(a)}})}).catch(d)});return h(d,b),d}function F(a,b,c){var d=this;a=j(a);var e=new va(function(c,e){var f;d.ready().then(function(){return f=d._dbInfo,"[object Blob]"===za.call(b)?n(f.db).then(function(a){return a?b:v(b)}):b}).then(function(b){A(d._dbInfo,Ba,function(f,g){if(f)return e(f);try{var h=g.objectStore(d._dbInfo.storeName);null===b&&(b=void 0);var i=h.put(b,a);g.oncomplete=function(){void 0===b&&(b=null),c(b)},g.onabort=g.onerror=function(){var a=i.error?i.error:i.transaction.error;e(a)}}catch(a){e(a)}})}).catch(e)});return h(e,c),e}function G(a,b){var c=this;a=j(a);var d=new va(function(b,d){c.ready().then(function(){A(c._dbInfo,Ba,function(e,f){if(e)return d(e);try{var g=f.objectStore(c._dbInfo.storeName),h=g.delete(a);f.oncomplete=function(){b()},f.onerror=function(){d(h.error)},f.onabort=function(){var a=h.error?h.error:h.transaction.error;d(a)}}catch(a){d(a)}})}).catch(d)});return h(d,b),d}function H(a){var b=this,c=new va(function(a,c){b.ready().then(function(){A(b._dbInfo,Ba,function(d,e){if(d)return c(d);try{var f=e.objectStore(b._dbInfo.storeName),g=f.clear();e.oncomplete=function(){a()},e.onabort=e.onerror=function(){var a=g.error?g.error:g.transaction.error;c(a)}}catch(a){c(a)}})}).catch(c)});return h(c,a),c}function I(a){var b=this,c=new va(function(a,c){b.ready().then(function(){A(b._dbInfo,Aa,function(d,e){if(d)return c(d);try{var f=e.objectStore(b._dbInfo.storeName),g=f.count();g.onsuccess=function(){a(g.result)},g.onerror=function(){c(g.error)}}catch(a){c(a)}})}).catch(c)});return h(c,a),c}function J(a,b){var c=this,d=new va(function(b,d){if(a<0)return void b(null);c.ready().then(function(){A(c._dbInfo,Aa,function(e,f){if(e)return d(e);try{var g=f.objectStore(c._dbInfo.storeName),h=!1,i=g.openKeyCursor();i.onsuccess=function(){var c=i.result;if(!c)return void b(null);0===a?b(c.key):h?b(c.key):(h=!0,c.advance(a))},i.onerror=function(){d(i.error)}}catch(a){d(a)}})}).catch(d)});return h(d,b),d}function K(a){var b=this,c=new va(function(a,c){b.ready().then(function(){A(b._dbInfo,Aa,function(d,e){if(d)return c(d);try{var f=e.objectStore(b._dbInfo.storeName),g=f.openKeyCursor(),h=[];g.onsuccess=function(){var b=g.result;if(!b)return void a(h);h.push(b.key),b.continue()},g.onerror=function(){c(g.error)}}catch(a){c(a)}})}).catch(c)});return h(c,a),c}function L(a,b){b=k.apply(this,arguments);var c=this.config();a="function"!=typeof a&&a||{},a.name||(a.name=a.name||c.name,a.storeName=a.storeName||c.storeName);var d,e=this;if(a.name){var f=a.name===c.name&&e._dbInfo.db,g=f?va.resolve(e._dbInfo.db):s(a).then(function(b){var c=ya[a.name],d=c.forages;c.db=b;for(var e=0;e<d.length;e++)d[e]._dbInfo.db=b;return b});d=a.storeName?g.then(function(b){if(b.objectStoreNames.contains(a.storeName)){var c=b.version+1;o(a);var d=ya[a.name],e=d.forages;b.close();for(var f=0;f<e.length;f++){var g=e[f];g._dbInfo.db=null,g._dbInfo.version=c}return new va(function(b,d){var e=ua.open(a.name,c);e.onerror=function(a){e.result.close(),d(a)},e.onupgradeneeded=function(){e.result.deleteObjectStore(a.storeName)},e.onsuccess=function(){var a=e.result;a.close(),b(a)}}).then(function(a){d.db=a;for(var b=0;b<e.length;b++){var c=e[b];c._dbInfo.db=a,p(c._dbInfo)}}).catch(function(b){throw(q(a,b)||va.resolve()).catch(function(){}),b})}}):g.then(function(b){o(a);var c=ya[a.name],d=c.forages;b.close();for(var e=0;e<d.length;e++){d[e]._dbInfo.db=null}return new va(function(b,c){var d=ua.deleteDatabase(a.name);d.onerror=d.onblocked=function(a){var b=d.result;b&&b.close(),c(a)},d.onsuccess=function(){var a=d.result;a&&a.close(),b(a)}}).then(function(a){c.db=a;for(var b=0;b<d.length;b++)p(d[b]._dbInfo)}).catch(function(b){throw(q(a,b)||va.resolve()).catch(function(){}),b})})}else d=va.reject("Invalid arguments");return h(d,b),d}function M(){return"function"==typeof openDatabase}function N(a){var b,c,d,e,f,g=.75*a.length,h=a.length,i=0;"="===a[a.length-1]&&(g--,"="===a[a.length-2]&&g--);var j=new ArrayBuffer(g),k=new Uint8Array(j);for(b=0;b<h;b+=4)c=Da.indexOf(a[b]),d=Da.indexOf(a[b+1]),e=Da.indexOf(a[b+2]),f=Da.indexOf(a[b+3]),k[i++]=c<<2|d>>4,k[i++]=(15&d)<<4|e>>2,k[i++]=(3&e)<<6|63&f;return j}function O(a){var b,c=new Uint8Array(a),d="";for(b=0;b<c.length;b+=3)d+=Da[c[b]>>2],d+=Da[(3&c[b])<<4|c[b+1]>>4],d+=Da[(15&c[b+1])<<2|c[b+2]>>6],d+=Da[63&c[b+2]];return c.length%3==2?d=d.substring(0,d.length-1)+"=":c.length%3==1&&(d=d.substring(0,d.length-2)+"=="),d}function P(a,b){var c="";if(a&&(c=Ua.call(a)),a&&("[object ArrayBuffer]"===c||a.buffer&&"[object ArrayBuffer]"===Ua.call(a.buffer))){var d,e=Ga;a instanceof ArrayBuffer?(d=a,e+=Ia):(d=a.buffer,"[object Int8Array]"===c?e+=Ka:"[object Uint8Array]"===c?e+=La:"[object Uint8ClampedArray]"===c?e+=Ma:"[object Int16Array]"===c?e+=Na:"[object Uint16Array]"===c?e+=Pa:"[object Int32Array]"===c?e+=Oa:"[object Uint32Array]"===c?e+=Qa:"[object Float32Array]"===c?e+=Ra:"[object Float64Array]"===c?e+=Sa:b(new Error("Failed to get type for BinaryArray"))),b(e+O(d))}else if("[object Blob]"===c){var f=new FileReader;f.onload=function(){var c=Ea+a.type+"~"+O(this.result);b(Ga+Ja+c)},f.readAsArrayBuffer(a)}else try{b(JSON.stringify(a))}catch(c){console.error("Couldn't convert value into a JSON string: ",a),b(null,c)}}function Q(a){if(a.substring(0,Ha)!==Ga)return JSON.parse(a);var b,c=a.substring(Ta),d=a.substring(Ha,Ta);if(d===Ja&&Fa.test(c)){var e=c.match(Fa);b=e[1],c=c.substring(e[0].length)}var f=N(c);switch(d){case Ia:return f;case Ja:return g([f],{type:b});case Ka:return new Int8Array(f);case La:return new Uint8Array(f);case Ma:return new Uint8ClampedArray(f);case Na:return new Int16Array(f);case Pa:return new Uint16Array(f);case Oa:return new Int32Array(f);case Qa:return new Uint32Array(f);case Ra:return new Float32Array(f);case Sa:return new Float64Array(f);default:throw new Error("Unkown type: "+d)}}function R(a,b,c,d){a.executeSql("CREATE TABLE IF NOT EXISTS "+b.storeName+" (id INTEGER PRIMARY KEY, key unique, value)",[],c,d)}function S(a){var b=this,c={db:null};if(a)for(var d in a)c[d]="string"!=typeof a[d]?a[d].toString():a[d];var e=new va(function(a,d){try{c.db=openDatabase(c.name,String(c.version),c.description,c.size)}catch(a){return d(a)}c.db.transaction(function(e){R(e,c,function(){b._dbInfo=c,a()},function(a,b){d(b)})},d)});return c.serializer=Va,e}function T(a,b,c,d,e,f){a.executeSql(c,d,e,function(a,g){g.code===g.SYNTAX_ERR?a.executeSql("SELECT name FROM sqlite_master WHERE type='table' AND name = ?",[b.storeName],function(a,h){h.rows.length?f(a,g):R(a,b,function(){a.executeSql(c,d,e,f)},f)},f):f(a,g)},f)}function U(a,b){var c=this;a=j(a);var d=new va(function(b,d){c.ready().then(function(){var e=c._dbInfo;e.db.transaction(function(c){T(c,e,"SELECT * FROM "+e.storeName+" WHERE key = ? LIMIT 1",[a],function(a,c){var d=c.rows.length?c.rows.item(0).value:null;d&&(d=e.serializer.deserialize(d)),b(d)},function(a,b){d(b)})})}).catch(d)});return h(d,b),d}function V(a,b){var c=this,d=new va(function(b,d){c.ready().then(function(){var e=c._dbInfo;e.db.transaction(function(c){T(c,e,"SELECT * FROM "+e.storeName,[],function(c,d){for(var f=d.rows,g=f.length,h=0;h<g;h++){var i=f.item(h),j=i.value;if(j&&(j=e.serializer.deserialize(j)),void 0!==(j=a(j,i.key,h+1)))return void b(j)}b()},function(a,b){d(b)})})}).catch(d)});return h(d,b),d}function W(a,b,c,d){var e=this;a=j(a);var f=new va(function(f,g){e.ready().then(function(){void 0===b&&(b=null);var h=b,i=e._dbInfo;i.serializer.serialize(b,function(b,j){j?g(j):i.db.transaction(function(c){T(c,i,"INSERT OR REPLACE INTO "+i.storeName+" (key, value) VALUES (?, ?)",[a,b],function(){f(h)},function(a,b){g(b)})},function(b){if(b.code===b.QUOTA_ERR){if(d>0)return void f(W.apply(e,[a,h,c,d-1]));g(b)}})})}).catch(g)});return h(f,c),f}function X(a,b,c){return W.apply(this,[a,b,c,1])}function Y(a,b){var c=this;a=j(a);var d=new va(function(b,d){c.ready().then(function(){var e=c._dbInfo;e.db.transaction(function(c){T(c,e,"DELETE FROM "+e.storeName+" WHERE key = ?",[a],function(){b()},function(a,b){d(b)})})}).catch(d)});return h(d,b),d}function Z(a){var b=this,c=new va(function(a,c){b.ready().then(function(){var d=b._dbInfo;d.db.transaction(function(b){T(b,d,"DELETE FROM "+d.storeName,[],function(){a()},function(a,b){c(b)})})}).catch(c)});return h(c,a),c}function $(a){var b=this,c=new va(function(a,c){b.ready().then(function(){var d=b._dbInfo;d.db.transaction(function(b){T(b,d,"SELECT COUNT(key) as c FROM "+d.storeName,[],function(b,c){var d=c.rows.item(0).c;a(d)},function(a,b){c(b)})})}).catch(c)});return h(c,a),c}function _(a,b){var c=this,d=new va(function(b,d){c.ready().then(function(){var e=c._dbInfo;e.db.transaction(function(c){T(c,e,"SELECT key FROM "+e.storeName+" WHERE id = ? LIMIT 1",[a+1],function(a,c){var d=c.rows.length?c.rows.item(0).key:null;b(d)},function(a,b){d(b)})})}).catch(d)});return h(d,b),d}function aa(a){var b=this,c=new va(function(a,c){b.ready().then(function(){var d=b._dbInfo;d.db.transaction(function(b){T(b,d,"SELECT key FROM "+d.storeName,[],function(b,c){for(var d=[],e=0;e<c.rows.length;e++)d.push(c.rows.item(e).key);a(d)},function(a,b){c(b)})})}).catch(c)});return h(c,a),c}function ba(a){return new va(function(b,c){a.transaction(function(d){d.executeSql("SELECT name FROM sqlite_master WHERE type='table' AND name <> '__WebKitDatabaseInfoTable__'",[],function(c,d){for(var e=[],f=0;f<d.rows.length;f++)e.push(d.rows.item(f).name);b({db:a,storeNames:e})},function(a,b){c(b)})},function(a){c(a)})})}function ca(a,b){b=k.apply(this,arguments);var c=this.config();a="function"!=typeof a&&a||{},a.name||(a.name=a.name||c.name,a.storeName=a.storeName||c.storeName);var d,e=this;return d=a.name?new va(function(b){var d;d=a.name===c.name?e._dbInfo.db:openDatabase(a.name,"","",0),b(a.storeName?{db:d,storeNames:[a.storeName]}:ba(d))}).then(function(a){return new va(function(b,c){a.db.transaction(function(d){function e(a){return new va(function(b,c){d.executeSql("DROP TABLE IF EXISTS "+a,[],function(){b()},function(a,b){c(b)})})}for(var f=[],g=0,h=a.storeNames.length;g<h;g++)f.push(e(a.storeNames[g]));va.all(f).then(function(){b()}).catch(function(a){c(a)})},function(a){c(a)})})}):va.reject("Invalid arguments"),h(d,b),d}function da(){try{return"undefined"!=typeof localStorage&&"setItem"in localStorage&&!!localStorage.setItem}catch(a){return!1}}function ea(a,b){var c=a.name+"/";return a.storeName!==b.storeName&&(c+=a.storeName+"/"),c}function fa(){var a="_localforage_support_test";try{return localStorage.setItem(a,!0),localStorage.removeItem(a),!1}catch(a){return!0}}function ga(){return!fa()||localStorage.length>0}function ha(a){var b=this,c={};if(a)for(var d in a)c[d]=a[d];return c.keyPrefix=ea(a,b._defaultConfig),ga()?(b._dbInfo=c,c.serializer=Va,va.resolve()):va.reject()}function ia(a){var b=this,c=b.ready().then(function(){for(var a=b._dbInfo.keyPrefix,c=localStorage.length-1;c>=0;c--){var d=localStorage.key(c);0===d.indexOf(a)&&localStorage.removeItem(d)}});return h(c,a),c}function ja(a,b){var c=this;a=j(a);var d=c.ready().then(function(){var b=c._dbInfo,d=localStorage.getItem(b.keyPrefix+a);return d&&(d=b.serializer.deserialize(d)),d});return h(d,b),d}function ka(a,b){var c=this,d=c.ready().then(function(){for(var b=c._dbInfo,d=b.keyPrefix,e=d.length,f=localStorage.length,g=1,h=0;h<f;h++){var i=localStorage.key(h);if(0===i.indexOf(d)){var j=localStorage.getItem(i);if(j&&(j=b.serializer.deserialize(j)),void 0!==(j=a(j,i.substring(e),g++)))return j}}});return h(d,b),d}function la(a,b){var c=this,d=c.ready().then(function(){var b,d=c._dbInfo;try{b=localStorage.key(a)}catch(a){b=null}return b&&(b=b.substring(d.keyPrefix.length)),b});return h(d,b),d}function ma(a){var b=this,c=b.ready().then(function(){for(var a=b._dbInfo,c=localStorage.length,d=[],e=0;e<c;e++){var f=localStorage.key(e);0===f.indexOf(a.keyPrefix)&&d.push(f.substring(a.keyPrefix.length))}return d});return h(c,a),c}function na(a){var b=this,c=b.keys().then(function(a){return a.length});return h(c,a),c}function oa(a,b){var c=this;a=j(a);var d=c.ready().then(function(){var b=c._dbInfo;localStorage.removeItem(b.keyPrefix+a)});return h(d,b),d}function pa(a,b,c){var d=this;a=j(a);var e=d.ready().then(function(){void 0===b&&(b=null);var c=b;return new va(function(e,f){var g=d._dbInfo;g.serializer.serialize(b,function(b,d){if(d)f(d);else try{localStorage.setItem(g.keyPrefix+a,b),e(c)}catch(a){"QuotaExceededError"!==a.name&&"NS_ERROR_DOM_QUOTA_REACHED"!==a.name||f(a),f(a)}})})});return h(e,c),e}function qa(a,b){if(b=k.apply(this,arguments),a="function"!=typeof a&&a||{},!a.name){var c=this.config();a.name=a.name||c.name,a.storeName=a.storeName||c.storeName}var d,e=this;return d=a.name?new va(function(b){b(a.storeName?ea(a,e._defaultConfig):a.name+"/")}).then(function(a){for(var b=localStorage.length-1;b>=0;b--){var c=localStorage.key(b);0===c.indexOf(a)&&localStorage.removeItem(c)}}):va.reject("Invalid arguments"),h(d,b),d}function ra(a,b){a[b]=function(){var c=arguments;return a.ready().then(function(){return a[b].apply(a,c)})}}function sa(){for(var a=1;a<arguments.length;a++){var b=arguments[a];if(b)for(var c in b)b.hasOwnProperty(c)&&($a(b[c])?arguments[0][c]=b[c].slice():arguments[0][c]=b[c])}return arguments[0]}var ta="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(a){return typeof a}:function(a){return a&&"function"==typeof Symbol&&a.constructor===Symbol&&a!==Symbol.prototype?"symbol":typeof a},ua=e();"undefined"==typeof Promise&&a(3);var va=Promise,wa="local-forage-detect-blob-support",xa=void 0,ya={},za=Object.prototype.toString,Aa="readonly",Ba="readwrite",Ca={_driver:"asyncStorage",_initStorage:C,_support:f(),iterate:E,getItem:D,setItem:F,removeItem:G,clear:H,length:I,key:J,keys:K,dropInstance:L},Da="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",Ea="~~local_forage_type~",Fa=/^~~local_forage_type~([^~]+)~/,Ga="__lfsc__:",Ha=Ga.length,Ia="arbf",Ja="blob",Ka="si08",La="ui08",Ma="uic8",Na="si16",Oa="si32",Pa="ur16",Qa="ui32",Ra="fl32",Sa="fl64",Ta=Ha+Ia.length,Ua=Object.prototype.toString,Va={serialize:P,deserialize:Q,stringToBuffer:N,bufferToString:O},Wa={_driver:"webSQLStorage",_initStorage:S,_support:M(),iterate:V,getItem:U,setItem:X,removeItem:Y,clear:Z,length:$,key:_,keys:aa,dropInstance:ca},Xa={_driver:"localStorageWrapper",_initStorage:ha,_support:da(),iterate:ka,getItem:ja,setItem:pa,removeItem:oa,clear:ia,length:na,key:la,keys:ma,dropInstance:qa},Ya=function(a,b){return a===b||"number"==typeof a&&"number"==typeof b&&isNaN(a)&&isNaN(b)},Za=function(a,b){for(var c=a.length,d=0;d<c;){if(Ya(a[d],b))return!0;d++}return!1},$a=Array.isArray||function(a){return"[object Array]"===Object.prototype.toString.call(a)},_a={},ab={},bb={INDEXEDDB:Ca,WEBSQL:Wa,LOCALSTORAGE:Xa},cb=[bb.INDEXEDDB._driver,bb.WEBSQL._driver,bb.LOCALSTORAGE._driver],db=["dropInstance"],eb=["clear","getItem","iterate","key","keys","length","removeItem","setItem"].concat(db),fb={description:"",driver:cb.slice(),name:"localforage",size:4980736,storeName:"keyvaluepairs",version:1},gb=function(){function a(b){d(this,a);for(var c in bb)if(bb.hasOwnProperty(c)){var e=bb[c],f=e._driver;this[c]=f,_a[f]||this.defineDriver(e)}this._defaultConfig=sa({},fb),this._config=sa({},this._defaultConfig,b),this._driverSet=null,this._initDriver=null,this._ready=!1,this._dbInfo=null,this._wrapLibraryMethodsWithReady(),this.setDriver(this._config.driver).catch(function(){})}return a.prototype.config=function(a){if("object"===(void 0===a?"undefined":ta(a))){if(this._ready)return new Error("Can't call config() after localforage has been used.");for(var b in a){if("storeName"===b&&(a[b]=a[b].replace(/\W/g,"_")),"version"===b&&"number"!=typeof a[b])return new Error("Database version must be a number.");this._config[b]=a[b]}return!("driver"in a&&a.driver)||this.setDriver(this._config.driver)}return"string"==typeof a?this._config[a]:this._config},a.prototype.defineDriver=function(a,b,c){var d=new va(function(b,c){try{var d=a._driver,e=new Error("Custom driver not compliant; see https://mozilla.github.io/localForage/#definedriver");if(!a._driver)return void c(e);for(var f=eb.concat("_initStorage"),g=0,i=f.length;g<i;g++){var j=f[g];if((!Za(db,j)||a[j])&&"function"!=typeof a[j])return void c(e)}(function(){for(var b=function(a){return function(){var b=new Error("Method "+a+" is not implemented by the current driver"),c=va.reject(b);return h(c,arguments[arguments.length-1]),c}},c=0,d=db.length;c<d;c++){var e=db[c];a[e]||(a[e]=b(e))}})();var k=function(c){_a[d]&&console.info("Redefining LocalForage driver: "+d),_a[d]=a,ab[d]=c,b()};"_support"in a?a._support&&"function"==typeof a._support?a._support().then(k,c):k(!!a._support):k(!0)}catch(a){c(a)}});return i(d,b,c),d},a.prototype.driver=function(){return this._driver||null},a.prototype.getDriver=function(a,b,c){var d=_a[a]?va.resolve(_a[a]):va.reject(new Error("Driver not found."));return i(d,b,c),d},a.prototype.getSerializer=function(a){var b=va.resolve(Va);return i(b,a),b},a.prototype.ready=function(a){var b=this,c=b._driverSet.then(function(){return null===b._ready&&(b._ready=b._initDriver()),b._ready});return i(c,a,a),c},a.prototype.setDriver=function(a,b,c){function d(){g._config.driver=g.driver()}function e(a){return g._extend(a),d(),g._ready=g._initStorage(g._config),g._ready}function f(a){return function(){function b(){for(;c<a.length;){var f=a[c];return c++,g._dbInfo=null,g._ready=null,g.getDriver(f).then(e).catch(b)}d();var h=new Error("No available storage method found.");return g._driverSet=va.reject(h),g._driverSet}var c=0;return b()}}var g=this;$a(a)||(a=[a]);var h=this._getSupportedDrivers(a),j=null!==this._driverSet?this._driverSet.catch(function(){return va.resolve()}):va.resolve();return this._driverSet=j.then(function(){var a=h[0];return g._dbInfo=null,g._ready=null,g.getDriver(a).then(function(a){g._driver=a._driver,d(),g._wrapLibraryMethodsWithReady(),g._initDriver=f(h)})}).catch(function(){d();var a=new Error("No available storage method found.");return g._driverSet=va.reject(a),g._driverSet}),i(this._driverSet,b,c),this._driverSet},a.prototype.supports=function(a){return!!ab[a]},a.prototype._extend=function(a){sa(this,a)},a.prototype._getSupportedDrivers=function(a){for(var b=[],c=0,d=a.length;c<d;c++){var e=a[c];this.supports(e)&&b.push(e)}return b},a.prototype._wrapLibraryMethodsWithReady=function(){for(var a=0,b=eb.length;a<b;a++)ra(this,eb[a])},a.prototype.createInstance=function(b){return new a(b)},a}(),hb=new gb;b.exports=hb},{3:3}]},{},[4])(4)});
 
+//AXIOS.MIN.JS
+!function(e,t){"object"==typeof exports&&"object"==typeof module?module.exports=t():"function"==typeof define&&define.amd?define([],t):"object"==typeof exports?exports.axios=t():e.axios=t()}(this,function(){return function(e){function t(r){if(n[r])return n[r].exports;var o=n[r]={exports:{},id:r,loaded:!1};return e[r].call(o.exports,o,o.exports,t),o.loaded=!0,o.exports}var n={};return t.m=e,t.c=n,t.p="",t(0)}([function(e,t,n){e.exports=n(1)},function(e,t,n){"use strict";function r(e){var t=new s(e),n=i(s.prototype.request,t);return o.extend(n,s.prototype,t),o.extend(n,t),n}var o=n(2),i=n(3),s=n(4),a=n(22),u=n(10),c=r(u);c.Axios=s,c.create=function(e){return r(a(c.defaults,e))},c.Cancel=n(23),c.CancelToken=n(24),c.isCancel=n(9),c.all=function(e){return Promise.all(e)},c.spread=n(25),e.exports=c,e.exports.default=c},function(e,t,n){"use strict";function r(e){return"[object Array]"===R.call(e)}function o(e){return"undefined"==typeof e}function i(e){return null!==e&&!o(e)&&null!==e.constructor&&!o(e.constructor)&&"function"==typeof e.constructor.isBuffer&&e.constructor.isBuffer(e)}function s(e){return"[object ArrayBuffer]"===R.call(e)}function a(e){return"undefined"!=typeof FormData&&e instanceof FormData}function u(e){var t;return t="undefined"!=typeof ArrayBuffer&&ArrayBuffer.isView?ArrayBuffer.isView(e):e&&e.buffer&&e.buffer instanceof ArrayBuffer}function c(e){return"string"==typeof e}function f(e){return"number"==typeof e}function p(e){return null!==e&&"object"==typeof e}function d(e){if("[object Object]"!==R.call(e))return!1;var t=Object.getPrototypeOf(e);return null===t||t===Object.prototype}function l(e){return"[object Date]"===R.call(e)}function h(e){return"[object File]"===R.call(e)}function m(e){return"[object Blob]"===R.call(e)}function y(e){return"[object Function]"===R.call(e)}function g(e){return p(e)&&y(e.pipe)}function v(e){return"undefined"!=typeof URLSearchParams&&e instanceof URLSearchParams}function x(e){return e.replace(/^\s*/,"").replace(/\s*$/,"")}function w(){return("undefined"==typeof navigator||"ReactNative"!==navigator.product&&"NativeScript"!==navigator.product&&"NS"!==navigator.product)&&("undefined"!=typeof window&&"undefined"!=typeof document)}function b(e,t){if(null!==e&&"undefined"!=typeof e)if("object"!=typeof e&&(e=[e]),r(e))for(var n=0,o=e.length;n<o;n++)t.call(null,e[n],n,e);else for(var i in e)Object.prototype.hasOwnProperty.call(e,i)&&t.call(null,e[i],i,e)}function E(){function e(e,n){d(t[n])&&d(e)?t[n]=E(t[n],e):d(e)?t[n]=E({},e):r(e)?t[n]=e.slice():t[n]=e}for(var t={},n=0,o=arguments.length;n<o;n++)b(arguments[n],e);return t}function C(e,t,n){return b(t,function(t,r){n&&"function"==typeof t?e[r]=S(t,n):e[r]=t}),e}function j(e){return 65279===e.charCodeAt(0)&&(e=e.slice(1)),e}var S=n(3),R=Object.prototype.toString;e.exports={isArray:r,isArrayBuffer:s,isBuffer:i,isFormData:a,isArrayBufferView:u,isString:c,isNumber:f,isObject:p,isPlainObject:d,isUndefined:o,isDate:l,isFile:h,isBlob:m,isFunction:y,isStream:g,isURLSearchParams:v,isStandardBrowserEnv:w,forEach:b,merge:E,extend:C,trim:x,stripBOM:j}},function(e,t){"use strict";e.exports=function(e,t){return function(){for(var n=new Array(arguments.length),r=0;r<n.length;r++)n[r]=arguments[r];return e.apply(t,n)}}},function(e,t,n){"use strict";function r(e){this.defaults=e,this.interceptors={request:new s,response:new s}}var o=n(2),i=n(5),s=n(6),a=n(7),u=n(22);r.prototype.request=function(e){"string"==typeof e?(e=arguments[1]||{},e.url=arguments[0]):e=e||{},e=u(this.defaults,e),e.method?e.method=e.method.toLowerCase():this.defaults.method?e.method=this.defaults.method.toLowerCase():e.method="get";var t=[a,void 0],n=Promise.resolve(e);for(this.interceptors.request.forEach(function(e){t.unshift(e.fulfilled,e.rejected)}),this.interceptors.response.forEach(function(e){t.push(e.fulfilled,e.rejected)});t.length;)n=n.then(t.shift(),t.shift());return n},r.prototype.getUri=function(e){return e=u(this.defaults,e),i(e.url,e.params,e.paramsSerializer).replace(/^\?/,"")},o.forEach(["delete","get","head","options"],function(e){r.prototype[e]=function(t,n){return this.request(u(n||{},{method:e,url:t}))}}),o.forEach(["post","put","patch"],function(e){r.prototype[e]=function(t,n,r){return this.request(u(r||{},{method:e,url:t,data:n}))}}),e.exports=r},function(e,t,n){"use strict";function r(e){return encodeURIComponent(e).replace(/%3A/gi,":").replace(/%24/g,"$").replace(/%2C/gi,",").replace(/%20/g,"+").replace(/%5B/gi,"[").replace(/%5D/gi,"]")}var o=n(2);e.exports=function(e,t,n){if(!t)return e;var i;if(n)i=n(t);else if(o.isURLSearchParams(t))i=t.toString();else{var s=[];o.forEach(t,function(e,t){null!==e&&"undefined"!=typeof e&&(o.isArray(e)?t+="[]":e=[e],o.forEach(e,function(e){o.isDate(e)?e=e.toISOString():o.isObject(e)&&(e=JSON.stringify(e)),s.push(r(t)+"="+r(e))}))}),i=s.join("&")}if(i){var a=e.indexOf("#");a!==-1&&(e=e.slice(0,a)),e+=(e.indexOf("?")===-1?"?":"&")+i}return e}},function(e,t,n){"use strict";function r(){this.handlers=[]}var o=n(2);r.prototype.use=function(e,t){return this.handlers.push({fulfilled:e,rejected:t}),this.handlers.length-1},r.prototype.eject=function(e){this.handlers[e]&&(this.handlers[e]=null)},r.prototype.forEach=function(e){o.forEach(this.handlers,function(t){null!==t&&e(t)})},e.exports=r},function(e,t,n){"use strict";function r(e){e.cancelToken&&e.cancelToken.throwIfRequested()}var o=n(2),i=n(8),s=n(9),a=n(10);e.exports=function(e){r(e),e.headers=e.headers||{},e.data=i(e.data,e.headers,e.transformRequest),e.headers=o.merge(e.headers.common||{},e.headers[e.method]||{},e.headers),o.forEach(["delete","get","head","post","put","patch","common"],function(t){delete e.headers[t]});var t=e.adapter||a.adapter;return t(e).then(function(t){return r(e),t.data=i(t.data,t.headers,e.transformResponse),t},function(t){return s(t)||(r(e),t&&t.response&&(t.response.data=i(t.response.data,t.response.headers,e.transformResponse))),Promise.reject(t)})}},function(e,t,n){"use strict";var r=n(2);e.exports=function(e,t,n){return r.forEach(n,function(n){e=n(e,t)}),e}},function(e,t){"use strict";e.exports=function(e){return!(!e||!e.__CANCEL__)}},function(e,t,n){"use strict";function r(e,t){!i.isUndefined(e)&&i.isUndefined(e["Content-Type"])&&(e["Content-Type"]=t)}function o(){var e;return"undefined"!=typeof XMLHttpRequest?e=n(12):"undefined"!=typeof process&&"[object process]"===Object.prototype.toString.call(process)&&(e=n(12)),e}var i=n(2),s=n(11),a={"Content-Type":"application/x-www-form-urlencoded"},u={adapter:o(),transformRequest:[function(e,t){return s(t,"Accept"),s(t,"Content-Type"),i.isFormData(e)||i.isArrayBuffer(e)||i.isBuffer(e)||i.isStream(e)||i.isFile(e)||i.isBlob(e)?e:i.isArrayBufferView(e)?e.buffer:i.isURLSearchParams(e)?(r(t,"application/x-www-form-urlencoded;charset=utf-8"),e.toString()):i.isObject(e)?(r(t,"application/json;charset=utf-8"),JSON.stringify(e)):e}],transformResponse:[function(e){if("string"==typeof e)try{e=JSON.parse(e)}catch(e){}return e}],timeout:0,xsrfCookieName:"XSRF-TOKEN",xsrfHeaderName:"X-XSRF-TOKEN",maxContentLength:-1,maxBodyLength:-1,validateStatus:function(e){return e>=200&&e<300}};u.headers={common:{Accept:"application/json, text/plain, */*"}},i.forEach(["delete","get","head"],function(e){u.headers[e]={}}),i.forEach(["post","put","patch"],function(e){u.headers[e]=i.merge(a)}),e.exports=u},function(e,t,n){"use strict";var r=n(2);e.exports=function(e,t){r.forEach(e,function(n,r){r!==t&&r.toUpperCase()===t.toUpperCase()&&(e[t]=n,delete e[r])})}},function(e,t,n){"use strict";var r=n(2),o=n(13),i=n(16),s=n(5),a=n(17),u=n(20),c=n(21),f=n(14);e.exports=function(e){return new Promise(function(t,n){var p=e.data,d=e.headers;r.isFormData(p)&&delete d["Content-Type"],(r.isBlob(p)||r.isFile(p))&&p.type&&delete d["Content-Type"];var l=new XMLHttpRequest;if(e.auth){var h=e.auth.username||"",m=unescape(encodeURIComponent(e.auth.password))||"";d.Authorization="Basic "+btoa(h+":"+m)}var y=a(e.baseURL,e.url);if(l.open(e.method.toUpperCase(),s(y,e.params,e.paramsSerializer),!0),l.timeout=e.timeout,l.onreadystatechange=function(){if(l&&4===l.readyState&&(0!==l.status||l.responseURL&&0===l.responseURL.indexOf("file:"))){var r="getAllResponseHeaders"in l?u(l.getAllResponseHeaders()):null,i=e.responseType&&"text"!==e.responseType?l.response:l.responseText,s={data:i,status:l.status,statusText:l.statusText,headers:r,config:e,request:l};o(t,n,s),l=null}},l.onabort=function(){l&&(n(f("Request aborted",e,"ECONNABORTED",l)),l=null)},l.onerror=function(){n(f("Network Error",e,null,l)),l=null},l.ontimeout=function(){var t="timeout of "+e.timeout+"ms exceeded";e.timeoutErrorMessage&&(t=e.timeoutErrorMessage),n(f(t,e,"ECONNABORTED",l)),l=null},r.isStandardBrowserEnv()){var g=(e.withCredentials||c(y))&&e.xsrfCookieName?i.read(e.xsrfCookieName):void 0;g&&(d[e.xsrfHeaderName]=g)}if("setRequestHeader"in l&&r.forEach(d,function(e,t){"undefined"==typeof p&&"content-type"===t.toLowerCase()?delete d[t]:l.setRequestHeader(t,e)}),r.isUndefined(e.withCredentials)||(l.withCredentials=!!e.withCredentials),e.responseType)try{l.responseType=e.responseType}catch(t){if("json"!==e.responseType)throw t}"function"==typeof e.onDownloadProgress&&l.addEventListener("progress",e.onDownloadProgress),"function"==typeof e.onUploadProgress&&l.upload&&l.upload.addEventListener("progress",e.onUploadProgress),e.cancelToken&&e.cancelToken.promise.then(function(e){l&&(l.abort(),n(e),l=null)}),p||(p=null),l.send(p)})}},function(e,t,n){"use strict";var r=n(14);e.exports=function(e,t,n){var o=n.config.validateStatus;n.status&&o&&!o(n.status)?t(r("Request failed with status code "+n.status,n.config,null,n.request,n)):e(n)}},function(e,t,n){"use strict";var r=n(15);e.exports=function(e,t,n,o,i){var s=new Error(e);return r(s,t,n,o,i)}},function(e,t){"use strict";e.exports=function(e,t,n,r,o){return e.config=t,n&&(e.code=n),e.request=r,e.response=o,e.isAxiosError=!0,e.toJSON=function(){return{message:this.message,name:this.name,description:this.description,number:this.number,fileName:this.fileName,lineNumber:this.lineNumber,columnNumber:this.columnNumber,stack:this.stack,config:this.config,code:this.code}},e}},function(e,t,n){"use strict";var r=n(2);e.exports=r.isStandardBrowserEnv()?function(){return{write:function(e,t,n,o,i,s){var a=[];a.push(e+"="+encodeURIComponent(t)),r.isNumber(n)&&a.push("expires="+new Date(n).toGMTString()),r.isString(o)&&a.push("path="+o),r.isString(i)&&a.push("domain="+i),s===!0&&a.push("secure"),document.cookie=a.join("; ")},read:function(e){var t=document.cookie.match(new RegExp("(^|;\\s*)("+e+")=([^;]*)"));return t?decodeURIComponent(t[3]):null},remove:function(e){this.write(e,"",Date.now()-864e5)}}}():function(){return{write:function(){},read:function(){return null},remove:function(){}}}()},function(e,t,n){"use strict";var r=n(18),o=n(19);e.exports=function(e,t){return e&&!r(t)?o(e,t):t}},function(e,t){"use strict";e.exports=function(e){return/^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(e)}},function(e,t){"use strict";e.exports=function(e,t){return t?e.replace(/\/+$/,"")+"/"+t.replace(/^\/+/,""):e}},function(e,t,n){"use strict";var r=n(2),o=["age","authorization","content-length","content-type","etag","expires","from","host","if-modified-since","if-unmodified-since","last-modified","location","max-forwards","proxy-authorization","referer","retry-after","user-agent"];e.exports=function(e){var t,n,i,s={};return e?(r.forEach(e.split("\n"),function(e){if(i=e.indexOf(":"),t=r.trim(e.substr(0,i)).toLowerCase(),n=r.trim(e.substr(i+1)),t){if(s[t]&&o.indexOf(t)>=0)return;"set-cookie"===t?s[t]=(s[t]?s[t]:[]).concat([n]):s[t]=s[t]?s[t]+", "+n:n}}),s):s}},function(e,t,n){"use strict";var r=n(2);e.exports=r.isStandardBrowserEnv()?function(){function e(e){var t=e;return n&&(o.setAttribute("href",t),t=o.href),o.setAttribute("href",t),{href:o.href,protocol:o.protocol?o.protocol.replace(/:$/,""):"",host:o.host,search:o.search?o.search.replace(/^\?/,""):"",hash:o.hash?o.hash.replace(/^#/,""):"",hostname:o.hostname,port:o.port,pathname:"/"===o.pathname.charAt(0)?o.pathname:"/"+o.pathname}}var t,n=/(msie|trident)/i.test(navigator.userAgent),o=document.createElement("a");return t=e(window.location.href),function(n){var o=r.isString(n)?e(n):n;return o.protocol===t.protocol&&o.host===t.host}}():function(){return function(){return!0}}()},function(e,t,n){"use strict";var r=n(2);e.exports=function(e,t){function n(e,t){return r.isPlainObject(e)&&r.isPlainObject(t)?r.merge(e,t):r.isPlainObject(t)?r.merge({},t):r.isArray(t)?t.slice():t}function o(o){r.isUndefined(t[o])?r.isUndefined(e[o])||(i[o]=n(void 0,e[o])):i[o]=n(e[o],t[o])}t=t||{};var i={},s=["url","method","data"],a=["headers","auth","proxy","params"],u=["baseURL","transformRequest","transformResponse","paramsSerializer","timeout","timeoutMessage","withCredentials","adapter","responseType","xsrfCookieName","xsrfHeaderName","onUploadProgress","onDownloadProgress","decompress","maxContentLength","maxBodyLength","maxRedirects","transport","httpAgent","httpsAgent","cancelToken","socketPath","responseEncoding"],c=["validateStatus"];r.forEach(s,function(e){r.isUndefined(t[e])||(i[e]=n(void 0,t[e]))}),r.forEach(a,o),r.forEach(u,function(o){r.isUndefined(t[o])?r.isUndefined(e[o])||(i[o]=n(void 0,e[o])):i[o]=n(void 0,t[o])}),r.forEach(c,function(r){r in t?i[r]=n(e[r],t[r]):r in e&&(i[r]=n(void 0,e[r]))});var f=s.concat(a).concat(u).concat(c),p=Object.keys(e).concat(Object.keys(t)).filter(function(e){return f.indexOf(e)===-1});return r.forEach(p,o),i}},function(e,t){"use strict";function n(e){this.message=e}n.prototype.toString=function(){return"Cancel"+(this.message?": "+this.message:"")},n.prototype.__CANCEL__=!0,e.exports=n},function(e,t,n){"use strict";function r(e){if("function"!=typeof e)throw new TypeError("executor must be a function.");var t;this.promise=new Promise(function(e){t=e});var n=this;e(function(e){n.reason||(n.reason=new o(e),t(n.reason))})}var o=n(23);r.prototype.throwIfRequested=function(){if(this.reason)throw this.reason},r.source=function(){var e,t=new r(function(t){e=t});return{token:t,cancel:e}},e.exports=r},function(e,t){"use strict";e.exports=function(e){return function(t){return e.apply(null,t)}}}])});
+
+
 const subtle = window.crypto.subtle;
 const initialServers = window.location.hostname == "localhost" ? [window.location.origin + "/"] : ["https://valoria.live/"];
 const iceServers = [
@@ -37,6 +41,8 @@ class Valoria {
     this.peers = {};
     this.promises = {};
     this.dimension = {};
+    this.saving = {}
+    this.syncIntervalMs = 1000;
     (async () => {
       try {
         await this.loadCredentials();
@@ -52,6 +58,11 @@ class Valoria {
       if(!self.id || !self.ecdsa.publicKey) return rej();
       try {
         await self.loadAllGroups();
+        const accountGroup = jumpConsistentHash(self.id, self.groups.length);
+        const rUrl = self.groups[accountGroup][self.groups[accountGroup].length * Math.random() << 0];
+        await self.connectToServer(rUrl);
+        self.url = rUrl + "valoria/peers/" + self.id + "/";
+        self.originUrl = rUrl;
         await self.joinGroup();
       } catch(e){
         console.log(e)
@@ -204,8 +215,9 @@ class Valoria {
               event: "Get groups"
             }));
           })
+          delete self.conns[url];
           const groups = data.groups;
-          startClaims.push(data.stat);
+          startClaims.push(data.start);
           syncClaims.push(data.sync);
           if(groups.length > self.groups.length){
             self.groups = [...groups];
@@ -253,7 +265,18 @@ class Valoria {
         this.conns[url].onopen = ( async () => {
           try {
             await this.setupWS(this.conns[url]);
-            res();
+            if(self.url){
+              await new Promise(async(res, rej) => {
+                self.promises["Url verified with " + url] = {res, rej};
+                self.conns[url].send(JSON.stringify({
+                  event: "Verify url request",
+                  data: {
+                    url: self.url
+                  }
+                }))
+              })
+            }
+            return res();
           } catch (e){
             console.log(e);
             res();
@@ -272,7 +295,45 @@ class Valoria {
   joinGroup = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-
+      const groups = [...self.groups];
+      let willCreateGroup = true;
+      while(groups.length > 0 && !self.group){
+        const group = groups[groups.length * Math.random() << 0];
+        const url = group[group.length * Math.random() << 0];
+        groups.splice(group, 1);
+        try {
+          self.group = await new Promise(async(res, rej) => {
+            try {
+              await self.connectToServer(url);
+              self.promises["Joined group from " + url] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "Join group",
+              }));
+            } catch(e){
+              // console.log(e)
+            } 
+          });
+          willCreateGroup = false;
+          console.log(self.url + " has joined group " + self.group.index);
+          self.groups[self.group.index] = self.group.members;
+          self.conns[url].send(JSON.stringify({
+            event: "Joined group success"
+          }));
+          // await self.syncGroupData();
+          // await self.syncTimeWithNearby();
+        } catch (e){
+          continue;
+        }
+      }
+      if(willCreateGroup){
+        try {
+          await self.requestNewGroup();
+          await self.createGroup();
+        } catch (e){
+          await self.loadAllGroups();
+          await self.joinGroup();
+        }
+      }
     });
   }
 
@@ -288,8 +349,146 @@ class Valoria {
           case 'Got public':
             await self.handleGotPublic(ws, d.data);
             break;
+          case 'Verify url request':
+            await self.handleVerifyUrlRequest(ws, d.data);
+            break;
+          case 'Verify url with key':
+            await self.handleVerifyUrlKey(ws, d.data);
+            break;
+          case 'Verify url':
+            await self.handleVerifyUrl(ws)
+            break;
+          case 'Url verified':
+            await self.handleUrlVerified(ws, d.data);
+            break;
+          case 'Verified peer url':
+            await self.handleVerifiedPeerUrl(ws, d.data);
+            break;
+          case 'Get groups':
+            await self.handleGetGroups(ws);
+            break;
           case 'Got groups':
             await self.handleGotGroups(ws, d.data);
+            break;
+          case 'Request new group':
+            await self.handleRequestNewGroup(ws, d.data);
+            break;
+          case 'New group response':
+            await self.handleNewGroupResponse(ws, d.data);
+            break;
+          case 'Group can be created':
+            await self.handleGroupCanBeCreated(ws, d.data);
+            break;
+          case 'Group can be created response':
+            await self.handleGroupCanBeCreatedResponse(ws, d.data);
+            break;
+          case 'Join group':
+            await self.handleJoinGroupRequest(ws);
+            break;
+          case 'Group not full':
+            await self.handleGroupNotFull(ws);
+            break;
+          case 'Group not full response':
+            await self.handleGroupNotFullResponse(ws, d.data);
+            break;
+          case 'Joined group':
+            await self.handleJoinedGroup(ws, d.data);
+            break;
+          case 'Joined group success':
+            await self.handleJoinedGroupSuccess(ws);
+            break;
+          // case 'Sign verification token':
+          //   await self.handleSignVerificationToken(ws, d.data);
+          //   break;
+          // case 'Verify token signature':
+          //   self.handleVerifyTokenSignature(ws, d.data);
+          //   break;
+          case 'New member in group':
+            await self.handleNewMemberInGroup(ws, d.data);
+            break;
+          case 'New group':
+            await self.handleNewGroup(ws, d.data);
+            break;
+          case 'New group found':
+            await self.handleNewGroupFound(ws, d.data);
+            break;
+          case "Sync ping":
+            await self.handleSyncPing(ws, d.data)
+            break;
+          case "Sync pong":
+            await self.handleSyncPong(ws, d.data)
+            break;
+          case "Share group sig":
+            await self.handleShareGroupSig(ws, d.data)
+            break;
+          case "Got group sig":
+            await self.handleGotGroupSig(ws, d.data)
+            break;
+          case "Get group paths":
+            await self.handleGetGroupPaths(ws, d.data);
+            break;
+          case "Got group paths":
+            await self.handleGotGroupPaths(ws, d.data);
+            break;
+          case "Get":
+            await self.handleGet(ws, d.data);
+            break;
+          case "Set":
+            await self.handleSet(ws, d.data);
+            break; 
+          case "Set request":
+            await self.handleSetRequest(ws, d.data);
+            break;
+          case "Set request saved":
+            await self.handleSetRequestSaved(ws, d.data);
+            break;
+          case "Get set request":
+            await self.handleGetSetRequest(ws, d.data);
+            break;
+          case "Got set request":
+            await self.handleGotSetRequest(ws, d.data);
+            break;
+          case "Group set":
+            await self.handleGroupSet(ws, d.data);
+            break;
+          case "Group sot":
+            await self.handleGroupSot(ws, d.data);
+            break;
+          case "Take over group data":
+            await self.handleTakeOverGroupData(ws, d.data);
+            break;
+          case "Group data taken over":
+            await self.handleGroupDataTakenOver(ws, d.data);
+            break;
+          case "Got":
+            await self.handleGot(ws, d.data);
+            break;
+          case "Sot":
+            await self.handleSot(ws, d.data);
+            break; 
+          case "Claim valor for path":
+            await self.handleClaimValorForPath(ws, d.data);
+            break;
+          case "Claimed valor for path":
+            await self.handleClaimedValorPath(ws, d.data);
+            break;
+          case "Get valor path":
+            await self.handleGetValorPath(ws, d.data);
+            break;
+          case "Got valor path":
+            await self.handleGotValorPath(ws, d.data);
+            break;
+          case "Get ledger":
+            await self.handleGetLedger(ws, d.data);
+            break;
+          case "Got ledger":
+            await self.handleGotLedger(ws, d.data);
+            break;
+          case "Add path to ledger":
+            await self.handleAddPathToLedger(ws, d.data);
+            break;
+          case "Path added to ledger":
+            await self.handlePathAddedToLedger(ws, d.data);
             break;
           case "Joined dimension":
             await self.handleJoinedDimension(ws, d.data);
@@ -312,6 +511,128 @@ class Valoria {
     })
   }
 
+  handleVerifyUrlRequest = async (ws, data) => {
+    const self = this;
+    return new Promise(async( res, rej) => {
+      try {
+        if(ws.Url || !data.url) return res();
+        ws.verifyingUrl = data.url;
+        self.verifying[data.url] = buf2hex(window.crypto.getRandomValues(new Uint8Array(32)))
+        await new Promise(async(res, rej) => {
+          self.promises["Verified url " + data.url + " with key"] = {res, rej}
+          ws.send(JSON.stringify({
+            event: "Verify url with key",
+            data: {
+              key: self.verifying[data.url]
+            }
+          }))
+        })
+        res();
+      } catch(e){
+        rej();
+      }
+    
+    })
+  }
+
+  handleVerifyUrlKey = async (ws, data) => {
+    const self = this;
+    return new Promise(async( res, rej) => {
+      if(!self.promises["Url verified with " + ws.Url] || !data.key) return res();
+      let pathUrl = ws.Url.replace(/\//g, "");
+      pathUrl = pathUrl.replace(/\:/g, "");
+      await new Promise(async(res, rej) => {
+        self.promises["Verified peer url for " + ws.Url + " at " + self.originUrl] = {res, rej};
+        self.conns[self.originUrl].send(JSON.stringify({
+          event: "Verify peer url with key",
+          data: {
+            peerId: self.id,
+            url: ws.Url,
+            key: data.key
+          }
+        }))
+      })
+      ws.send(JSON.stringify({
+        event: "Verify url"
+      }))
+      return res();
+    })
+  }
+
+  handleVerifyUrl = async (ws) => {
+    const self = this;
+    return new Promise(async( res, rej) => {
+      try {
+        if(!ws.verifyingUrl || !self.verifying[ws.verifyingUrl]) return res();
+        const key = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
+        if(key == self.verifying[ws.verifyingUrl]){
+          ws.Url = ws.verifyingUrl;
+          self.conns[ws.Url] = ws;
+          ws.send(JSON.stringify({
+            event: "Url verified",
+            data: {
+              success: true
+            }
+          }))
+        } else {
+          ws.send(JSON.stringify({
+            event: "Url verified",
+            data: {
+              err: true
+            }
+          }))
+        }
+      } catch(e){
+        ws.send(JSON.stringify({
+          event: "Url verified",
+          data: {
+            err: true
+          }
+        }))
+      }
+      return res();
+    })
+  }
+
+  handleUrlVerified = async (ws, data) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      if(!self.promises["Url verified with " + ws.Url]) return res();
+      if(data.success){
+        self.promises["Url verified with " + ws.Url].res()
+      } else {
+        self.promises["Url verified with " + ws.Url].rej();
+      }
+      delete self.promises["Url verified with " + ws.Url]
+      res()
+    })
+  }
+
+  handleVerifiedPeerUrl = async (ws, data) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      if(!self.promises["Verified peer url for " + data.url + " at " + ws.Url]) return res();
+      self.promises["Verified peer url for " + data.url + " at " + ws.Url].res();
+      delete self.promises["Verified peer url for " + data.url + " at " + ws.Url]
+      res()
+    })
+  }
+
+  handleGetGroups(ws){
+    const self = this;
+    return new Promise(async( res, rej) => {
+      ws.send(JSON.stringify({
+        event: "Got groups",
+        data: {
+          groups: self.groups,
+          start: self.start,
+          sync: self.sync
+        }
+      }))
+      return res();
+    })
+  }
+
   handleGotGroups(ws, data){
     const self = this;
     return new Promise(async( res, rej) => {
@@ -322,6 +643,1129 @@ class Valoria {
       res();
     })
   }
+
+  //TODO MAKE ALL THIS CODE WORK FOR BROWSER
+
+  handleGetGroupPaths(ws){
+    const self = this;
+    return new Promise(async( res, rej) => {
+      const paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all");
+      ws.send(JSON.stringify({
+        event: "Got group paths",
+        data: {
+          paths
+        }
+      }))
+      return res();
+    })
+  }
+
+  handleGotGroupPaths(ws, data){
+    const self = this;
+    return new Promise(async( res, rej) => {
+      if(self.promises["Got group paths from " + ws.Url]){
+        self.promises["Got group paths from " + ws.Url].res(data.paths)
+        delete self.promises["Got group paths from " + ws.Url]
+      }
+      return res();
+    })
+  }
+
+  handleJoinGroupRequest = async (ws) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        const g = self.group;
+        if(g.members.indexOf(ws.Url) !== -1){
+          ws.send(JSON.stringify({
+            event: "Joined group",
+            data: {err: "Already joined group"}
+          }));
+          res();
+          return
+        }
+        if(g.members.length < g.max){
+          try {
+            for(let i=0;i<g.members.length;i++){
+              if(g.members[i] == self.url) continue;
+              await self.connectToServer(g.members[i]);
+              await new Promise(async (res, rej) => {
+                self.promises["Group not full from " + g.members[i]] = {res, rej};
+                self.conns[g.members[i]].send(JSON.stringify({
+                  event: "Group not full",
+                }))
+              })
+            }
+          } catch (e){
+            ws.send(JSON.stringify({
+              event: "Joined group",
+              data: {err: "Not seeking new members"}
+            }));
+            return res();
+          }
+          g.members.push(ws.Url);
+          g.updated = self.now();
+          g.version += 1;
+          self.groups[g.index] = g.members;
+          self.newMembers.push(ws.Url);
+          for(let i=0;i<g.members?.length;i++){
+            if(g.members[i] == self.url || g.members[i] == ws.Url) continue;
+            await self.connectToServer(g.members[i]);
+            self.conns[g.members[i]].send(JSON.stringify({
+              event: "New member in group",
+              data: g
+            }))
+          }
+          self.conns[ws.Url].send(JSON.stringify({
+            event: "Joined group",
+            data: g
+          }));
+          await new Promise((res, rej) => {
+            self.promises["Joined group success from " + ws.Url] = {res, rej};
+          })
+
+          //SEND GROUP DATA TO NEW MEMBER. TODO - MUST SEND ALL DATA BEFORE THE SERVER CLAIMS THE DATA. 
+          // let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all");
+          // for(let i=0;i<paths.length;i++){
+          //   let path = paths[i].substr(paths[i].indexOf("/") + 1);
+          //   path = path.substr(path.indexOf("/") + 1);
+          //   path = path.substr(path.indexOf("/") + 1);
+          //   // if(path.startsWith("ledgers/")) continue;
+          //   const groupIndex = jumpConsistentHash(path, self.groups.length);
+          //   if(groupIndex == self.group.index){
+          //     try {
+          //       await new Promise(async (res, rej) => {
+          //         const data = await self.getLocal("all/" + path);
+          //         self.promises["Group sot for " + path + " from " + ws.Url] = {res, rej};
+          //         ws.send(JSON.stringify({
+          //           event: "Group set",
+          //           data: {
+          //             path,
+          //             data
+          //           }
+          //         }));
+          //       })
+          //     } catch(e){}
+          //   }
+          // }
+
+          if(self.groups[g.index - 1]?.length > 0){
+            const servers = self.groups[g.index - 1];
+            const url = servers[servers.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "New member in group",
+              data: g
+            }))
+          }
+          if(self.groups[g.index + 1]?.length > 0){
+            const servers = self.groups[g.index + 1];
+            const url = servers[servers.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "New member in group",
+              data: g
+            }))
+          }
+          // await self.setLocal("group.json", self.group);
+          // await self.setLocal("groups.json", self.groups);
+          res()
+          return
+        } else {
+          ws.send(JSON.stringify({
+            event: "Joined group",
+            data: {err: "Not seeking new members"}
+          }));
+          res();
+          return
+        }
+      } catch (e){
+        console.log(e);
+        res();
+      }
+    })
+  }
+
+  handleGroupNotFull = async (ws) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1) return res();
+      ws.send(JSON.stringify({
+        event: "Group not full response",
+        data: self.group.members.length < self.group.max
+      }))
+      return res()
+    })
+  }
+
+  
+  handleGroupNotFullResponse = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Group not full from " + ws.Url]) return res();
+      if(data){
+        self.promises["Group not full from " + ws.Url].res();
+      } else {
+        self.promises["Group not full from " + ws.Url].rej();
+      }
+      delete self.promises["Group not full from " + ws.Url].rej();
+      res();
+    })
+  }
+
+  handleJoinedGroup(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.promises["Joined group from " + ws.Url]){
+        if(data.err) {
+          self.promises["Joined group from " + ws.Url].rej();
+        } else {
+          self.promises["Joined group from " + ws.Url].res(data)
+        }
+        delete self.promises["Joined group from " + ws.Url]
+      }
+      res();
+    })
+  }
+
+  handleJoinedGroupSuccess(ws){
+    const self = this;
+    return new Promise((res, rej) => {
+      if(self.promises["Joined group success from " + ws.Url]){
+        self.promises["Joined group success from " + ws.Url].res();
+        delete self.promises["Joined group success from " + ws.Url];
+      }
+      res()
+    })
+  }
+
+  handleRequestNewGroup = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!data.index) return res();
+      if(data.index == self.groups.length){
+        self.canCreate = data.index;
+        try {
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.group.members[i] == self.url) continue;
+            await self.connectToServer(self.group.members[i]);
+            await new Promise(async (res, rej) => {
+              self.promises[`Group ${data.index} can be created from ${self.group.members[i]}`] = {res, rej};
+              self.conns[self.group.members[i]].send(JSON.stringify({
+                event: "Group can be created",
+                data: {
+                  index: data.index
+                }
+              }))
+            })
+          }
+        } catch(e){
+          ws.send(JSON.stringify({
+            event: "New group response",
+            data: {
+              success: false
+            }
+          }))
+          return res();
+        }
+        ws.send(JSON.stringify({
+          event: "New group response",
+          data: {
+            success: true
+          }
+        }))
+      } else {
+        ws.send(JSON.stringify({
+          event: "New group response",
+          data: {
+            success: false
+          }
+        }))
+      }
+      return res();
+    })
+  }
+
+  handleNewGroupResponse = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["New group response from " + ws.Url]) return res();
+      if(data.success){
+        self.promises["New group response from " + ws.Url].res();
+      } else {
+        self.promises["New group response from " + ws.Url].rej();
+      }
+      delete self.promises["New group response from " + ws.Url]
+      res();
+    })
+  }
+
+  handleGroupCanBeCreated = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.index) return res();
+      ws.send(JSON.stringify({
+        event: "Group can be created response",
+        data: {
+          success: (data.index == self.groups.length && self.canCreate !== data.index),
+          index: data.index
+        }
+      }))
+      res();
+    })
+  }
+
+  handleGroupCanBeCreatedResponse = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises[`Group ${data.index} can be created from ${ws.Url}`]) return res();
+      if(data.success){
+        self.promises[`Group ${data.index} can be created from ${ws.Url}`].res();
+      } else {
+        self.promises[`Group ${data.index} can be created from ${ws.Url}`].rej();
+      }
+      delete self.promises[`Group ${data.index} can be created from ${ws.Url}`]
+      res()
+    })
+  }
+
+  handleNewGroup = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!ws.Url && data.url){
+          await this.connectToServer(data.url);
+        }
+        if(!data.group || data.group.index < 0 || !ws.Url) return
+        if(data.group.index !== self.groups.length) {
+          ws.send(JSON.stringify({
+            event: "New group found",
+            data: {success: false}
+          }))
+          return res();
+        }
+        if(self.group.members.indexOf(ws.Url) !== -1){
+          self.groups.push(data.group.members);
+          await self.updateValorClaims();
+          await self.reassignGroupData();
+        }
+        else if((data.group.index == self.groups.length && data.group.index == self.group.index + 1) || self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1){
+          self.groups.push(data.group.members);
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.group.members[i] == self.url) continue;
+            await self.connectToServer(self.group.members[i]);
+            self.conns[self.group.members[i]].send(JSON.stringify({
+              event: "New group",
+              data
+            }))
+          }
+          if(self.group.index > 0 && self.groups[self.group.index - 1]){
+            const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "New group",
+              data: {
+                ...data,
+                url: self.url
+              }
+            }))
+          }
+          // await fs.writeFileSync(`${self.path}groups.json`, JSON.stringify(self.groups, null, 2));
+          await self.updateValorClaims();
+          await self.reassignGroupData();
+          ws.send(JSON.stringify({
+            event: "New group found",
+            data: {success: true}
+          }))
+        }
+      } catch(e){
+        console.log(e)
+      }
+      await self.setLocal("group.json", self.group);
+      await self.setLocal("groups.json", self.groups);
+      res();
+    })
+  }
+
+  handleNewGroupFound = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.promises["New group found at " + ws.Url]){
+        if(data.success){
+          self.promises["New group found at " + ws.Url].res()
+        } else {
+          self.promises["New group found at " + ws.Url].rej()
+        }
+        delete self.promises["New group found at " + ws.Url];
+      }
+      res();
+    })
+  }
+
+  handleNewMemberInGroup(ws, data){
+    const self = this;  
+    return new Promise(async (res, rej) => {
+      if(!ws.Url || data.index < 0 || !self.group) return res();
+      try {
+        if(data.index < 0) return;
+        if(!self.groups[data.index]) self.groups[data.index] = [];
+        if(self.group.index == data.index  && self.group.members.indexOf(ws.Url) !== -1){
+          if(self.group.version !== data.version - 1) return;
+          self.group.members = Array.from(new Set([...self.group.members, ...data.members]));
+          self.groups[data.index] = self.group.members;
+          self.group.version += 1;
+          self.group.updated = data.updated;
+        } else if(self.group.index > 0 && self.groups[self.group.index - 1] && self.groups[self.group.index - 1]?.indexOf(ws.Url) !== -1){
+          self.groups[data.index] = Array.from(new Set([...self.groups[data.index], ...data.members]));
+          if(self.groups[self.group.index + 1]?.length > 0){
+            const servers = self.groups[self.group.index + 1];
+            const url = servers[servers.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "New member in group",
+              data
+            }))
+          }
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.group.members[i] == self.url) continue;
+            await self.connectToServer(self.group.members[i]);
+            self.conns[self.group.members[i]].send(JSON.stringify({
+              event: "New member in group",
+              data
+            }))
+          }
+        } else if(self.groups[self.group.index + 1] && self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1){
+          self.groups[data.index] = Array.from(new Set([...self.groups[data.index], ...data.members]));
+          if(self.group.index > 0 && self.groups[self.group.index - 1]?.length > 0){
+            const servers = self.groups[self.group.index - 1];
+            const url = servers[servers.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "New member in group",
+              data
+            }))
+          }
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.group.members[i] == self.url) continue;
+            await self.connectToServer(self.group.members[i]);
+            self.conns[self.group.members[i]].send(JSON.stringify({
+              event: "New member in group",
+              data
+            }))
+          }
+        } else if (self.group.members.indexOf(ws.Url) !== -1 && data.index !== self.group.index){
+          self.groups[data.index] = Array.from(new Set([...self.groups[data.index], ...data.members]));
+        }
+        // await self.setLocal("group.json", self.group);
+        // await self.setLocal("groups.json", self.groups);
+      } catch (e){
+        console.log(e)
+      }
+      res();
+    })
+  }
+
+  handleGet = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.path || !data.now) return res();
+        if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
+          const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
+          ws.send(JSON.stringify({
+            event: "Got",
+            data: {
+              path: data.path,
+              data: d,
+              now: data.now
+            }
+          }))
+        }
+      } catch(e){
+
+      }
+      return res()
+    })
+  }
+
+  handleSet = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.path || !data.data) return res();
+        if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
+          let request = await self.get("requests/" + data.path);
+          if(!request) return err();
+          if(request.url){
+            if(request.url !== ws.Url) return err();
+            try {
+              let publicD = await self.getPublicFromUrl(request.url);
+              if(!publicD) return err();
+              await self.verify(JSON.stringify(data.data), Buffer.from(request.data, "base64"), publicD.ecdsaPub);
+            } catch(e){
+              return err()
+            }
+          }
+          await self.setLocal("all/data/" + data.path, data.data);
+          ws.send(JSON.stringify({
+            event: "Sot",
+            data: {
+              path: data.path,
+              success: true
+            }
+          }));
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.group.members[i] == self.url) continue;
+            try {
+              await new Promise(async (res, rej) => {
+                self.promises["Group sot for data/" + data.path + " from " + self.group.members[i]] = {res, rej};
+                await self.connectToServer(self.group.members[i]);
+                self.conns[self.group.members[i]].send(JSON.stringify({
+                  event: "Group set",
+                  data: {
+                    data: data.data,
+                    path: "data/" + data.path
+                  }
+                }));
+              })
+            } catch(e){
+
+            }
+          }
+          await self.claimValorForData(data.path);
+        } else {
+          return err();
+        }
+        function err(){
+          ws.send(JSON.stringify({
+            event: "Sot",
+            data: {
+              path: data.path,
+              err: true
+            }
+          }))
+          return res()
+        }
+      } catch(e){
+
+      }
+      return res()
+    })
+  }
+
+  handleSetRequest = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.request) return res();
+        if(ws.Url && self.groups[data.request.group]?.indexOf(ws.Url) !== -1){
+          const d = await self.getLocal("all/requests/" + data.request.path);
+          if(d && d.from == request.from) {
+            try {
+              await self.verify(JSON.stringify(data), Buffer.from(d.data, "base64"), self.ECDSA.publicKey);
+              ws.send(JSON.stringify({
+                event: "Set request saved",
+                data: {
+                  path: data.request.path,
+                  err: true
+                }
+              }))
+              return rej()
+            } catch(e){
+
+            }
+          }
+          await self.setLocal("all/requests/" + data.request.path, data.request);
+          ws.send(JSON.stringify({
+            event: "Set request saved",
+            data: {
+              path: data.request.path,
+              success: true
+            }
+          }))
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.group.members[i] == self.url) continue;
+            try {
+              await new Promise(async (res, rej) => {
+                self.promises["Group sot for requests/" + data.request.path + " from " + self.group.members[i]] = {res, rej};
+                await self.connectToServer(self.group.members[i]);
+                self.conns[self.group.members[i]].send(JSON.stringify({
+                  event: "Group set",
+                  data: {
+                    data: data.request,
+                    path: "requests/" + data.request.path
+                  }
+                }));
+              })
+            } catch(e){
+
+            }
+          }
+        } else {
+          ws.send(JSON.stringify({
+            event: "Set request saved",
+            data: {
+              path: data.request.path,
+              err: true
+            }
+          }))
+        }
+        return res()
+      } catch(e){
+        ws.send(JSON.stringify({
+          event: "Set request saved",
+          data: {
+            path: data.request.path,
+            err: true
+          }
+        }))
+        return res();
+      }
+    })
+  }
+
+  handleSetRequestSaved = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Sent request to " + ws.Url + " for " + data.path]) return res();
+      if(data.success){
+        self.promises["Sent request to " + ws.Url + " for " + data.path].res();
+      } else {
+        self.promises["Sent request to " + ws.Url + " for " + data.path].rej();
+      }
+      delete self.promises["Sent request to " + ws.Url + " for " + data.path]
+      return res()
+    })
+  }
+
+  handleGetSetRequest = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.path) return res();
+        if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
+          const d = await self.getLocal("all/requests/" + data.path);
+          ws.send(JSON.stringify({
+            event: "Got set request",
+            data: {
+              path: data.path,
+              request: d
+            }
+          }))
+        }
+      } catch(e){
+      }
+      return res()
+    })
+  }
+
+  handleGotSetRequest = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Got set request from " + ws.Url + " for " + data.path]) return res();
+      self.promises["Got set request from " + ws.Url + " for " + data.path].res(data.request);
+      delete self.promises["Got set request from " + ws.Url + " for " + data.path];
+      return res()
+    })
+  }
+
+  handleGroupSet = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.path || !data.data) return err();
+        if(ws.Url && self.group?.members.indexOf(ws.Url) !== -1){
+          // if(data.path.startsWith("ledgers/")) return err();
+          await self.setLocal("all/" + data.path, data.data);
+          if(data.path.startsWith("data/")){
+            await self.claimValorForData(data.path.substr(5));
+          }
+          ws.send(JSON.stringify({
+            event: "Group sot",
+            data: {
+              path: data.path,
+              success: true
+            }
+          }));
+        } else return err;
+      } catch(e){
+        console.log(e);
+        return err();
+      }
+      function err(){
+        ws.send(JSON.stringify({
+          event: "Group sot",
+          data: {
+            path: data.path,
+            err: true
+          }
+        }));
+        return res();
+      }
+      return res()
+    })
+  }
+
+  handleTakeOverGroupData = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.paths) return err();
+        const paths = data.paths;
+        if(ws.Url && self.groups[data.group].indexOf(ws.Url) !== -1){
+          const pastLength = data.group > self.group.index ? self.group.index + 1 : self.group.index;
+          let dataPaths = [];
+          for(let i=0;i<paths.length;i++){
+            if(jumpConsistentHash(paths[i], pastLength) !== data.group) continue;
+            try {
+              if(paths[i].startsWith("data/")){
+                dataPaths.push(paths[i].substr(paths[i].indexOf("/") + 1));
+              }
+              const d = await new Promise(async(res, rej) => {
+                const now = self.now()
+                self.promises["Got data from " + ws.Url + " for " + paths[i] + " at " + now] = {res, rej};
+                self.conns[ws.Url].send(JSON.stringify({
+                  event: "Get",
+                  data: {
+                    path : paths[i],
+                    group: self.group.index,
+                    now
+                  }
+                }))
+              });
+              if(paths[i].startsWith("ledgers")){
+                // delete d.sigs;
+                // d.sigs = {};
+              }
+              await self.setLocal("all/" + paths[i], d);
+            } catch(e){
+              continue;
+            }
+          }
+          ws.send(JSON.stringify({
+            event: "Group data taken over",
+            data: {
+              group: data.group,
+              success: true
+            }
+          }))
+          res();
+          for(let j=0;j<dataPaths.length;j++){
+            try {
+              await self.claimValorForData(dataPaths[j]);
+            } catch(e){
+              continue;
+            }
+          }
+        } else {
+          return err()
+        }
+      } catch(e){
+        return err();
+      }
+      function err(){
+        console.log(ws.Url + " good")
+        ws.send(JSON.stringify({
+          event: "Group data taken over",
+          data: {
+            group: data.group,
+            err: true
+          }
+        }))
+        return res();
+      }
+      return res()
+    })
+  }
+
+  handleGroupDataTakenOver = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Group " + data.group + " data taken over from " + ws.Url]) return res();
+      if(data.success){
+        self.promises["Group " + data.group + " data taken over from " + ws.Url].res()
+      } else {
+        self.promises["Group " + data.group + " data taken over from " + ws.Url].rej()
+      }
+      delete self.promises["Group " + data.group + " data taken over from " + ws.Url]
+      return res()
+    })
+  }
+
+
+  handleGot = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]) return res();
+      self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now].res(data.data);
+      delete self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]
+      return res()
+    })
+  }
+
+  handleSot = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Set data from " + ws.Url + " for " + data.path]) return res();
+      self.promises["Set data from " + ws.Url + " for " + data.path].res(data.success);
+      delete self.promises["Set data from " + ws.Url + " for " + data.path]
+      return res()
+    })
+  }
+
+  handleGroupSot = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Group sot for " + data.path + " from " + ws.Url]) return res();
+      self.promises["Group sot for " + data.path + " from " + ws.Url].res();
+      delete self.promises["Group sot for " + data.path + " from " + ws.Url];
+      return res()
+    })
+  }
+
+  handleGetPublic = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!ws.Url) return res();
+      ws.send(JSON.stringify({
+        event: "Got public",
+        data: self.public
+      }));
+      return res()
+    })
+  }
+
+  handleGotPublic = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Got public from " + ws.Url]) return res();
+      self.promises["Got public from " + ws.Url].res(data);
+      delete self.promises["Got public from " + ws.Url]
+      return res()
+    })
+  }
+
+  handleShareGroupSig = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.path || !data.sig) return err();
+      const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
+      if(!d || !d.data || !d.sigs || !d.sigs[self.url]) {
+        return err()
+      }
+      const publicD = await self.getPublicFromUrl(ws.Url);
+      if(!publicD || !publicD.ecdsaPub) return err();
+      try {
+        await self.verify(JSON.stringify(d.data), Buffer.from(data.sig, "base64"), publicD.ecdsaPub);
+        d.sigs[ws.Url] = data.sig;
+        self.saving[self.sync]["all/" + data.path] = d;
+        await self.setLocal("all/" + data.path, d);ws.send(JSON.stringify({
+          event: "Got group sig",
+          data: {
+            path: data.path,
+            sig: d.sigs[self.url]
+          }
+        }));
+        return res();
+      } catch(e){
+        return err();
+      }
+      function err(){
+        ws.send(JSON.stringify({
+          event: "Got group sig",
+          data: {
+            path: data.path,
+            err: true
+          }
+        }));
+        return res()
+      }
+    })
+  }
+
+  handleGotGroupSig = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["Got group sig for " + data.path + " from " + ws.Url]) return res();
+      self.promises["Got group sig for " + data.path + " from " + ws.Url].res(data.sig)
+      delete self.promises["Got group sig for " + data.path + " from " + ws.Url];
+      return res()
+    })
+  }
+
+
+  handleClaimValorForPath = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!ws.Url || !data.path || !data.url) return err();
+        const valorGroupIndex = jumpConsistentHash("valor/" + data.id + "/" + data.path, self.groups.length);
+        if(valorGroupIndex !== self.group.index) return err();
+        const request = await self.getSetRequest(data.path);
+        if(!request) return err();
+        let reqPublicD = await self.getPublicFromUrl(request.url);
+        if(!reqPublicD) return err();
+        const dataGroupIndex = jumpConsistentHash("data/" + data.path, self.groups.length);
+        if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err();
+        const now = self.now();
+        await self.connectToServer(data.url);
+        const d = await new Promise(async(res, rej) => {
+          self.promises["Got data from " + data.url + " for data/" + data.path + " at " + now] = {res, rej};
+          self.conns[data.url].send(JSON.stringify({
+            event: "Get",
+            data: {
+              path: "data/" + data.path,
+              group: self.group.index,
+              now
+            }
+          }))
+        })
+        if(!d) return err();
+        const size = Buffer.byteLength(JSON.stringify(d), 'utf8')
+        try {
+          await self.verify(JSON.stringify(d), Buffer.from(request.data, "base64"), reqPublicD.ecdsaPub);
+        } catch(e){
+          console.log(d);
+          throw e;
+        }
+        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
+        if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.time?.length > 0){
+          if(valor.data.size !== size){
+            valor.data.size = size;
+            delete valor.sigs;
+            valor.sigs = {};
+          }
+          if(valor.data.time[valor.data.time.length - 1].length == 2){
+            valor.data.time.push([data.sync]);
+            delete valor.sigs;
+            valor.sigs = {};
+          }
+        } else {
+          valor = {
+            data: {
+              for: data.id,
+              url: data.url,
+              path: data.path,
+              size,
+              sync: data.sync,
+              time: [[data.sync]]
+            },
+            sigs: {}
+          }
+        }
+        valor.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(valor))).toString("base64");
+        self.saving[self.sync][`all/valor/${data.id}/${data.path}`] = valor;
+        await self.setLocal(`all/valor/${data.id}/${data.path}`, valor);
+        await self.shareGroupSig(`valor/${data.id}/${data.path}`);
+        ws.send(JSON.stringify({
+          event: "Claimed valor for path",
+          data: {
+            success: true,
+            path: data.path
+          }
+        }))
+        return res()
+      } catch(e){
+        err();
+      }
+      function err(){
+        ws.send(JSON.stringify({
+          event: "Claimed valor for path",
+          data: {
+            err: true,
+            path: data.path
+          }
+        }))
+        return res()
+      }
+    })
+  }
+
+  handleClaimedValorPath(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.promises["Claimed valor for path " + data.path + " from " + ws.Url]){
+        self.promises["Claimed valor for path " + data.path + " from " + ws.Url].res();
+        delete self.promises["Claimed valor for path " + data.path + " from " + ws.Url]
+      }
+      return res();
+    })
+  }
+
+  handleGetValorPath(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.path || !data.id) return res();
+        if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
+          const d = await self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
+          ws.send(JSON.stringify({
+            event: "Got valor path",
+            data: {
+              path: data.path,
+              id: data.id,
+              valor: d
+            }
+          }))
+        }
+      } catch (e){
+
+      }
+      return res();
+    })
+  }
+
+  handleGotValorPath(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.promises["Got valor path " + data.path + " from " + ws.Url + " for " + data.id]){
+        self.promises["Got valor path " + data.path + " from " + ws.Url + " for " + data.id].res(data.valor);
+        delete self.promises["Got valor path " + data.path + " from " + ws.Url + " for " + data.id]
+      }
+      return res();
+    })
+  }
+
+  handleGetLedger(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.id) return res();
+        if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
+          const d = await self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json");
+          ws.send(JSON.stringify({
+            event: "Got ledger",
+            data: {
+              id: data.id,
+              ledger: d
+            }
+          }))
+        }
+      } catch(e){
+
+      }
+      return res();
+    })
+  }
+
+  handleGotLedger(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.promises["Got ledger " + data.id + " from " + ws.Url]){
+        self.promises["Got ledger " + data.id + " from " + ws.Url].res(data.ledger);
+        delete self.promises["Got ledger " + data.id + " from " + ws.Url]
+      }
+      return res();
+    })
+  }
+
+  handleAddPathToLedger(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!ws.Url || !data.path || !data.id) return res();
+        const valorGroupIndex = jumpConsistentHash(`valor/${data.id}/${data.path}`, self.groups.length);
+        const valorGroup = self.groups[valorGroupIndex];
+        let valor;
+        let isValid = true;
+        for(let j=0;j<valorGroup.length;j++){
+          const url = valorGroup[j];
+          let v;
+          if(url == self.url) {
+            v = await self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
+          } else {
+            try {
+              v = await new Promise(async(res, rej) => {
+                await self.connectToServer(url);
+                self.promises["Got valor path " + data.path + " from " + url + " for " + self.ownerId] = {res, rej};
+                self.conns[url].send(JSON.stringify({
+                  event: "Get valor path",
+                  data: {
+                    path: data.path,
+                    id: self.ownerId,
+                    group: self.group.index
+                  }
+                }))
+              })
+            } catch(e){
+
+            }
+          }
+          if(!v || v.data.for !== data.id){
+            break;
+          } else if(!valor && v) {
+            valor = JSON.stringify(v.data);
+          } else if(v && valor !== JSON.stringify(v.data)){
+            isValid = false;
+            break;
+          }
+        }
+        if(isValid){
+          let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json");
+          if(!d || !d.data) d = {
+            data: {
+              paths: {},
+              for: data.id,
+            },
+            sigs: {}
+          }
+          if(d.data.paths[data.path]) return res();
+          d.data.paths[data.path] = 1
+          delete d.sigs;
+          d.sigs = {};
+          d.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
+          self.saving[self.sync]["all/ledgers/" + data.id + ".json"] = d;
+          await self.setLocal("all/ledgers/" + data.id + ".json", d);
+          await self.shareGroupSig("ledgers/" + data.id + ".json");
+          ws.send(JSON.stringify({
+            event: "Path added to ledger",
+            data: {
+              path: data.path,
+              id: data.id,
+              success: true
+            }
+          }));
+        }
+      } catch(e){
+        // console.log(e);
+        ws.send(JSON.stringify({
+          event: "Path added to ledger",
+          data: {
+            path: data.path,
+            id: data.id,
+            err: true
+          }
+        }));
+      }
+      return res();
+    })
+  }
+
+  reset = async () => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      try {
+        await fs.rmdirSync(__dirname + "/data/servers/" + self.pathUrl + "/all", {recursive: true, force: true});
+      } catch(e){
+
+      }
+      res();
+    })
+  }
+
+  handlePathAddedToLedger(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.promises[`Path ${data.path} added to ledger ${data.id} from ${ws.Url}`]){
+        self.promises[`Path ${data.path} added to ledger ${data.id} from ${ws.Url}`].res();
+        delete self.promises[`Path ${data.path} added to ledger ${data.id} from ${ws.Url}`];
+      }
+      return res();
+    })
+  }
+
+
+
 
   joinDimension(id){
     const self = this;

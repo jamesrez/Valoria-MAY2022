@@ -761,7 +761,7 @@ class Server {
             }));
           })
           const groups = data.groups;
-          startClaims.push(data.stat);
+          startClaims.push(data.start);
           syncClaims.push(data.sync);
           if(groups.length > self.groups.length){
             self.groups = [...groups];
@@ -1631,6 +1631,9 @@ class Server {
             case 'Url verified':
               await self.handleUrlVerified(ws, d.data);
               break;
+            case 'Verify peer url with key':
+              await self.handleVerifyPeerUrl(ws, d.data);
+              break;
             case 'Get groups':
               await self.handleGetGroups(ws);
               break;
@@ -1903,6 +1906,24 @@ class Server {
         self.promises["Url verified with " + ws.Url].rej();
       }
       delete self.promises["Url verified with " + ws.Url]
+      res()
+    })
+  }
+
+  handleVerifyPeerUrl= async (ws, data) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      let pathUrl = data.url.replace(/\//g, "");
+      pathUrl = pathUrl.replace(/\:/g, "");
+      self.app.get("/valoria/peers/" + data.peerId + "/valoria/verifying/" + pathUrl, (req, res) => {
+        res.send(data.key);
+      })
+      ws.send(JSON.stringify({
+        event: "Verified peer url",
+        data: {
+          url: data.url
+        }
+      }))
       res()
     })
   }
@@ -3153,7 +3174,7 @@ class Server {
 
 }
 
-let localServerCount = 2;
+let localServerCount = 9;
 let localServers = [];
 if(isLocal){
   (async () => {
