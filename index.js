@@ -221,12 +221,29 @@ class Server {
         return res();
       } else {
         if(!self.conns[url]) {
-          try {
+          if(url.includes("valoria/peers/")){
+            let originUrl = url.substr(0, url.indexOf("valoria/peers/"));
+            let id = url.substr(url.indexOf("valoria/peers/") + 14, url.length);
+            console.log(originUrl)
+            console.log(id);
+            await self.connectToServer(originUrl);
+            self.conns[url] = await new Promise(async (res, rej) => {
+              self.promises["Connected to peer ws for " + url] = {res, rej};
+              self.conns[originUrl].send(JSON.stringify({
+                event: "Connect to peer ws",
+                data: {
+                  id
+                }
+              }))
+            })
+          } else {
             let wsUrl = "ws://" + new URL(url).host + "/"
             if(url.startsWith('https')){
               wsUrl = "wss://" + new URL(url).host + "/"
             }
             self.conns[url] = new WebSocket(wsUrl);
+          }
+          try {
             self.conns[url].Url = url;
             self.conns[url].onopen = ( async () => {
               try {
@@ -793,9 +810,10 @@ class Server {
       const groups = [...self.groups];
       let willCreateGroup = true;
       while(groups.length > 0 && !self.group){
-        const group = groups[groups.length * Math.random() << 0];
+        const gIndex = groups.length * Math.random() << 0
+        const group = groups[gIndex];
         const url = group[group.length * Math.random() << 0];
-        groups.splice(group, 1);
+        groups.splice(gIndex, 1);
         try {
           self.group = await new Promise(async(res, rej) => {
             try {
@@ -1634,6 +1652,9 @@ class Server {
             case 'Verify peer url with key':
               await self.handleVerifyPeerUrl(ws, d.data);
               break;
+            case 'Set origin url':
+              await this.handleSetOriginUrl(ws, d.data);
+              break;
             case 'Get groups':
               await self.handleGetGroups(ws);
               break;
@@ -1841,7 +1862,6 @@ class Server {
       } catch(e){
         rej();
       }
-    
     })
   }
 
@@ -1864,12 +1884,16 @@ class Server {
   handleVerifyUrl = async (ws) => {
     const self = this;
     return new Promise(async( res, rej) => {
+      console.log(ws.verifyingUrl)
+      console.log(self.verifying[ws.verifyingUrl])
       try {
         if(!ws.verifyingUrl || !self.verifying[ws.verifyingUrl]) return res();
         const key = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
+        console.log(key);
         if(key == self.verifying[ws.verifyingUrl]){
           ws.Url = ws.verifyingUrl;
           self.conns[ws.Url] = ws;
+          console.log("Verified " + ws.Url);
           ws.send(JSON.stringify({
             event: "Url verified",
             data: {
@@ -1877,6 +1901,7 @@ class Server {
             }
           }))
         } else {
+          console.log("WRONG KEY. GOT " + key + " EXPECTED " + self.verifying[ws.verifyingUrl]);
           ws.send(JSON.stringify({
             event: "Url verified",
             data: {
@@ -1885,6 +1910,7 @@ class Server {
           }))
         }
       } catch(e){
+        console.log("Axxios fucked")
         ws.send(JSON.stringify({
           event: "Url verified",
           data: {
@@ -1913,17 +1939,56 @@ class Server {
   handleVerifyPeerUrl= async (ws, data) => {
     const self = this;
     return new Promise(async(res, rej) => {
-      let pathUrl = data.url.replace(/\//g, "");
-      pathUrl = pathUrl.replace(/\:/g, "");
-      self.app.get("/valoria/peers/" + data.peerId + "/valoria/verifying/" + pathUrl, (req, res) => {
-        res.send(data.key);
-      })
-      ws.send(JSON.stringify({
-        event: "Verified peer url",
-        data: {
-          url: data.url
-        }
-      }))
+      console.log("PEER ORIGIN URL: " + self.conns[ws.Url]?.originUrl);
+      if(self.conns[ws.Url] && self.conns[ws.Url].originUrl == self.url){
+        let pathUrl = data.url.replace(/\//g, "");
+        pathUrl = pathUrl.replace(/\:/g, "");
+        console.log("/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl)
+        self.app.get("/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl, (req, res) => {
+          res.send(data.key);
+        })
+        ws.send(JSON.stringify({
+          event: "Verified peer url",
+          data: {
+            url: data.url
+          }
+        }))
+      }
+      res()
+    })
+  }
+
+  handleSetOriginUrl= async (ws, data) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      if(!data.id) return res();
+      const gIndex = jumpConsistentHash(data.id, self.groups.length);
+      if(gIndex == self.group.index){
+        let url = self.url + "valoria/peers/" + data.peerId + "/";
+        ws.Url = url;
+        ws.peerId = data.id;
+        ws.originUrl = self.url;
+        self.conns[url] = ws;
+        ws.send(JSON.stringify({
+          event: "Origin url set",
+          data: {
+            url: data.url,
+            success: true
+          }
+        }))
+        console.log(self.url + " is origin for " + data.id);
+      } else {
+        ws.send(JSON.stringify({
+          event: "Origin url set",
+          data: {
+            url: data.url,
+            success: false
+          }
+        }))
+        console.log(self.url + " is NOT ORIGIN");
+      }
+      
+      
       res()
     })
   }
@@ -2244,6 +2309,8 @@ class Server {
         if(!ws.Url && data.url){
           await this.connectToServer(data.url);
         }
+        console.log("GOT NEW GROUP FROM " + ws.Url);
+        console.log(data);
         if(!data.group || data.group.index < 0 || !ws.Url) return
         if(data.group.index !== self.groups.length) {
           ws.send(JSON.stringify({
@@ -2279,6 +2346,7 @@ class Server {
             }))
           }
           // await fs.writeFileSync(`${self.path}groups.json`, JSON.stringify(self.groups, null, 2));
+          console.log("MUST GIVE ")
           await self.updateValorClaims();
           await self.reassignGroupData();
           ws.send(JSON.stringify({
@@ -3174,7 +3242,7 @@ class Server {
 
 }
 
-let localServerCount = 9;
+let localServerCount = 3;
 let localServers = [];
 if(isLocal){
   (async () => {
