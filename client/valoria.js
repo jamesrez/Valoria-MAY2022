@@ -64,8 +64,9 @@ class Valoria {
         await self.connectToServer(rUrl, {origin: true});
         self.url = rUrl + "valoria/peers/" + self.id + "/";
         self.originUrl = rUrl;
-        console.log("GOING TO JOIN A GROUP");
+        self.public.url = self.url;
         await self.joinGroup();
+        console.log("sharing my public data");
         await self.sharePublic();
         const stall = (self.sync + self.syncIntervalMs) - self.now();
         setTimeout(async () => {
@@ -132,6 +133,11 @@ class Valoria {
         self.ecdh = {publicKey: ecdhPubKey, privateKey: ecdhPrivKey},
         self.ecdsa = {publicKey: ecdsaPubKey, privateKey: ecdsaPrivKey},
         self.id = userId;
+        self.public = {
+          ecdsaPub: ecdsaPairToSave.publicKey,
+          ecdhPub: ecdhPairToSave.publicKey,
+          id: self.id,
+        }
         await self.setup();
         res();
       } catch(e){
@@ -186,6 +192,11 @@ class Valoria {
         ecdh: ecdhToSave
       }));
       await localforage.setItem("ValoriaPassword", password + self.secret);
+      self.public = {
+        ecdsaPub: ecdsaToSave.publicKey,
+        ecdhPub: ecdhToSave.publicKey,
+        id: self.id,
+      }
       await self.setup();
       res(self);
     })
@@ -261,7 +272,9 @@ class Valoria {
     return new Promise(async(res, rej) => {
       if(!self.group) return res();
       try {
+        console.log("will Create set request")
         await self.createSetRequest(path, data);
+        console.log("created")
         const groupIndex = jumpConsistentHash("data/" + path, self.groups.length);
         if(groupIndex == self.group.index){
           await self.setLocal("all/data/" + path, data);
@@ -610,11 +623,9 @@ class Valoria {
         const group = groups[gIndex];
         const url = group[group.length * Math.random() << 0];
         groups.splice(gIndex, 1);
-        console.log("Asking " + url);
         try {
           self.group = await new Promise(async(res, rej) => {
             try {
-              console.log(url)
               await self.connectToServer(url);
               self.promises["Joined group from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
@@ -659,7 +670,6 @@ class Valoria {
         if(self.groups[groupIndex]) return rej()
         const group = self.groups[self.groups.length * Math.random() << 0];
         const url = group[group.length * Math.random() << 0];
-        console.log("Request new group from " + url)
         await self.connectToServer(url);
         self.promises["New group response from " + url] = {res, rej};
         self.conns[url].send(JSON.stringify({
@@ -688,12 +698,9 @@ class Valoria {
         }
         self.groups.push([self.url]);
         if(self.group.index > 0){
-          console.log("LET OTHER GROUP KNOW OF NEW GROUP I MADE");
           const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
-          console.log("TELLING " + url);
           await new Promise(async(res, rej) => {
             await self.connectToServer(url);
-            console.log("connected");
             self.promises["New group found at " + url] = {res, rej};
             self.conns[url].send(JSON.stringify({
               event: "New group",
@@ -702,7 +709,6 @@ class Valoria {
               }
             }));
           })
-          console.log("GOOD");
         } else if(self.group.index == 0){
           // self.start = now;
           // self.sync = self.start;
@@ -1059,6 +1065,7 @@ class Valoria {
         }
         res();
       } catch(e){
+        console.log(e);
         res();
       }
       
@@ -1414,6 +1421,9 @@ class Valoria {
           case 'Got public':
             await self.handleGotPublic(ws, d.data);
             break;
+          case 'Connect to server request':
+            await self.handleConnectToServerRequest(ws, d.data);
+            break;
           case 'Verify url request':
             await self.handleVerifyUrlRequest(ws, d.data);
             break;
@@ -1616,6 +1626,19 @@ class Valoria {
     })
   }
 
+  handleConnectToServerRequest = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!ws.Url || !data.url) return res();
+      try {
+        await self.connectToServer(data.url);
+      } catch(e){
+
+      }
+      return res();
+    })
+  }
+
   handleVerifyUrlRequest = async (ws, data) => {
     const self = this;
     return new Promise(async( res, rej) => {
@@ -1657,7 +1680,6 @@ class Valoria {
             key: data.key
           }
         }))
-        console.log("Sent verify url to origin " + self.originUrl);
       })
       ws.send(JSON.stringify({
         event: "Verify url"
