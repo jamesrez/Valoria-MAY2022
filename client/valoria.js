@@ -531,84 +531,89 @@ class Valoria {
   connectToServer(url, opts={}){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(self.conns[url] && self.conns[url].readyState === WebSocket.OPEN){
-        if(!self.conns[url].verified && self.url && self.originUrl !== url){
-          await new Promise(async(res, rej) => {
-            self.promises["Url verified with " + url] = {res, rej};
-            self.conns[url].send(JSON.stringify({
-              event: "Verify url request",
-              data: {
-                url: self.url
-              }
-            }))
-          })
-        }
-        if(!self.conns[url].verified && opts.origin){
-          await new Promise(async(res, rej) => {
-            self.promises["Origin url set with " + url] = {res, rej};
-            self.conns[url].send(JSON.stringify({
-              event: "Set origin url",
-              data: {
-                id: self.id
-              }
-            }))
-          })
-          self.conns[url].verified = true;
-        }
-        return res();
-      } else {
-        if(!this.conns[url]) {
-          try {
-            let wsUrl = "ws://" + new URL(url).host + "/"
-            if(url.startsWith('https')){
-              wsUrl = "wss://" + new URL(url).host + "/"
-            }
-            this.conns[url] = new WebSocket(wsUrl);
-            this.conns[url].Url = url;
-          } catch(e){
-            console.log(e)
+      try {
+        if(self.conns[url] && self.conns[url].readyState === WebSocket.OPEN){
+          if(!self.conns[url].verified && self.url && self.originUrl !== url){
+            await new Promise(async(res, rej) => {
+              self.promises["Url verified with " + url] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "Verify url request",
+                data: {
+                  url: self.url
+                }
+              }))
+            })
           }
-        } 
-        this.conns[url].Url = url;
-        this.conns[url].onopen = ( async () => {
-          try {
-            await this.setupWS(this.conns[url]);
-            if(opts.origin){
-              await new Promise(async(res, rej) => {
-                self.promises["Origin url set with " + url] = {res, rej};
-                self.conns[url].send(JSON.stringify({
-                  event: "Set origin url",
-                  data: {
-                    id: self.id
-                  }
-                }))
-              })
-              self.conns[url].verified = true;
-            }
-            else if(self.url && url !== self.originUrl){
-              console.log("VERIFY NEW CONNECTION WITH " + url)
-              await new Promise(async(res, rej) => {
-                self.promises["Url verified with " + url] = {res, rej};
-                self.conns[url].send(JSON.stringify({
-                  event: "Verify url request",
-                  data: {
-                    url: self.url
-                  }
-                }))
-              })
-              console.log("VERIFIED " + url)
-            }
-            return res();
-          } catch (e){
-            res();
+          if(!self.conns[url].verified && opts.origin){
+            await new Promise(async(res, rej) => {
+              self.promises["Origin url set with " + url] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "Set origin url",
+                data: {
+                  id: self.id
+                }
+              }))
+            })
+            self.conns[url].verified = true;
           }
-        });
-        this.conns[url].onerror = (error) => {
-          rej(error);
+          return res();
+        } else {
+          if(!this.conns[url]) {
+            try {
+              let wsUrl = "ws://" + new URL(url).host + "/"
+              if(url.startsWith('https')){
+                wsUrl = "wss://" + new URL(url).host + "/"
+              }
+              this.conns[url] = new WebSocket(wsUrl);
+              this.conns[url].Url = url;
+            } catch(e){
+              console.log(e)
+            }
+          } 
+          this.conns[url].Url = url;
+          this.conns[url].onopen = ( async () => {
+            try {
+              await this.setupWS(this.conns[url]);
+              if(opts.origin){
+                await new Promise(async(res, rej) => {
+                  self.promises["Origin url set with " + url] = {res, rej};
+                  self.conns[url].send(JSON.stringify({
+                    event: "Set origin url",
+                    data: {
+                      id: self.id
+                    }
+                  }))
+                })
+                self.conns[url].verified = true;
+              }
+              else if(self.url && url !== self.originUrl){
+                console.log("VERIFY NEW CONNECTION WITH " + url)
+                await new Promise(async(res, rej) => {
+                  self.promises["Url verified with " + url] = {res, rej};
+                  self.conns[url].send(JSON.stringify({
+                    event: "Verify url request",
+                    data: {
+                      url: self.url
+                    }
+                  }))
+                })
+                console.log("VERIFIED " + url)
+              }
+              return res();
+            } catch (e){
+              res();
+            }
+          });
+          this.conns[url].onerror = (error) => {
+            rej(error);
+          }
+          this.conns[url].onclose = function clear() {
+            if(self.conns[url]?.pingTimeout) clearTimeout(self.conns[url].pingTimeout);
+          };
         }
-        this.conns[url].onclose = function clear() {
-          if(self.conns[url]?.pingTimeout) clearTimeout(self.conns[url].pingTimeout);
-        };
+      } catch(e){
+        console.log(e);
+        rej();
       }
     })
   }
@@ -2908,13 +2913,13 @@ class Valoria {
     })
   }
 
-
-
-
   joinDimension(id){
     const self = this;
     return new Promise(async (res, rej) => {
-      const url = Object.keys(self.conns)[0];
+      const groupIndex = jumpConsistentHash(id, self.groups.length);
+      const group = self.group[groupIndex];
+      const url = group[group.length * Math.random() << 0];
+      await self.connectToServer(url);
       self.promises["Joined " + id + " dimension"] = {res, rej};
       self.conns[url].send(JSON.stringify({
         event: "Join dimension",
@@ -3116,38 +3121,8 @@ class Valoria {
     }
   }
 
-  // async onIceCandidate(pc, event) {
-  //   try {
-
-  //     await (getOtherPc(pc));
-  //   } catch (e) {
-  //   }
-  // }
-  
-
-
 }
 
-class ValoriaUser {
-  constructor(id, password){
-    this.id =  id;
-    this.verified = false;
-    this.ecdsa = {
-      publicKey: null,
-      privateKey: null,
-    };
-    this.ecdh = {
-      publicKey: null,
-      privateKey: null,
-    };
-    this.valoria = null;
-    this.promises = {};
-    if(id && password){
-      (async() => await this.signIn(id, password))()
-    }
-  }
-
-}
 
 async function arrayBufferToBase64(buffer){
   return new Promise((res, rej) => {

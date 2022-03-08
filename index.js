@@ -1605,28 +1605,39 @@ class Server {
   setupWS = async (ws) => {
     const self = this;
     return new Promise(async(res, rej) => {
-      ws.id = ws.id || uuidv4();
-      self.conns[ws.id] = ws;
       ws.isAlive = true;
       ws.on('pong', () => {
         ws.isAlive = true;
       })
-      ws.on('close', () => {
-        if(self.conns[ws.id].dimension && self.dimensions[ws.dimension]){
-          delete self.dimensions[ws.dimension].conns[ws.id];
+      ws.on('close', async () => {
+        if(self.conns[ws.Url]?.dimension && self.dimensions[ws.dimension]){
+          delete self.dimensions[ws.dimension].conns[ws.Url];
           const peers = Object.keys(self.dimensions[ws.dimension].conns)
           for(let i=0;i<peers.length;i++){
             self.dimensions[ws.dimension].conns[peers[i]].send(JSON.stringify({
               event: "Peer has left dimension",
               data: {
                 dimension: ws.dimension,
-                peer: ws.id
+                url: ws.Url
               }
             }))
           }
         }
         //TODO IF PEER IS PART OF GROUP, REMOVE FROM GROUP AND LET ALL OTHER GROUPS KNOW ABOUT REMOVAL.
-        delete self.conns[ws.id];
+        if(ws.Url && self.group.members.indexOf(ws.Url) !== -1){
+          await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
+        } else if(
+          self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1 &&
+          self.groups[self.group.index + 1]?.length == 1
+        ){
+          await self.handleGroupRemoved(ws, {index: self.group.index + 1, url: ws.Url})
+        } else if(
+          self.groups[self.group.index - 1]?.indexOf(ws.Url) !== -1 && 
+          self.groups[self.group.index - 1]?.length == 1
+        ){
+          await self.handleGroupRemoved(ws, {index: self.group.index - 1, url: ws.Url})
+        }
+        delete self.conns[ws.Url];
       })
       ws.on('message', async (d) => {
         d = JSON.parse(d);
@@ -1701,11 +1712,17 @@ class Server {
             case 'New member in group':
               await self.handleNewMemberInGroup(ws, d.data);
               break;
+            case 'Member has left group':
+              await self.handleMemberHasLeftGroup(ws, d.data);
+              break;
             case 'New group':
               await self.handleNewGroup(ws, d.data);
               break;
             case 'New group found':
               await self.handleNewGroupFound(ws, d.data);
+              break;
+            case 'Group removed':
+              await self.handleGroupRemoved(ws, d.data);
               break;
             case "Sync ping":
               await self.handleSyncPing(ws, d.data)
@@ -2387,7 +2404,53 @@ class Server {
     })
   }
 
-  handleNewMemberInGroup(ws, data){
+  handleGroupRemoved = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.groups[data.index]?.indexOf(data.url) !== -1 && self.groups[data.index]?.length == 1){
+        self.groups.splice(data.index, 1);
+        if(data.index < self.group.index){
+          self.group.index -= 1;
+          self.group.version += 1;
+          self.group.updated = self.sync;
+        }
+        await self.updateValorClaims();
+        await self.reassignGroupData();
+        if(self.group.members.indexOf(ws.Url) == -1){
+          for(let i=0;i<self.group.members.length;i++){
+            const url = self.group.members[i];
+            if(url == self.url) continue;
+            self.conns[url].send(JSON.stringify({
+              event: "Group removed",
+              data
+            }))
+          }
+          if(data.index > self.group.index && self.groups[self.group.index - 1]){
+            const g = self.groups[self.group.index - 1];
+            const url = g[g.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "Group removed",
+              data
+            }))
+          } else if(data.index < self.group.index && self.groups[self.group.index + 1]){
+            const g = self.groups[self.group.index + 1];
+            console.log(url);
+            const url = g[g.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "Group removed",
+              data
+            }))
+          }
+        }
+
+      }
+      return res();
+    })
+  }
+
+  handleNewMemberInGroup = async (ws, data) => {
     const self = this;  
     return new Promise(async (res, rej) => {
       if(!ws.Url || data.index < 0 || !self.group) return res();
@@ -2441,13 +2504,54 @@ class Server {
         } else if (self.group.members.indexOf(ws.Url) !== -1 && data.index !== self.group.index){
           self.groups[data.index] = Array.from(new Set([...self.groups[data.index], ...data.members]));
         }
-        // await self.setLocal("group.json", self.group);
-        // await self.setLocal("groups.json", self.groups);
       } catch (e){
         console.log(e)
       }
       res();
     })
+  }
+
+  handleMemberHasLeftGroup = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.group.index == data.url && self.group.members.indexOf(data.url) !== -1){
+        self.group.members.splice(self.group.members.indexOf(data.url), 1);
+        self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
+        self.group.updated = self.sync;
+        self.group.version += 1;
+      } else if (self.groups[data.index].indexOf(data.url) !== -1){
+        self.groups[data.index].splice(self.groups[data.index].indexOf(data.url), 1); 
+        if(self.group.members.indexOf(ws.Url) == -1){
+          for(let i=0;i<self.group.members.length;i++){
+            let url = self.group.members[i];
+            if(url == self.url) continue;
+            self.conns[url].send(JSON.stringify({
+              event: "Member has left group",
+              data: self.group
+            }))
+          }
+        }
+      }
+      if(self.groups[self.group.index + 1] && data.index <= self.group.index){
+        const g = self.groups[self.group.index + 1];
+        const url = g[g.length * Math.random() << 0];
+        await self.connectToServer(url);
+        self.conns[url].send(JSON.stringify({
+          event: "Member has left group",
+          data: self.group
+        }))
+      }
+      if(self.groups[self.group.index - 1] && data.index >= self.group.index){
+        const g = self.groups[self.group.index - 1];
+        const url = g[g.length * Math.random() << 0];
+        await self.connectToServer(url);
+        self.conns[url].send(JSON.stringify({
+          event: "Member has left group",
+          data: self.group
+        }))
+      }
+      return res();
+    });
   }
 
   handleGet = async (ws, data) => {
@@ -3155,8 +3259,8 @@ class Server {
       const id = data.id;
       if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
       const peers = Object.keys(self.dimensions[id].conns)
-      self.dimensions[id].conns[ws.id] = ws;
-      self.conns[ws.id].dimension = id;
+      self.dimensions[id].conns[ws.Url] = ws;
+      self.conns[ws.Url].dimension = id;
       ws.send(JSON.stringify({
         event: "Joined dimension",
         data: {
@@ -3168,7 +3272,7 @@ class Server {
         self.dimensions[id].conns[peers[i]].send(JSON.stringify({
           event: "New peer in dimension",
           data: {
-            peer: ws.id,
+            peer: ws.Url,
             dimension: id
           }
         }));
@@ -3179,30 +3283,30 @@ class Server {
 
   handleSendRtcDescription(ws, data){
     const self = this;
-    if(!self.conns[data.id]) return;
-    if(!self.conns[data.id].peers) self.conns[data.id].peers = {};
-    if(!self.conns[ws.id].peers) self.conns[ws.id].peers = {};
-    if(!self.conns[ws.id].peers[data.id]){
-      self.conns[ws.id].peers[data.id] = {polite: false};
-      self.conns[data.id].peers[ws.id] = {polite: true};
+    if(!self.conns[data.url]) return;
+    if(!self.conns[data.url].peers) self.conns[data.url].peers = {};
+    if(!self.conns[ws.Url].peers) self.conns[ws.Url].peers = {};
+    if(!self.conns[ws.Url].peers[data.url]){
+      self.conns[ws.Url].peers[data.url] = {polite: false};
+      self.conns[data.url].peers[ws.Url] = {polite: true};
     }
-    self.conns[data.id].send(JSON.stringify({
+    self.conns[data.url].send(JSON.stringify({
       event: "Got rtc description",
       data: {
-        id: ws.id,
+        id: ws.Url,
         desc: data.desc,
-        polite: self.conns[ws.id].peers[data.id]?.polite,
+        polite: self.conns[ws.Url].peers[data.url]?.polite,
       }
     }));
   }
 
   handleSendRtcCandidate(ws, data){
     const self = this;
-    if(!self.conns[data.id]) return;
-    self.conns[data.id].send(JSON.stringify({
+    if(!self.conns[data.url]) return;
+    self.conns[data.url].send(JSON.stringify({
       event: "Got rtc candidate",
       data: {
-        id: ws.id,
+        id: ws.Url,
         candidate: data.candidate
       }
     }))
