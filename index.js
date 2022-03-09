@@ -109,7 +109,6 @@ class Server {
     this.promises = {};
     this.groups = [];
     this.syncGroups = [];
-    this.newMembers = [];
     this.verifying = {};
     this.saving = {};
     this.ECDSA = {publicKey: null, privateKey: null};
@@ -267,10 +266,6 @@ class Server {
                 console.log(error)
                 rej(error);
               }
-              self.conns[url].onclose = function clear() {
-                clearTimeout(self.conns[url].pingTimeout);
-                rej();
-              };
             } catch(e){
               console.log(e)
               rej(e);
@@ -1623,7 +1618,6 @@ class Server {
             }))
           }
         }
-        //TODO IF PEER IS PART OF GROUP, REMOVE FROM GROUP AND LET ALL OTHER GROUPS KNOW ABOUT REMOVAL.
         if(ws.Url && self.group.members.indexOf(ws.Url) !== -1){
           await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
         } else if(
@@ -1810,12 +1804,6 @@ class Server {
               break;
             case "Send rtc candidate":
               self.handleSendRtcCandidate(ws, d.data);
-              break;
-            case "Set remote description":
-              self.handleSetRemoteDescription(ws, d.data);
-              break;
-            case "Add remote candidate":
-              self.handleAddRemoteCandidate(ws, d.data);
               break;
           }
         } catch(e){
@@ -2109,7 +2097,6 @@ class Server {
           g.updated = self.now();
           g.version += 1;
           self.groups[g.index] = g.members;
-          self.newMembers.push(ws.Url);
           for(let i=0;i<g.members?.length;i++){
             if(g.members[i] == self.url || g.members[i] == ws.Url) continue;
             await self.connectToServer(g.members[i]);
@@ -3293,7 +3280,7 @@ class Server {
     self.conns[data.url].send(JSON.stringify({
       event: "Got rtc description",
       data: {
-        id: ws.Url,
+        url: ws.Url,
         desc: data.desc,
         polite: self.conns[ws.Url].peers[data.url]?.polite,
       }
@@ -3306,51 +3293,10 @@ class Server {
     self.conns[data.url].send(JSON.stringify({
       event: "Got rtc candidate",
       data: {
-        id: ws.Url,
+        url: ws.Url,
         candidate: data.candidate
       }
     }))
-  }
-
-  handleSetRemoteDescription(ws, data){
-    const self = this;
-    if(!ws.Url) return;
-    if(!self.conns[ws.Url]) {
-      self.conns[ws.Url] = new nodeDataChannel.PeerConnection(ws.Url, { iceServers});
-      self.conns[ws.Url].onLocalDescription((sdp, type) => {
-        ws.send(JSON.stringify({
-          event: "Set remote description",
-          data: {
-            sdp,
-            type
-          }
-        }));
-      });
-      self.conns[ws.Url].onLocalCandidate((candidate, mid) => {
-        ws.send(JSON.stringify({
-          event: "Add remote candidate",
-          data: {
-            candidate,
-            mid
-          }
-        }));
-      });
-      self.conns[ws.Url].onDataChannel((dc) => {
-        self.conns[ws.Url].dc = dc;
-        self.conns[ws.Url].dc.onMessage((msg) => {
-          console.log(self.url + ' Received Msg:', msg);
-        });
-        self.conns[ws.Url].dc.sendMessage("Hello From " + self.url);
-      });
-    }
-    self.conns[ws.Url].setRemoteDescription(data.sdp, data.type)
-  }
-
-  handleAddRemoteCandidate(ws, data){
-    const self = this;
-    if(!ws.Url) return;
-    if(!self.conns[ws.Url]) return;
-    self.conns[ws.Url].addRemoteCandidate(data.candidate, data.mid)
   }
 
 }

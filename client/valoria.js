@@ -493,29 +493,33 @@ class Valoria {
             break;
           }
           const url = servers[servers.length * Math.random() << 0];
-          const data = await new Promise(async (res, rej) => {
-            await self.connectToServer(url);
-            self.promises["Got groups from " + url] = {res, rej};
-            self.conns[url].send(JSON.stringify({
-              event: "Get groups"
-            }));
-          })
-          // delete self.conns[url];
-          const groups = data.groups;
-          startClaims.push(data.start);
-          syncClaims.push(data.sync);
-          if(groups.length > self.groups.length){
-            self.groups = [...groups];
-            self.syncGroups = [...groups];
-          }
-          used.push(url);
-          servers = self.groups.flat();
-          for(let i=0;i<used.length;i++){
-            if(servers.indexOf(used[i]) !== -1){
-              servers.splice(servers.indexOf(used[i]), 1);
+          if(url.includes("valoria/peers/")){
+            servers.splice(servers.indexOf(url), 1);
+          } else {
+            const data = await new Promise(async (res, rej) => {
+              await self.connectToServer(url);
+              self.promises["Got groups from " + url] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "Get groups"
+              }));
+            })
+            // delete self.conns[url];
+            const groups = data.groups;
+            startClaims.push(data.start);
+            syncClaims.push(data.sync);
+            if(groups.length > self.groups.length){
+              self.groups = [...groups];
+              self.syncGroups = [...groups];
             }
+            used.push(url);
+            servers = self.groups.flat();
+            for(let i=0;i<used.length;i++){
+              if(servers.indexOf(used[i]) !== -1){
+                servers.splice(servers.indexOf(used[i]), 1);
+              }
+            }
+            askCount += 1;
           }
-          askCount += 1;
         }
         self.start = mode(startClaims)
         self.sync = mode(syncClaims)
@@ -532,7 +536,7 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       try {
-        if(self.conns[url] && self.conns[url].readyState === WebSocket.OPEN){
+        if(self.conns[url] && (self.conns[url].readyState === WebSocket.OPEN || self.conns[url].open)){
           if(!self.conns[url].verified && self.url && self.originUrl !== url){
             await new Promise(async(res, rej) => {
               self.promises["Url verified with " + url] = {res, rej};
@@ -558,58 +562,67 @@ class Valoria {
           }
           return res();
         } else {
-          if(!this.conns[url]) {
+          if(!self.conns[url]) {
             try {
-              let wsUrl = "ws://" + new URL(url).host + "/"
-              if(url.startsWith('https')){
-                wsUrl = "wss://" + new URL(url).host + "/"
+              if(url.includes("valoria/peers/")){
+                self.conns[url] = await self.connectToPeer(url);
+                self.conns[url].isP2P = true;
+                self.conns[url].isWS = false;
+                self.conns[url].Url = url;
+                return res();
+              } else {
+                let wsUrl = "ws://" + new URL(url).host + "/"
+                if(url.startsWith('https')){
+                  wsUrl = "wss://" + new URL(url).host + "/"
+                }
+                self.conns[url] = new WebSocket(wsUrl);
+                self.conns[url].isWS = true;
+                self.conns[url].isP2P = false;
+                self.conns[url].Url = url;
               }
-              this.conns[url] = new WebSocket(wsUrl);
-              this.conns[url].Url = url;
             } catch(e){
               console.log(e)
             }
           } 
-          this.conns[url].Url = url;
-          this.conns[url].onopen = ( async () => {
-            try {
-              await this.setupWS(this.conns[url]);
-              if(opts.origin){
-                await new Promise(async(res, rej) => {
-                  self.promises["Origin url set with " + url] = {res, rej};
-                  self.conns[url].send(JSON.stringify({
-                    event: "Set origin url",
-                    data: {
-                      id: self.id
-                    }
-                  }))
-                })
-                self.conns[url].verified = true;
+          if(self.conns[url].isWS){
+            this.conns[url].onopen = ( async () => {
+              try {
+                await this.setupWS(this.conns[url]);
+                if(opts.origin){
+                  await new Promise(async(res, rej) => {
+                    self.promises["Origin url set with " + url] = {res, rej};
+                    self.conns[url].send(JSON.stringify({
+                      event: "Set origin url",
+                      data: {
+                        id: self.id
+                      }
+                    }))
+                  })
+                  self.conns[url].verified = true;
+                }
+                else if(self.url && url !== self.originUrl){
+                  console.log("VERIFY NEW CONNECTION WITH " + url)
+                  await new Promise(async(res, rej) => {
+                    self.promises["Url verified with " + url] = {res, rej};
+                    self.conns[url].send(JSON.stringify({
+                      event: "Verify url request",
+                      data: {
+                        url: self.url
+                      }
+                    }))
+                  })
+                  console.log("VERIFIED " + url)
+                }
+                return res();
+              } catch (e){
+                // console.log(e)
+                res();
               }
-              else if(self.url && url !== self.originUrl){
-                console.log("VERIFY NEW CONNECTION WITH " + url)
-                await new Promise(async(res, rej) => {
-                  self.promises["Url verified with " + url] = {res, rej};
-                  self.conns[url].send(JSON.stringify({
-                    event: "Verify url request",
-                    data: {
-                      url: self.url
-                    }
-                  }))
-                })
-                console.log("VERIFIED " + url)
-              }
-              return res();
-            } catch (e){
-              res();
+            });
+            this.conns[url].onerror = (error) => {
+              rej(error);
             }
-          });
-          this.conns[url].onerror = (error) => {
-            rej(error);
           }
-          this.conns[url].onclose = function clear() {
-            if(self.conns[url]?.pingTimeout) clearTimeout(self.conns[url].pingTimeout);
-          };
         }
       } catch(e){
         console.log(e);
@@ -1417,6 +1430,24 @@ class Valoria {
   setupWS = async (ws) => {
     const self = this;
     return new Promise(async(res, rej) => {
+      ws.onclose = async (e) => {
+        if(ws.Url && self.group && self.group.members.indexOf(ws.Url) !== -1){
+          await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
+        } else if(
+          self.groups &&
+          self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1 &&
+          self.groups[self.group.index + 1]?.length == 1
+        ){
+          await self.handleGroupRemoved(ws, {index: self.group.index + 1, url: ws.Url})
+        } else if(
+          self.groups && 
+          self.groups[self.group.index - 1]?.indexOf(ws.Url) !== -1 && 
+          self.groups[self.group.index - 1]?.length == 1
+        ){
+          await self.handleGroupRemoved(ws, {index: self.group.index - 1, url: ws.Url})
+        }
+        delete self.conns[ws.Url];
+      }
       ws.onmessage = async (e) => {
         const d = JSON.parse(e.data);
         switch (d.event) {
@@ -1589,6 +1620,9 @@ class Valoria {
             self.handleGotRtcCandidate(ws, d.data);
             break;
         }
+        if(ws.callbacks && typeof ws.callbacks[d.event] == "function"){
+          ws.callbacks[d.event](d.data);
+        } 
       }
       res();
     })
@@ -1856,7 +1890,6 @@ class Valoria {
           g.updated = self.now();
           g.version += 1;
           self.groups[g.index] = g.members;
-          self.newMembers.push(ws.Url);
           for(let i=0;i<g.members?.length;i++){
             if(g.members[i] == self.url || g.members[i] == ws.Url) continue;
             await self.connectToServer(g.members[i]);
@@ -1865,6 +1898,7 @@ class Valoria {
               data: g
             }))
           }
+          console.log(ws.Url);
           self.conns[ws.Url].send(JSON.stringify({
             event: "Joined group",
             data: g
@@ -2151,6 +2185,52 @@ class Valoria {
     })
   }
 
+  handleGroupRemoved = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.groups[data.index]?.indexOf(data.url) !== -1 && self.groups[data.index]?.length == 1){
+        self.groups.splice(data.index, 1);
+        if(data.index < self.group.index){
+          self.group.index -= 1;
+          self.group.version += 1;
+          self.group.updated = self.sync;
+        }
+        await self.updateValorClaims();
+        await self.reassignGroupData();
+        if(self.group.members.indexOf(ws.Url) == -1){
+          for(let i=0;i<self.group.members.length;i++){
+            const url = self.group.members[i];
+            if(url == self.url) continue;
+            self.conns[url].send(JSON.stringify({
+              event: "Group removed",
+              data
+            }))
+          }
+          if(data.index > self.group.index && self.groups[self.group.index - 1]){
+            const g = self.groups[self.group.index - 1];
+            const url = g[g.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "Group removed",
+              data
+            }))
+          } else if(data.index < self.group.index && self.groups[self.group.index + 1]){
+            const g = self.groups[self.group.index + 1];
+            console.log(url);
+            const url = g[g.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "Group removed",
+              data
+            }))
+          }
+        }
+
+      }
+      return res();
+    })
+  }
+
   handleNewMemberInGroup(ws, data){
     const self = this;  
     return new Promise(async (res, rej) => {
@@ -2212,6 +2292,49 @@ class Valoria {
       }
       res();
     })
+  }
+
+  handleMemberHasLeftGroup = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(self.group.index == data.url && self.group.members.indexOf(data.url) !== -1){
+        self.group.members.splice(self.group.members.indexOf(data.url), 1);
+        self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
+        self.group.updated = self.sync;
+        self.group.version += 1;
+      } else if (self.groups[data.index].indexOf(data.url) !== -1){
+        self.groups[data.index].splice(self.groups[data.index].indexOf(data.url), 1); 
+        if(self.group.members.indexOf(ws.Url) == -1){
+          for(let i=0;i<self.group.members.length;i++){
+            let url = self.group.members[i];
+            if(url == self.url) continue;
+            self.conns[url].send(JSON.stringify({
+              event: "Member has left group",
+              data: self.group
+            }))
+          }
+        }
+      }
+      if(self.groups[self.group.index + 1] && data.index <= self.group.index){
+        const g = self.groups[self.group.index + 1];
+        const url = g[g.length * Math.random() << 0];
+        await self.connectToServer(url);
+        self.conns[url].send(JSON.stringify({
+          event: "Member has left group",
+          data: self.group
+        }))
+      }
+      if(self.groups[self.group.index - 1] && data.index >= self.group.index){
+        const g = self.groups[self.group.index - 1];
+        const url = g[g.length * Math.random() << 0];
+        await self.connectToServer(url);
+        self.conns[url].send(JSON.stringify({
+          event: "Member has left group",
+          data: self.group
+        }))
+      }
+      return res();
+    });
   }
 
   handleGet = async (ws, data) => {
@@ -2976,134 +3099,142 @@ class Valoria {
     });
   }
 
-  async connectToPeer(id){
+  async connectToPeer(url){
     const self = this;
-    if(!self.peers[id]){
-      self.peers[id] = new RTCPeerConnection({iceServers});
-      self.peers[id].callbacks = {};
-      self.peers[id].on = (event, cb) => {
-        self.peers[id].callbacks[event] = cb;
-      }
-      self.peers[id].onStream = self.peers[id].onStream || (() => {});
-      self.peers[id].makingOffer = false;
-      self.peers[id].ignoreOffer = false;
-      self.peers[id].isSRDAnswerPending = false;
-      self.peers[id].datachannel = self.peers[id].createDataChannel("Data");
-      self.peers[id].datachannel.onopen = () => {
-        self.peers[id].datachannel.onmessage = (e) => {
-          if(!e || !e.data) return;
-          const data = JSON.parse(e.data);
-          const event = data.event;
-          if(typeof self.peers[id].callbacks[event] == "function"){
-            self.peers[id].callbacks[event](data.data);
-          } 
-        };
-      };
-      self.stream.getTracks().forEach(track => self.peers[id].addTrack(track, self.stream));
-      self.peers[id].onicecandidate = ({candidate}) =>  {
-        if(!candidate) return;
-        self.dimension.ws.send(JSON.stringify({
-          event: "Send rtc candidate",
-          data: {
-            candidate,
-            id
+    return new Promise(async (res, rej) => {
+      if(!url || !url.includes("valoria/peers/")) return rej({err: "Bad peer url"});
+      let originUrl = url.substring(0, url.indexOf("valoria/peers/"));
+      // let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
+      await self.connectToServer(originUrl);
+      if(!self.peers[url]){
+        self.peers[url] = new RTCPeerConnection({iceServers});
+        self.peers[url].onStream = self.peers[url].onStream || (() => {});
+        self.peers[url].makingOffer = false;
+        self.peers[url].ignoreOffer = false;
+        self.peers[url].isSRDAnswerPending = false;
+        self.peers[url].datachannel = self.peers[url].createDataChannel("Data");
+        self.peers[url].datachannel.onopen = async () => {
+          self.peers[url].datachannel.open = true;
+          self.peers[url].datachannel.verified = true;
+          self.peers[url].datachannel.Url = url;
+          self.peers[url].datachannel.callbacks = {};
+          self.peers[url].datachannel.on = (event, cb) => {
+            self.peers[url].datachannel.callbacks[event] = cb;
           }
-        }));
-      }
-      self.peers[id].onnegotiationneeded = async options => {
-        if(!self.peers[id]) return;
-        try {
-          self.peers[id].makingOffer = true;
-          await self.peers[id].setLocalDescription();
-          self.dimension.ws.send(JSON.stringify({
-            event: "Send rtc description",
+          await self.setupWS(self.peers[url].datachannel);
+          res(self.peers[url].datachannel);
+        };
+        if(self.stream && self.stream.getTracks){
+          self.stream.getTracks().forEach(track => self.peers[url].addTrack(track, self.stream));
+        }
+        self.peers[url].onicecandidate = ({candidate}) =>  {
+          if(!candidate) return;
+          self.conns[originUrl].send(JSON.stringify({
+            event: "Send rtc candidate",
             data: {
-              desc: self.peers[id].localDescription,
-              id
+              candidate,
+              url
             }
           }));
-        } catch (err) {
-          console.error(err);
-        } finally {
-          self.peers[id].makingOffer = false;
+          console.log("Sent candidate");
         }
-      };
-      self.peers[id].oniceconnectionstatechange = () => {
-        if (self.peers[id] && self.peers[id].iceConnectionState === "failed") {
-          self.peers[id].restartIce();
+        self.peers[url].onnegotiationneeded = async options => {
+          if(!self.peers[url]) return;
+          try {
+            self.peers[url].makingOffer = true;
+            await self.peers[url].setLocalDescription();
+            self.conns[originUrl].send(JSON.stringify({
+              event: "Send rtc description",
+              data: {
+                desc: self.peers[url].localDescription,
+                url
+              }
+            }));
+            console.log("Sent description");
+          } catch (err) {
+            console.error(err);
+          } finally {
+            self.peers[url].makingOffer = false;
+          }
+        };
+        self.peers[url].oniceconnectionstatechange = () => {
+          if (self.peers[url] && self.peers[url].iceConnectionState === "failed") {
+            self.peers[url].restartIce();
+          }
+        };
+        self.peers[url].ontrack = (e) => {
+          self.peers[url].stream = e.streams[0];
+          self.peers[url].onStream(e.streams[0]);
         }
-      };
-      self.peers[id].ontrack = (e) => {
-        self.peers[id].stream = e.streams[0];
-        self.peers[id].onStream(e.streams[0]);
       }
-    }
+    })
   }
 
   async handleGotRtcDescription(ws, data){
     const self = this;
     const description = data.desc;
-    const id = data.id;
+    const url = data.url;
     const polite = data.polite;
-    if(!self.peers[id]){
-      self.peers[id] = new RTCPeerConnection({iceServers});
-      self.peers[id].callbacks = {};
-      self.peers[id].on = (event, cb) => {
-        self.peers[id].callbacks[event] = cb;
+    if(!self.peers[url]){
+      self.peers[url] = new RTCPeerConnection({iceServers});
+      console.log("Got an incoming peer connection from " + data.url)
+      self.peers[url].onStream = self.peers[url].onStream || (() => {});
+      self.peers[url].makingOffer = false;
+      self.peers[url].ignoreOffer = false;
+      self.peers[url].isSRDAnswerPending = false;
+      if(self.stream && self.stream.getTracks){
+        self.stream.getTracks().forEach(track => self.peers[url].addTrack(track, self.stream));
       }
-      self.peers[id].onStream = self.peers[id].onStream || (() => {});
-      self.peers[id].makingOffer = false;
-      self.peers[id].ignoreOffer = false;
-      self.peers[id].isSRDAnswerPending = false;
-      self.stream.getTracks().forEach(track => self.peers[id].addTrack(track, self.stream));
-      self.peers[id].ontrack = (e) => {
-        self.peers[id].stream = e.streams[0];
-        self.peers[id].onStream(e.streams[0]);
+      self.peers[url].ontrack = (e) => {
+        self.peers[url].stream = e.streams[0];
+        self.peers[url].onStream(e.streams[0]);
       }
-      self.peers[id].onicecandidate = ({candidate}) =>  {
+      self.peers[url].onicecandidate = ({candidate}) =>  {
         if(!candidate) return;
-        self.dimension.ws.send(JSON.stringify({
+        ws.send(JSON.stringify({
           event: "Send rtc candidate",
           data: {
             candidate,
-            id
+            url
           }
         }));
       }
     }
-    self.peers[id].ondatachannel = (event) => {
-      self.peers[id].datachannel = event.channel;
-      self.peers[id].datachannel.onopen = () => {
-        self.peers[id].datachannel.onmessage = (e) => {
-          if(!e || !e.data) return;
-          const data = JSON.parse(e.data);
-          const event = data.event;
-          if(typeof self.peers[id].callbacks[event] == "function"){
-            self.peers[id].callbacks[event](data.data);
-          } 
-        };
+    self.peers[url].ondatachannel = async (event) => {
+      self.peers[url].datachannel = event.channel;
+      self.peers[url].datachannel.onopen = async () => {
+        self.peers[url].datachannel.verified = true;
+        self.peers[url].datachannel.open = true;
+        self.peers[url].datachannel.Url = url;
+        self.peers[url].datachannel.callbacks = {};
+        self.peers[url].datachannel.on = (event, cb) => {
+          self.peers[url].datachannel.callbacks[event] = cb;
+        }
+        await self.setupWS(self.peers[url].datachannel);
+        self.conns[url] = self.peers[url].datachannel
       };
     };
     try {
       if (description) {
         const offerCollision = (description.type == "offer") &&
-                             (self.peers[id].makingOffer || self.peers[id].signalingState != "stable");
-        self.peers[id].ignoreOffer = !polite && offerCollision;
-        if (self.peers[id].ignoreOffer) {
+                             (self.peers[url].makingOffer || self.peers[url].signalingState != "stable");
+        self.peers[url].ignoreOffer = !polite && offerCollision;
+        if (self.peers[url].ignoreOffer) {
           return;
         }
-        self.peers[id].isSRDAnswerPending = description.type == 'answer';
-        await self.peers[id].setRemoteDescription(description);
-        self.peers[id].isSRDAnswerPending = false;
+        self.peers[url].isSRDAnswerPending = description.type == 'answer';
+        await self.peers[url].setRemoteDescription(description);
+        self.peers[url].isSRDAnswerPending = false;
         if (description.type == "offer") {
-          await self.peers[id].setLocalDescription();
-          self.dimension.ws.send(JSON.stringify({
+          await self.peers[url].setLocalDescription();
+          ws.send(JSON.stringify({
             event: "Send rtc description",
             data: {
-              desc: self.peers[id].localDescription,
-              id: id
+              desc: self.peers[url].localDescription,
+              url
             }
           }));
+          console.log("Sent description");
         }
       }
     } catch(err) {
@@ -3113,10 +3244,10 @@ class Valoria {
 
   async handleGotRtcCandidate(ws, data){
     const self = this;
-    if(!self.peers[data.id]) return;
+    if(!self.peers[data.url]) return;
     try {
       if(!data.candidate) return;
-      await self.peers[data.id].addIceCandidate(data.candidate)
+      await self.peers[data.url].addIceCandidate(data.candidate)
     } catch (e) {
     }
   }
