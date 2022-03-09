@@ -59,12 +59,12 @@ class Valoria {
       if(!self.id || !self.ecdsa.publicKey) return rej();
       try {
         await self.loadAllGroups();
-        const accountGroup = jumpConsistentHash(self.id, self.groups.length);
-        const rUrl = self.groups[accountGroup][self.groups[accountGroup].length * Math.random() << 0];
-        await self.connectToServer(rUrl, {origin: true});
-        self.url = rUrl + "valoria/peers/" + self.id + "/";
-        self.originUrl = rUrl;
+        const originUrl = self.servers[jumpConsistentHash(self.id, self.servers.length)];
+        await self.connectToServer(originUrl, {origin: true});
+        self.url = originUrl + "valoria/peers/" + self.id + "/";
+        self.originUrl = originUrl;
         self.public.url = self.url;
+        console.log("Have url")
         await self.joinGroup();
         console.log("sharing my public data");
         await self.sharePublic();
@@ -525,6 +525,11 @@ class Valoria {
         self.sync = mode(syncClaims)
         self.nextSync = self.sync + self.syncIntervalMs;
         self.saving[self.sync] = {};
+        let all = self.groups.flat();
+        self.servers = [];
+        for(let i=0;i<all.length;i++){
+          if(!all[i].includes("/valoria/peers/")) self.servers.push(all[i]);
+        }
         res();
       } catch(e){
         return rej();
@@ -601,7 +606,6 @@ class Valoria {
                   self.conns[url].verified = true;
                 }
                 else if(self.url && url !== self.originUrl){
-                  console.log("VERIFY NEW CONNECTION WITH " + url)
                   await new Promise(async(res, rej) => {
                     self.promises["Url verified with " + url] = {res, rej};
                     self.conns[url].send(JSON.stringify({
@@ -611,7 +615,6 @@ class Valoria {
                       }
                     }))
                   })
-                  console.log("VERIFIED " + url)
                 }
                 return res();
               } catch (e){
@@ -1431,6 +1434,7 @@ class Valoria {
     const self = this;
     return new Promise(async(res, rej) => {
       ws.onclose = async (e) => {
+        console.log(ws.Url + " has closed connection");
         if(ws.Url && self.group && self.group.members.indexOf(ws.Url) !== -1){
           await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
         } else if(
@@ -3122,6 +3126,12 @@ class Valoria {
             self.peers[url].datachannel.callbacks[event] = cb;
           }
           await self.setupWS(self.peers[url].datachannel);
+          self.peers[url].onconnectionstatechange = () => {
+            if(self.peers[url].connectionState == "disconnected"){
+              console.log("Disconnect");
+              self.peers[url].datachannel?.onclose();
+            }
+          };
           res(self.peers[url].datachannel);
         };
         if(self.stream && self.stream.getTracks){
@@ -3157,15 +3167,15 @@ class Valoria {
             self.peers[url].makingOffer = false;
           }
         };
+        self.peers[url].ontrack = (e) => {
+          self.peers[url].stream = e.streams[0];
+          self.peers[url].onStream(e.streams[0]);
+        }
         self.peers[url].oniceconnectionstatechange = () => {
           if (self.peers[url] && self.peers[url].iceConnectionState === "failed") {
             self.peers[url].restartIce();
           }
         };
-        self.peers[url].ontrack = (e) => {
-          self.peers[url].stream = e.streams[0];
-          self.peers[url].onStream(e.streams[0]);
-        }
       }
     })
   }
@@ -3211,6 +3221,12 @@ class Valoria {
           self.peers[url].datachannel.callbacks[event] = cb;
         }
         await self.setupWS(self.peers[url].datachannel);
+        self.peers[url].onconnectionstatechange = () => {
+          if(self.peers[url].connectionState == "disconnected"){
+            console.log("Disconnect");
+            self.peers[url].datachannel?.onclose();
+          }
+        }
         self.conns[url] = self.peers[url].datachannel
       };
     };

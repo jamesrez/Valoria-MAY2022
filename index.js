@@ -3271,8 +3271,11 @@ class Server {
   handleSendRtcDescription(ws, data){
     const self = this;
     if(!self.conns[data.url]) return;
+    console.log("Send description to " + data.url)
     if(!self.conns[data.url].peers) self.conns[data.url].peers = {};
+    console.log(self.conns[data.url].peers)
     if(!self.conns[ws.Url].peers) self.conns[ws.Url].peers = {};
+    console.log(self.conns[ws.Url].peers)
     if(!self.conns[ws.Url].peers[data.url]){
       self.conns[ws.Url].peers[data.url] = {polite: false};
       self.conns[data.url].peers[ws.Url] = {polite: true};
