@@ -64,9 +64,7 @@ class Valoria {
         self.url = originUrl + "valoria/peers/" + self.id + "/";
         self.originUrl = originUrl;
         self.public.url = self.url;
-        console.log("Have url")
         await self.joinGroup();
-        console.log("sharing my public data");
         await self.sharePublic();
         const stall = (self.sync + self.syncIntervalMs) - self.now();
         setTimeout(async () => {
@@ -554,6 +552,7 @@ class Valoria {
             })
           }
           if(!self.conns[url].verified && opts.origin){
+            console.log("Setting origin with " + url)
             await new Promise(async(res, rej) => {
               self.promises["Origin url set with " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
@@ -628,7 +627,7 @@ class Valoria {
           }
         }
       } catch(e){
-        console.log(e);
+        console.log("Could not connect to " + url)
         rej();
       }
     })
@@ -1798,6 +1797,7 @@ class Valoria {
       if(data.success){
         self.promises["Origin url set with " + ws.Url].res()
       } else {
+        console.log("Not set")
         self.promises["Origin url set with " + ws.Url].rej();
       }
       delete self.promises["Origin url set with " + ws.Url]
@@ -2314,7 +2314,7 @@ class Valoria {
             if(url == self.url) continue;
             self.conns[url].send(JSON.stringify({
               event: "Member has left group",
-              data: self.group
+              data
             }))
           }
         }
@@ -2325,7 +2325,7 @@ class Valoria {
         await self.connectToServer(url);
         self.conns[url].send(JSON.stringify({
           event: "Member has left group",
-          data: self.group
+          data
         }))
       }
       if(self.groups[self.group.index - 1] && data.index >= self.group.index){
@@ -2334,8 +2334,9 @@ class Valoria {
         await self.connectToServer(url);
         self.conns[url].send(JSON.stringify({
           event: "Member has left group",
-          data: self.group
+          data
         }))
+        console.log("Told " + url + " about " + data.url + " leaving")
       }
       return res();
     });

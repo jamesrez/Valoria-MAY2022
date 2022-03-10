@@ -1983,29 +1983,18 @@ class Server {
     const self = this;
     return new Promise(async(res, rej) => {
       if(!data.id) return res();
-      const gIndex = jumpConsistentHash(data.id, self.groups.length);
-      if(gIndex == self.group.index){
-        let url = self.url + "valoria/peers/" + data.id + "/";
-        ws.Url = url;
-        ws.peerId = data.id;
-        ws.originUrl = self.url;
-        self.conns[url] = ws;
-        ws.send(JSON.stringify({
-          event: "Origin url set",
-          data: {
-            url: data.url,
-            success: true
-          }
-        }))
-      } else {
-        ws.send(JSON.stringify({
-          event: "Origin url set",
-          data: {
-            url: data.url,
-            success: false
-          }
-        }))
-      }
+      let url = self.url + "valoria/peers/" + data.id + "/";
+      ws.Url = url;
+      ws.peerId = data.id;
+      ws.originUrl = self.url;
+      self.conns[url] = ws;
+      ws.send(JSON.stringify({
+        event: "Origin url set",
+        data: {
+          url: data.url,
+          success: true
+        }
+      }))
       res()
     })
   }
@@ -2422,7 +2411,6 @@ class Server {
             }))
           } else if(data.index < self.group.index && self.groups[self.group.index + 1]){
             const g = self.groups[self.group.index + 1];
-            console.log(url);
             const url = g[g.length * Math.random() << 0];
             await self.connectToServer(url);
             self.conns[url].send(JSON.stringify({
@@ -2501,12 +2489,15 @@ class Server {
   handleMemberHasLeftGroup = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
+      console.log("MEMBER HAS LEFT GROUP");
+      console.log(data.url + " has left " + data.index);
       if(self.group.index == data.url && self.group.members.indexOf(data.url) !== -1){
         self.group.members.splice(self.group.members.indexOf(data.url), 1);
         self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
         self.group.updated = self.sync;
         self.group.version += 1;
       } else if (self.groups[data.index].indexOf(data.url) !== -1){
+        console.log(data.url + " has left group " + data.index);
         self.groups[data.index].splice(self.groups[data.index].indexOf(data.url), 1); 
         if(self.group.members.indexOf(ws.Url) == -1){
           for(let i=0;i<self.group.members.length;i++){
@@ -2514,7 +2505,7 @@ class Server {
             if(url == self.url) continue;
             self.conns[url].send(JSON.stringify({
               event: "Member has left group",
-              data: self.group
+              data
             }))
           }
         }
@@ -2525,7 +2516,7 @@ class Server {
         await self.connectToServer(url);
         self.conns[url].send(JSON.stringify({
           event: "Member has left group",
-          data: self.group
+          data
         }))
       }
       if(self.groups[self.group.index - 1] && data.index >= self.group.index){
@@ -2534,7 +2525,7 @@ class Server {
         await self.connectToServer(url);
         self.conns[url].send(JSON.stringify({
           event: "Member has left group",
-          data: self.group
+          data
         }))
       }
       return res();
