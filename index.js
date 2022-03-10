@@ -235,7 +235,6 @@ class Server {
                     id
                   }
                 }))
-                console.log("Sent request to connect with " + id);
               })
             } else {
               let wsUrl = "ws://" + new URL(url).host + "/"
@@ -944,26 +943,14 @@ class Server {
             })
           }
           const request = await self.get("requests/" + path);
-          if(!request) {
-            console.log(self.url + " NO REQUEST FOR PATH " + path);
-            return res();
-          }
           let publicD = await self.getPublicFromUrl(request.url);
-          if(!publicD) {
-            console.log("NO PUBLIC");
-            return res();
-          }
           const dataGroupIndex = jumpConsistentHash("data/" + path, self.groups.length);
           if(dataGroupIndex !== self.group.index) return res()
           const data = await self.getLocal("all/data/" + path);
-          if(!data){
-            console.log("NO DATA");
-          }
           const size = Buffer.byteLength(JSON.stringify(data), 'utf8');
           try {
             await self.verify(JSON.stringify(data), Buffer.from(request.data, "base64"), publicD.ecdsaPub);
           } catch(e){
-            console.log(data);
             throw e;
           }
           let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.getLocal(`all/valor/${self.ownerId}/${path}`);
@@ -1635,11 +1622,8 @@ class Server {
           await self.handleGroupRemoved(ws, {index: self.group.index - 1, url: ws.Url})
         }
         if(self.conns[ws.Url]?.peers){
-          console.log("HAS PEERS");
           let peerUrls = Object.keys(self.conns[ws.Url].peers);
-          console.log(peerUrls)
           for(let i=0;i<peerUrls.length;i++){
-            console.log(self.conns[peerUrls[i]]);
             if(!self.conns[peerUrls[i]]) continue;
             self.conns[peerUrls[i]].send(JSON.stringify({
               event: "Peer disconnect",
@@ -1902,7 +1886,6 @@ class Server {
               key: self.verifying[data.url]
             }
           }))
-          console.log("Verify with key " + self.verifying[data.url])
         })
         res();
       } catch(e){
@@ -1933,10 +1916,7 @@ class Server {
     return new Promise(async( res, rej) => {
       try {
         if(!ws.verifyingUrl || !self.verifying[ws.verifyingUrl]) return res();
-        console.log("Getting key from peer origin");
         const key = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
-        console.log(key)
-        console.log(self.verifying[ws.verifyingUrl]);
         if(key == self.verifying[ws.verifyingUrl]){
           ws.Url = ws.verifyingUrl;
           self.conns[ws.Url] = ws;
@@ -1946,7 +1926,6 @@ class Server {
               success: true
             }
           }))
-          console.log("Verified Peer");
           if(self.promises["Connected to peer ws for " + ws.Url]){
             self.promises["Connected to peer ws for " + ws.Url].res(ws);
           }
@@ -1993,7 +1972,6 @@ class Server {
         pathUrl = pathUrl.replace(/\:/g, "");
         self.verificationKeys["/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl] = data.key;
         self.app.get("/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl, (req, res) => {
-          console.log(req.path);
           res.send(self.verificationKeys[req.path]);
           delete self.verificationKeys[req.path];
         })
@@ -2311,7 +2289,6 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.index) return res();
-      console.log("GROUP CAN BE CREATED? : ", )
       ws.send(JSON.stringify({
         event: "Group can be created response",
         data: {
@@ -2520,15 +2497,12 @@ class Server {
   handleMemberHasLeftGroup = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      console.log("MEMBER HAS LEFT GROUP");
-      console.log(data.url + " has left " + data.index);
       if(self.group.index == data.url && self.group.members.indexOf(data.url) !== -1){
         self.group.members.splice(self.group.members.indexOf(data.url), 1);
         self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
         self.group.updated = self.sync;
         self.group.version += 1;
       } else if (self.groups[data.index].indexOf(data.url) !== -1){
-        console.log(data.url + " has left group " + data.index);
         self.groups[data.index].splice(self.groups[data.index].indexOf(data.url), 1); 
         if(self.group.members.indexOf(ws.Url) == -1){
           for(let i=0;i<self.group.members.length;i++){
@@ -2862,7 +2836,6 @@ class Server {
         return err();
       }
       function err(){
-        console.log(ws.Url + " good")
         ws.send(JSON.stringify({
           event: "Group data taken over",
           data: {
