@@ -42,7 +42,7 @@ class Valoria {
     this.peers = {};
     this.promises = {};
     this.dimension = {};
-    this.pastPaths = [];
+    this.pastPaths = {};
     this.saving = {}
     this.syncIntervalMs = 1000;
     this.timeOffset = 0;
@@ -777,7 +777,6 @@ class Valoria {
           if(dataGroupIndex !== self.group.index) return res()
           const data = await self.getLocal("all/data/" + path);
           const size = new TextEncoder().encode(JSON.stringify(data)).length;
-          console.log(request.data);
           try {
             await self.verify(JSON.stringify(data), base64ToArrayBuffer(request.data), publicD.ecdsaPub);
           } catch(e){
@@ -1115,19 +1114,18 @@ class Valoria {
         self.saving[self.sync] = {};
 
         //VALOR TESTS
-        if(self.url == 'http://localhost:3000/'){
-          for(let i=0;i<self.groups.length;i++){
-            for(let j=0;j<self.groups[i].length;j++){
-              try {
-                const valor = await self.calculateValor(self.groups[i][j]);
-                console.log(`${self.groups[i][j]} Valor: ${valor}`);
-              } catch(e){
-                console.log(e)
-              } 
-            }
+        // if(self.url == 'http://localhost:3000/'){
+        for(let i=0;i<self.groups.length;i++){
+          for(let j=0;j<self.groups[i].length;j++){
+            try {
+              const valor = await self.calculateValor(self.groups[i][j]);
+              console.log(`${self.groups[i][j]} Valor: ${valor}`);
+            } catch(e){
+              console.log(e)
+            } 
           }
-          console.log("\n\n")
         }
+        console.log("\n\n")
 
       }, self.syncIntervalMs);
     })
@@ -1267,14 +1265,20 @@ class Valoria {
                 }
               }))
             });
-            for(let k=0;k<self.pastPaths.length;k++){
-              try {
-                await localforage.removeItem(`${self.path}all/${self.pastPaths[k]}`)
-              } catch(e){
-                // console.log(e);
+
+            const groupIndices = Object.keys(self.pastPaths);
+            for(let k=0;k<groupIndices.length;k++){
+              if(Math.abs(groupIndices[k] - self.groups.length) >= 2){
+                for( let l=0;l<self.pastPaths[groupIndices[k]].length; i++){
+                  try {
+                    await localforage.removeItem(`${self.path}all/${self.pastPaths[groupIndices[k]][l]}`)
+                  } catch(e){
+
+                  }
+                }
               }
             }
-            self.pastPaths = paths;
+            self.pastPaths[self.group.length] = paths;
           } catch(e){
 
           }

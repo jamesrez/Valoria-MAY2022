@@ -111,7 +111,7 @@ class Server {
     this.syncGroups = [];
     this.verifying = {};
     this.verificationKeys = {};
-    this.pastPaths = [];
+    this.pastPaths = {};
     this.saving = {};
     this.ECDSA = {publicKey: null, privateKey: null};
     this.ECDH = {publicKey: null, privateKey: null};
@@ -1433,17 +1433,23 @@ class Server {
                 }
               }))
             });
-            for(let k=0;k<self.pastPaths.length;k++){
-              try {
-                await fs.unlinkSync(`${self.path}all/${self.pastPaths[k]}`);
-                let dir = `${self.path}all/${self.pastPaths[k]}`;
-                dir = dir.substring(0, dir.lastIndexOf("/"));
-                await fs.rmdirSync(dir)
-              } catch(e){
-                // console.log(e);
+
+            const groupIndices = Object.keys(self.pastPaths);
+            for(let k=0;k<groupIndices.length;k++){
+              if(Math.abs(groupIndices[k] - self.groups.length) >= 2){
+                for( let l=0;l<self.pastPaths[groupIndices[k]].length; i++){
+                  try {
+                    await fs.unlinkSync(`${self.path}all/${self.pastPaths[k]}`);
+                    let dir = `${self.path}all/${self.pastPaths[k]}`;
+                    dir = dir.substring(0, dir.lastIndexOf("/"));
+                    await fs.rmdirSync(dir)
+                  } catch(e){
+                    // console.log(e);
+                  }
+                }
               }
             }
-            self.pastPaths = paths;
+            self.pastPaths[self.group.length] = paths;
           } catch(e){
 
           }
