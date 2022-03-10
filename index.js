@@ -1281,7 +1281,7 @@ class Server {
         self.saving[self.sync] = {};
 
         //VALOR TESTS
-        if(self.url == 'http://localhost:3000/'){
+        if(self.url == 'http://localhost:3000/' || self.url == 'https://www.valoria.live/'){
           for(let i=0;i<self.groups.length;i++){
             for(let j=0;j<self.groups[i].length;j++){
               try {
