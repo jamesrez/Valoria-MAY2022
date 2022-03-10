@@ -110,6 +110,8 @@ class Server {
     this.groups = [];
     this.syncGroups = [];
     this.verifying = {};
+    this.verificationKeys = {};
+    this.pastPaths = [];
     this.saving = {};
     this.ECDSA = {publicKey: null, privateKey: null};
     this.ECDH = {publicKey: null, privateKey: null};
@@ -1444,16 +1446,17 @@ class Server {
                 }
               }))
             });
-            for(let k=0;k<paths.length;k++){
+            for(let k=0;k<self.pastPaths.length;k++){
               try {
-                await fs.unlinkSync(`${self.path}all/${paths[k]}`);
-                let dir = `${self.path}all/${paths[k]}`;
+                await fs.unlinkSync(`${self.path}all/${self.pastPaths[k]}`);
+                let dir = `${self.path}all/${self.pastPaths[k]}`;
                 dir = dir.substring(0, dir.lastIndexOf("/"));
                 await fs.rmdirSync(dir)
               } catch(e){
                 // console.log(e);
               }
             }
+            self.pastPaths = paths;
           } catch(e){
 
           }
@@ -1631,7 +1634,24 @@ class Server {
         ){
           await self.handleGroupRemoved(ws, {index: self.group.index - 1, url: ws.Url})
         }
+        if(self.conns[ws.Url]?.peers){
+          console.log("HAS PEERS");
+          let peerUrls = Object.keys(self.conns[ws.Url].peers);
+          console.log(peerUrls)
+          for(let i=0;i<peerUrls.length;i++){
+            console.log(self.conns[peerUrls[i]]);
+            if(!self.conns[peerUrls[i]]) continue;
+            self.conns[peerUrls[i]].send(JSON.stringify({
+              event: "Peer disconnect",
+              data: {
+                url: ws.Url
+              }
+            }));
+          }
+        }
         delete self.conns[ws.Url];
+        ws.Url = "";
+        ws.terminate();
       })
       ws.on('message', async (d) => {
         d = JSON.parse(d);
@@ -1882,6 +1902,7 @@ class Server {
               key: self.verifying[data.url]
             }
           }))
+          console.log("Verify with key " + self.verifying[data.url])
         })
         res();
       } catch(e){
@@ -1896,8 +1917,9 @@ class Server {
       if(!self.promises["Url verified with " + ws.Url] || !data.key) return res();
       let pathUrl = ws.Url.replace(/\//g, "");
       pathUrl = pathUrl.replace(/\:/g, "");
+      self.verificationKeys["/valoria/verifying/" + pathUrl] = data.key;
       self.app.get("/valoria/verifying/" + pathUrl, (req, res) => {
-        res.send(data.key);
+        res.send(self.verificationKeys[req.path]);
       })
       ws.send(JSON.stringify({
         event: "Verify url"
@@ -1911,7 +1933,10 @@ class Server {
     return new Promise(async( res, rej) => {
       try {
         if(!ws.verifyingUrl || !self.verifying[ws.verifyingUrl]) return res();
+        console.log("Getting key from peer origin");
         const key = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
+        console.log(key)
+        console.log(self.verifying[ws.verifyingUrl]);
         if(key == self.verifying[ws.verifyingUrl]){
           ws.Url = ws.verifyingUrl;
           self.conns[ws.Url] = ws;
@@ -1921,6 +1946,7 @@ class Server {
               success: true
             }
           }))
+          console.log("Verified Peer");
           if(self.promises["Connected to peer ws for " + ws.Url]){
             self.promises["Connected to peer ws for " + ws.Url].res(ws);
           }
@@ -1965,8 +1991,11 @@ class Server {
       if(self.conns[ws.Url] && self.conns[ws.Url].originUrl == self.url){
         let pathUrl = data.url.replace(/\//g, "");
         pathUrl = pathUrl.replace(/\:/g, "");
+        self.verificationKeys["/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl] = data.key;
         self.app.get("/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl, (req, res) => {
-          res.send(data.key);
+          console.log(req.path);
+          res.send(self.verificationKeys[req.path]);
+          delete self.verificationKeys[req.path];
         })
         ws.send(JSON.stringify({
           event: "Verified peer url",
@@ -2282,6 +2311,7 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.index) return res();
+      console.log("GROUP CAN BE CREATED? : ", )
       ws.send(JSON.stringify({
         event: "Group can be created response",
         data: {
@@ -2390,6 +2420,7 @@ class Server {
           self.group.version += 1;
           self.group.updated = self.sync;
         }
+        if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
         await self.updateValorClaims();
         await self.reassignGroupData();
         if(self.group.members.indexOf(ws.Url) == -1){
@@ -3262,12 +3293,9 @@ class Server {
   handleSendRtcDescription(ws, data){
     const self = this;
     if(!self.conns[data.url]) return;
-    console.log("Send description to " + data.url)
     if(!self.conns[data.url].peers) self.conns[data.url].peers = {};
-    console.log(self.conns[data.url].peers)
     if(!self.conns[ws.Url].peers) self.conns[ws.Url].peers = {};
-    console.log(self.conns[ws.Url].peers)
-    if(!self.conns[ws.Url].peers[data.url]){
+    if(!self.conns[ws.Url].peers[data.url] || !self.conns[data.url].peers[ws.Url]){
       self.conns[ws.Url].peers[data.url] = {polite: false};
       self.conns[data.url].peers[ws.Url] = {polite: true};
     }

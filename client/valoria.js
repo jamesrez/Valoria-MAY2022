@@ -41,6 +41,7 @@ class Valoria {
     this.peers = {};
     this.promises = {};
     this.dimension = {};
+    this.pastPaths = [];
     this.saving = {}
     this.syncIntervalMs = 1000;
     this.timeOffset = 0;
@@ -541,6 +542,7 @@ class Valoria {
       try {
         if(self.conns[url] && (self.conns[url].readyState === WebSocket.OPEN || self.conns[url].open)){
           if(!self.conns[url].verified && self.url && self.originUrl !== url){
+            console.log("verifying with " + url);
             await new Promise(async(res, rej) => {
               self.promises["Url verified with " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
@@ -550,6 +552,7 @@ class Valoria {
                 }
               }))
             })
+            console.log("verified");
           }
           if(!self.conns[url].verified && opts.origin){
             console.log("Setting origin with " + url)
@@ -1274,16 +1277,17 @@ class Valoria {
                 }
               }))
             });
-            for(let k=0;k<paths.length;k++){
+            for(let k=0;k<self.pastPaths.length;k++){
               try {
-                await fs.unlinkSync(`${self.path}all/${paths[k]}`);
-                let dir = `${self.path}all/${paths[k]}`;
+                await fs.unlinkSync(`${self.path}all/${self.pastPaths[k]}`);
+                let dir = `${self.path}all/${self.pastPaths[k]}`;
                 dir = dir.substring(0, dir.lastIndexOf("/"));
                 await fs.rmdirSync(dir)
               } catch(e){
                 // console.log(e);
               }
             }
+            self.pastPaths = paths;
           } catch(e){
 
           }
@@ -1616,6 +1620,9 @@ class Valoria {
           case "Peer has left dimension":
             await self.handlePeerHasLeftDimension(ws, d.data);
             break;
+          case "Peer disconnect":
+            await self.handlePeerDisconnect(ws, d.data);
+            break;
           case "Got rtc description":
             self.handleGotRtcDescription(ws, d.data);
             break;
@@ -1708,6 +1715,7 @@ class Valoria {
   handleVerifyUrlKey = async (ws, data) => {
     const self = this;
     return new Promise(async( res, rej) => {
+      console.log(self.promises["Url verified with " + ws.Url]);
       if(!self.promises["Url verified with " + ws.Url] || !data.key) return res();
       let pathUrl = ws.Url.replace(/\//g, "");
       pathUrl = pathUrl.replace(/\:/g, "");
@@ -1722,6 +1730,7 @@ class Valoria {
             key: data.key
           }
         }))
+        console.log("WILL SET VERIFY URL ON ORIGIN");
       })
       ws.send(JSON.stringify({
         event: "Verify url"
@@ -3104,11 +3113,25 @@ class Valoria {
     });
   }
 
+  handlePeerDisconnect = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      // console.log("Peer disconnect from " + ws.Url);
+      // console.log(self.conns[data.url]?.peerServer);
+      // if(self.conns[data.url] && self.conns[data.url].peerServer == ws.Url){
+      if(ws.Url && ws.verified){
+        self.conns[data.url]?.onclose();
+        delete self.peers[data.url];
+      }
+      res();
+    })
+  }
+
   async connectToPeer(url){
     const self = this;
     return new Promise(async (res, rej) => {
       if(!url || !url.includes("valoria/peers/")) return rej({err: "Bad peer url"});
-      let originUrl = url.substring(0, url.indexOf("valoria/peers/"));
+      const originUrl = url.substring(0, url.indexOf("valoria/peers/"));
       // let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
       await self.connectToServer(originUrl);
       if(!self.peers[url]){
@@ -3127,10 +3150,12 @@ class Valoria {
             self.peers[url].datachannel.callbacks[event] = cb;
           }
           await self.setupWS(self.peers[url].datachannel);
+          self.peers[url].datachannel.peerServer = originUrl;
           self.peers[url].onconnectionstatechange = () => {
+            console.log(self.peers[url].connectionState)
             if(self.peers[url].connectionState == "disconnected"){
-              console.log("Disconnect");
               self.peers[url].datachannel?.onclose();
+              delete self.peers[url];
             }
           };
           res(self.peers[url].datachannel);
@@ -3222,10 +3247,12 @@ class Valoria {
           self.peers[url].datachannel.callbacks[event] = cb;
         }
         await self.setupWS(self.peers[url].datachannel);
+        self.peers[url].datachannel.peerServer = ws.Url;
         self.peers[url].onconnectionstatechange = () => {
+          console.log(self.peers[url].connectionState)
           if(self.peers[url].connectionState == "disconnected"){
-            console.log("Disconnect");
             self.peers[url].datachannel?.onclose();
+            delete self.peers[url];
           }
         }
         self.conns[url] = self.peers[url].datachannel
