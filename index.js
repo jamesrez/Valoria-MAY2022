@@ -3302,7 +3302,7 @@ class Server {
 
 }
 
-let localServerCount = 3;
+let localServerCount = 1;
 let localServers = [];
 if(isLocal){
   (async () => {
