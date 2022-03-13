@@ -1258,7 +1258,7 @@ class Server {
         self.saving[self.sync] = {};
         self.syncGroup = Object.assign({}, self.group);
         self.syncGroups = [...self.groups];
-        await self.saveGroups();
+        // await self.saveGroups();
       }
       res();
       const main = setInterval(async () => {
@@ -1267,7 +1267,7 @@ class Server {
         self.syncGroups = [...self.groups];
         try {
           await self.syncTimeWithNearby();
-          await self.saveGroups();
+          // await self.saveGroups();
           // await self.sharePublic();
           // await self.syncGroupData();
           // await self.updateValorClaims();
@@ -2752,12 +2752,15 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         if(!data.path || !data.data) return err();
+        console.log("GOT GROUP SET");
         if(ws.Url && self.group?.members.indexOf(ws.Url) !== -1){
+          console.log("FROM MEMBER OF MY GROUP");
           // if(data.path.startsWith("ledgers/")) return err();
           await self.setLocal("all/" + data.path, data.data);
           if(data.path.startsWith("data/")){
             await self.claimValorForData(data.path.substr(5));
           }
+          console.log("Claimed");
           ws.send(JSON.stringify({
             event: "Group sot",
             data: {

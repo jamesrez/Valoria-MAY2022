@@ -58,10 +58,13 @@ class Valoria {
   setup = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
+      await self.reset();
       if(!self.id || !self.ecdsa.publicKey) return rej();
       if(!self.ownerId) self.ownerId = self.id;
       try {
+        console.log("will load groups");
         await self.loadAllGroups();
+        console.log("Hm")
         const originUrl = self.servers[jumpConsistentHash(self.id, self.servers.length)];
         await self.connectToServer(originUrl, {origin: true});
         self.url = originUrl + "valoria/peers/" + self.id + "/";
@@ -273,7 +276,9 @@ class Valoria {
     return new Promise(async(res, rej) => {
       if(!self.group) return res();
       try {
+        console.log("SET REQUEST")
         await self.createSetRequest(path, data);
+        console.log("CREATED")
         const groupIndex = jumpConsistentHash("data/" + path, self.groups.length);
         if(groupIndex == self.group.index){
           await self.setLocal("all/data/" + path, data);
@@ -290,13 +295,16 @@ class Valoria {
                     data: data
                   }
                 }));
+                console.log("Sent group set to " + self.group.members[i]);
               })              
             } catch(e){
               console.log(e)
             }
           }
+          console.log("SET WITH GROUP");
           try {
             await self.claimValorForData(path);
+            console.log("Claimed");
             return res();
           } catch(e){
             return res();
@@ -539,6 +547,7 @@ class Valoria {
 
   connectToServer(url, opts={}){
     const self = this;
+    console.log(url);
     return new Promise(async (res, rej) => {
       try {
         if(self.conns[url] && (self.conns[url].readyState === WebSocket.OPEN || self.conns[url].open)){
@@ -658,6 +667,7 @@ class Valoria {
           });
           willCreateGroup = false;
           console.log(self.url + " has joined group " + self.group.index);
+          console.log(self.group);
           self.groups[self.group.index] = self.group.members;
           self.conns[url].send(JSON.stringify({
             event: "Joined group success"
@@ -770,6 +780,7 @@ class Valoria {
                 }
               }));
             })
+            console.log(self.group.memebrs[i] + " has claimed");
           }
           const request = await self.get("requests/" + path);
           let publicD = await self.getPublicFromUrl(request.url);
@@ -783,6 +794,7 @@ class Valoria {
             console.log(data);
             throw e;
           }
+          console.log("Saving valor");
           let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.getLocal(`all/valor/${self.ownerId}/${path}`);
           if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.time?.length > 0){
             if(valor.data.size !== size){
@@ -1091,7 +1103,7 @@ class Valoria {
         self.saving[self.sync] = {};
         self.syncGroup = Object.assign({}, self.group);
         self.syncGroups = [...self.groups];
-        await self.saveGroups();
+        // await self.saveGroups();
       }
       res();
       const main = setInterval(async () => {
@@ -1100,7 +1112,7 @@ class Valoria {
         self.syncGroups = [...self.groups];
         try {
           await self.syncTimeWithNearby();
-          await self.saveGroups();
+          // await self.saveGroups();
           // await self.sharePublic();
           // await self.syncGroupData();
           // await self.updateValorClaims();
@@ -1115,8 +1127,10 @@ class Valoria {
 
         //VALOR TESTS
         // if(self.url == 'http://localhost:3000/'){
+        console.log(self.groups);
         for(let i=0;i<self.groups.length;i++){
           for(let j=0;j<self.groups[i].length;j++){
+            console.log("GET VALOR OF " + self.groups[i][j])
             try {
               const valor = await self.calculateValor(self.groups[i][j]);
               console.log(`${self.groups[i][j]} Valor: ${valor}`);
@@ -2685,6 +2699,7 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!self.promises["Group sot for " + data.path + " from " + ws.Url]) return res();
+      console.log("Group sot success for " + data.path);
       self.promises["Group sot for " + data.path + " from " + ws.Url].res();
       delete self.promises["Group sot for " + data.path + " from " + ws.Url];
       return res()
@@ -3015,7 +3030,7 @@ class Valoria {
       try {
         const keys = await localforage.keysStartingWith(`${self.path}all`)
         for(let i=0;i<keys.length;i++){
-          await fs.removeItem(keys[i]);
+          await localforage.removeItem(keys[i]);
         }
       } catch(e){
 
@@ -3039,7 +3054,7 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       const groupIndex = jumpConsistentHash(id, self.groups.length);
-      const group = self.group[groupIndex];
+      const group = self.groups[groupIndex];
       const url = group[group.length * Math.random() << 0];
       await self.connectToServer(url);
       self.promises["Joined " + id + " dimension"] = {res, rej};
