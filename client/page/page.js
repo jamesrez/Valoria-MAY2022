@@ -21,12 +21,16 @@ async function showHome(){
 
 async function showJoin(){
   if(valoria.id && valoria.ecdsa.privateKey){
-    await valoria.startMediaStream({audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      sampleRate: 44100
-    }, video: false});
-    valoria.onJoin();
+    page.style.display = "none";
+    if(!isMobile){
+      controls.lock();
+    }
+    // await valoria.startMediaStream({audio: {
+    //   echoCancellation: true,
+    //   noiseSuppression: true,
+    //   sampleRate: 44100
+    // }, video: false});
+    // valoria.onJoin();
   } else {
     auth.style.display = "flex";
     join.style.display = "flex";
@@ -188,7 +192,7 @@ async function QRNext(){
     noiseSuppression: true,
     sampleRate: 44100
   }, video: false});
-  valoria.onJoin();
+  // valoria.onJoin();
 }
 
 let signInQRInput = document.querySelector('.valUISignInQRInput');

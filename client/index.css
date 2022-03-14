@@ -23,3 +23,23 @@ body {
   background: black !important;
   overflow: hidden;
 }
+
+.valorUI{
+  display: flex;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  z-index: 100;
+}
+
+.valorAmount{
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+  margin-top: 10px;
+  margin-right: 10px;
+}

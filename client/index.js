@@ -1,5 +1,6 @@
 let cameraRig;
 let page;
+let valorAmount;
 let isMobile = false;
 if( window.DeviceOrientationEvent && navigator.userAgent.match(/iPhone/i)
   || navigator.userAgent.match(/webOS/i)
@@ -15,22 +16,30 @@ if( window.DeviceOrientationEvent && navigator.userAgent.match(/iPhone/i)
 window.onload = async () => {
   page = document.querySelector(".page");
   cameraRig = document.querySelector('#cameraRig');
+  valorAmount = document.querySelector(".valorAmount");
   // page.click();
 }
 
 valoria.onJoin = async () => {
-  console.log("SIGNED IN!");
-  page.style.display = "none";
-  if(!isMobile){
-    controls.lock();
-  }
-  valoria.dimension.onPeerJoin = (id) => {
-    addPeerToScene(id);
-  }
-  valoria.dimension.onPeerLeave = (id) => {
-    removePeerFromScene(id);
-  }
-  await valoria.joinDimension("Valoria");
+  // console.log("SIGNED IN!");
+  // page.style.display = "none";
+  // valoria.dimension.onPeerJoin = (id) => {
+  //   addPeerToScene(id);
+  // }
+  // valoria.dimension.onPeerLeave = (id) => {
+  //   removePeerFromScene(id);
+  // }
+  // await valoria.joinDimension("Valoria"); 
+
+  let valorInterval = setInterval(async () => {
+    try {
+      const valor = await valoria.calculateValor(valoria.id);
+      valorAmount.textContent = `VALOR: ${valor}`;
+    } catch(e){
+      console.log(e)
+    }
+  }, valoria.syncIntervalMs)
+
 }
 
 // function playMusic(){
