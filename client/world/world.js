@@ -345,7 +345,7 @@ async function addPeerToScene(id){
   peerAvatars[id].sound = new THREE.PositionalAudio(listener);
   peerAvatars[id].attach(peerAvatars[id].sound);
   setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
-  valoria.peers[id].on("Movement", (data) => {
+  valoria.conns[id].on("Movement", (data) => {
     if(
       Math.abs(data.position.x - peerAvatars[id].position.x) < 0.01 &&
       // Math.abs(data.position.y - peerAvatars[id].position.y) < 0.1 ||

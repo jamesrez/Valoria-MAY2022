@@ -1258,7 +1258,7 @@ class Server {
         self.saving[self.sync] = {};
         self.syncGroup = Object.assign({}, self.group);
         self.syncGroups = [...self.groups];
-        await self.saveGroups();
+        // await self.saveGroups();
       }
       res();
       const main = setInterval(async () => {
@@ -1267,7 +1267,7 @@ class Server {
         self.syncGroups = [...self.groups];
         try {
           await self.syncTimeWithNearby();
-          await self.saveGroups();
+          // await self.saveGroups();
           // await self.sharePublic();
           // await self.syncGroupData();
           // await self.updateValorClaims();
@@ -1281,9 +1281,9 @@ class Server {
         self.saving[self.sync] = {};
 
         //VALOR TESTS
-        if(self.url == 'http://localhost:3000/'){
+        if(self.url == 'http://localhost:3000/' || self.url == 'https://www.valoria.live/'){
           for(let i=0;i<self.groups.length;i++){
-            for(let j=0;j<self.groups[i].length;j++){
+            for(let j=0;j<self.groups[i]?.length;j++){
               try {
                 const valor = await self.calculateValor(self.groups[i][j]);
                 console.log(`${self.groups[i][j]} Valor: ${valor}`);
@@ -2508,8 +2508,8 @@ class Server {
         self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
         self.group.updated = self.sync;
         self.group.version += 1;
-      } else if (self.groups[data.index].indexOf(data.url) !== -1){
-        self.groups[data.index].splice(self.groups[data.index].indexOf(data.url), 1); 
+      } else if (self.groups[data.index]?.indexOf(data.url) !== -1){
+        self.groups[data.index]?.splice(self.groups[data.index]?.indexOf(data.url), 1); 
         if(self.group.members.indexOf(ws.Url) == -1){
           for(let i=0;i<self.group.members.length;i++){
             let url = self.group.members[i];
@@ -2569,6 +2569,9 @@ class Server {
   handleSet = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
+      if(ws.Url.length > 22){
+        console.log("handle set for " + data.path);
+      }
       try {
         if(!data.path || !data.data) return res();
         if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
@@ -2638,7 +2641,7 @@ class Server {
         if(!data.request) return res();
         if(ws.Url && self.groups[data.request.group]?.indexOf(ws.Url) !== -1){
           const d = await self.getLocal("all/requests/" + data.request.path);
-          if(d && d.from == request.from) {
+          if(d && d.from == data.request.from) {
             try {
               await self.verify(JSON.stringify(data), Buffer.from(d.data, "base64"), self.ECDSA.publicKey);
               ws.send(JSON.stringify({
@@ -2648,9 +2651,8 @@ class Server {
                   err: true
                 }
               }))
-              return rej()
+              return res()
             } catch(e){
-
             }
           }
           await self.setLocal("all/requests/" + data.request.path, data.request);
@@ -3186,7 +3188,17 @@ class Server {
             },
             sigs: {}
           }
-          if(d.data.paths[data.path]) return res();
+          if(d.data.paths[data.path]) {
+            ws.send(JSON.stringify({
+              event: "Path added to ledger",
+              data: {
+                path: data.path,
+                id: data.id,
+                success: true
+              }
+            }));
+            return res();
+          }
           d.data.paths[data.path] = 1
           delete d.sigs;
           d.sigs = {};
