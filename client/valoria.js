@@ -760,6 +760,7 @@ class Valoria {
   claimValorForData = async (path) => {
     const self = this;
     return new Promise(async (res, rej) => {
+      console.log("Will claim for " + path);
       try {
         if(!self.group || self.groups.length <= 0) return res();
         const valorGroupIndex = jumpConsistentHash(`valor/${self.ownerId}/${path}`, self.groups.length);
@@ -781,6 +782,7 @@ class Valoria {
               }));
             })
           }
+          console.log("My group members have claimed the data");
           const request = await self.get("requests/" + path);
           let publicD = await self.getPublicFromUrl(request.url);
           const dataGroupIndex = jumpConsistentHash("data/" + path, self.groups.length);
@@ -793,6 +795,7 @@ class Valoria {
             console.log(data);
             throw e;
           }
+          console.log("Verified data satisifies request");
           let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.get(`valor/${self.ownerId}/${path}`);
           if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.time?.length > 0){
             if(valor.data.size !== size){
@@ -822,7 +825,9 @@ class Valoria {
           self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] = valor;
           await self.setLocal(`all/valor/${self.ownerId}/${path}`, valor);
           await self.shareGroupSig(`valor/${self.ownerId}/${path}`);
+          console.log("add to ledger: " + path);
           await self.addPathToLedger(path);
+          console.log("added");
         } else {  
           for(let i=0;i<self.groups[valorGroupIndex].length;i++){
             const url = self.groups[valorGroupIndex][i];
@@ -841,7 +846,9 @@ class Valoria {
               }));
             })
           }
+          console.log("add to ledger: " + path);
           await self.addPathToLedger(path); 
+          console.log("added");
         }
       } catch(e){
         console.log(e);
