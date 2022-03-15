@@ -3213,7 +3213,7 @@ class Valoria {
           self.peers[url].datachannel.peerServer = originUrl;
           await self.setupWS(self.peers[url].datachannel);
           self.peers[url].onconnectionstatechange = () => {
-            if(self.peers[url].connectionState == "disconnected"){
+            if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
               self.peers[url].datachannel?.onclose();
               delete self.peers[url];
             }
@@ -3306,7 +3306,7 @@ class Valoria {
           self.peers[url].datachannel.peerServer = ws.Url;
           await self.setupWS(self.peers[url].datachannel);
           self.peers[url].onconnectionstatechange = () => {
-            if(self.peers[url].connectionState == "disconnected"){
+            if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
               self.peers[url].datachannel?.onclose();
               delete self.peers[url];
             }
