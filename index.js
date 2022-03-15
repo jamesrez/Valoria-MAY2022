@@ -2508,6 +2508,7 @@ class Server {
         self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
         self.group.updated = self.sync;
         self.group.version += 1;
+        await self.updateValorClaims();
       } else if (self.groups[data.index]?.indexOf(data.url) !== -1){
         self.groups[data.index]?.splice(self.groups[data.index]?.indexOf(data.url), 1); 
         if(self.group.members.indexOf(ws.Url) == -1){
@@ -2520,6 +2521,7 @@ class Server {
             }))
           }
         }
+        await self.updateValorClaims();
       }
       if(self.groups[self.group.index + 1] && data.index <= self.group.index){
         const g = self.groups[self.group.index + 1];
@@ -3314,7 +3316,7 @@ class Server {
 
 }
 
-let localServerCount = 3;
+let localServerCount = 1;
 let localServers = [];
 if(isLocal){
   (async () => {
