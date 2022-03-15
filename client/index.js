@@ -34,7 +34,7 @@ valoria.onJoin = async () => {
   let valorInterval = setInterval(async () => {
     try {
       const valor = await valoria.calculateValor(valoria.id);
-      valorAmount.textContent = `VALOR: ${valor}`;
+      valorAmount.textContent = `VALOR: ${+valor.toFixed(9)}`;
     } catch(e){
       console.log(e)
     }
