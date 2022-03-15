@@ -2986,11 +2986,14 @@ class Server {
         console.log("is responsible")
         const request = await self.getSetRequest(data.path);
         if(!request) return err();
+        console.log("got request")
         let reqPublicD = await self.getPublicFromUrl(request.url);
         if(!reqPublicD) return err();
+        console.log("got public data of" + request.url)
         const dataGroupIndex = jumpConsistentHash("data/" + data.path, self.groups.length);
         if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err();
         const now = self.now();
+        console.log("connecting")
         await self.connectToServer(data.url);
         console.log("connected to " + data.url)
         const d = await new Promise(async(res, rej) => {
