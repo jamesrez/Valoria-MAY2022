@@ -1253,7 +1253,11 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       try {
-        let paths = await localforage.keysStartingWith(`${self.path}all`)
+        const keys = await localforage.keysStartingWith(`${self.path}all`);
+        let paths = [];
+        for(let i=0;i<keys.length;i++){
+          paths.push(keys[i].substr(`${self.path}all/`.length))
+        }
         let groups = {};
         for(let i=0;i<paths.length;i++){
           const groupIndex = jumpConsistentHash(paths[i], self.groups.length);
