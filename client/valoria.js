@@ -42,6 +42,7 @@ class Valoria {
     this.peers = {};
     this.promises = {};
     this.dimension = {};
+    this.dimensions = {};
     this.pastPaths = {};
     this.saving = {}
     this.syncIntervalMs = 1000;
@@ -578,6 +579,7 @@ class Valoria {
           if(!self.conns[url]) {
             try {
               if(url.includes("valoria/peers/")){
+                console.log(url);
                 self.conns[url] = await self.connectToPeer(url);
                 self.conns[url].isP2P = true;
                 self.conns[url].isWS = false;
@@ -3072,14 +3074,48 @@ class Valoria {
       const groupIndex = jumpConsistentHash(id, self.groups.length);
       const group = self.groups[groupIndex];
       const url = group[jumpConsistentHash(id, group.length)];
-      await self.connectToServer(url);
-      self.promises["Joined " + id + " dimension"] = {res, rej};
-      self.conns[url].send(JSON.stringify({
-        event: "Join dimension",
-        data: {
-          id: id
-        }
-      }));
+      if(url !== self.url){
+        await self.connectToServer(url);
+        self.promises["Joined " + id + " dimension"] = {res, rej};
+        self.conns[url].send(JSON.stringify({
+          event: "Join dimension",
+          data: {
+            id: id
+          }
+        }));
+      } else {
+        await self.handleJoinDimension({Url : self.url}, {id})
+      }
+    })
+  }
+
+  handleJoinDimension(ws, data){
+    const self = this;
+    return new Promise(async( res, rej) => {
+      const id = data.id;
+      if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
+      const peers = Object.keys(self.dimensions[id].conns)
+      self.dimensions[id].conns[ws.Url] = ws;
+      if(self.conns[ws.Url]) self.conns[ws.Url].dimension = id;
+      if(ws.send){
+        ws.send(JSON.stringify({
+          event: "Joined dimension",
+          data: {
+            dimension: id,
+            peers
+          }
+        }))
+      }
+      for(let i=0;i<peers.length;i++){
+        self.dimensions[id].conns[peers[i]].send(JSON.stringify({
+          event: "New peer in dimension",
+          data: {
+            peer: ws.Url,
+            dimension: id
+          }
+        }));
+      }
+      res();
     })
   }
 
@@ -3096,7 +3132,9 @@ class Valoria {
         ws
       }
       for(let i=0;i<peers.length;i++){
-        self.connectToPeer(peers[i]);
+        if(!self.peers[peers[i]]) {
+          self.connectToPeer(peers[i]);
+        }
         self.dimension.onPeerJoin(peers[i]);
       }
       if(self.promises["Joined " + data.dimension + " dimension"]){
@@ -3248,28 +3286,29 @@ class Valoria {
           }
         }));
       }
-    }
-    self.peers[url].ondatachannel = async (event) => {
-      self.peers[url].datachannel = event.channel;
-      self.peers[url].datachannel.onopen = async () => {
-        self.peers[url].datachannel.verified = true;
-        self.peers[url].datachannel.open = true;
-        self.peers[url].datachannel.Url = url;
-        self.peers[url].datachannel.on = (event, cb) => {
-          if(!self.peers[url].datachannel.callbacks) self.peers[url].datachannel.callbacks = {}
-          self.peers[url].datachannel.callbacks[event] = cb;
-        }
-        self.peers[url].datachannel.peerServer = ws.Url;
-        await self.setupWS(self.peers[url].datachannel);
-        self.peers[url].onconnectionstatechange = () => {
-          if(self.peers[url].connectionState == "disconnected"){
-            self.peers[url].datachannel?.onclose();
-            delete self.peers[url];
+      self.peers[url].ondatachannel = async (event) => {
+        self.peers[url].datachannel = event.channel;
+        self.peers[url].datachannel.onopen = async () => {
+          self.peers[url].datachannel.verified = true;
+          self.peers[url].datachannel.open = true;
+          self.peers[url].datachannel.Url = url;
+          self.peers[url].datachannel.on = (event, cb) => {
+            if(!self.peers[url].datachannel.callbacks) self.peers[url].datachannel.callbacks = {}
+            self.peers[url].datachannel.callbacks[event] = cb;
           }
-        }
-        self.conns[url] = self.peers[url].datachannel
+          self.peers[url].datachannel.peerServer = ws.Url;
+          await self.setupWS(self.peers[url].datachannel);
+          self.peers[url].onconnectionstatechange = () => {
+            if(self.peers[url].connectionState == "disconnected"){
+              self.peers[url].datachannel?.onclose();
+              delete self.peers[url];
+            }
+          }
+          self.conns[url] = self.peers[url].datachannel
+        };
       };
-    };
+    }
+    
     try {
       if (description) {
         const offerCollision = (description.type == "offer") &&
