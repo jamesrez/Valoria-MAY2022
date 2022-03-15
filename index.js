@@ -2978,10 +2978,12 @@ class Server {
   handleClaimValorForPath = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
+      console.log("Handle claim valor for " + data.path);
       try {
         if(!ws.Url || !data.path || !data.url) return err();
         const valorGroupIndex = jumpConsistentHash("valor/" + data.id + "/" + data.path, self.groups.length);
         if(valorGroupIndex !== self.group.index) return err();
+        console.log("is responsible")
         const request = await self.getSetRequest(data.path);
         if(!request) return err();
         let reqPublicD = await self.getPublicFromUrl(request.url);
@@ -2990,6 +2992,7 @@ class Server {
         if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err();
         const now = self.now();
         await self.connectToServer(data.url);
+        console.log("connected to " + data.url)
         const d = await new Promise(async(res, rej) => {
           self.promises["Got data from " + data.url + " for data/" + data.path + " at " + now] = {res, rej};
           self.conns[data.url].send(JSON.stringify({
@@ -3009,6 +3012,7 @@ class Server {
           console.log(d);
           throw e;
         }
+        console.log("Verified data to request");
         let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.time?.length > 0){
           if(valor.data.size !== size){
@@ -3038,6 +3042,7 @@ class Server {
         self.saving[self.sync][`all/valor/${data.id}/${data.path}`] = valor;
         await self.setLocal(`all/valor/${data.id}/${data.path}`, valor);
         await self.shareGroupSig(`valor/${data.id}/${data.path}`);
+        console.log("done");
         ws.send(JSON.stringify({
           event: "Claimed valor for path",
           data: {
