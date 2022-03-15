@@ -953,7 +953,7 @@ class Server {
           } catch(e){
             throw e;
           }
-          let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.getLocal(`all/valor/${self.ownerId}/${path}`);
+          let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.get(`valor/${self.ownerId}/${path}`);
           if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.time?.length > 0){
             if(valor.data.size !== size){
               valor.data.size = size;
@@ -1015,7 +1015,7 @@ class Server {
     return new Promise(async (res, rej) => {
       let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all/valor");
       for(let i=0;i<paths.length;i++){
-        const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.getLocal(`all/${paths[i]}`);
+        const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.get(`${paths[i]}`);
         if(!valor || !valor.data) continue;
         if(valor.data.time[valor.data.time.length - 1].length == 1){
           const valorGroupIndex = jumpConsistentHash("data/" + valor.data.path, self.groups.length);
@@ -3007,7 +3007,7 @@ class Server {
           console.log(d);
           throw e;
         }
-        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
+        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.time?.length > 0){
           if(valor.data.size !== size){
             valor.data.size = size;
@@ -3314,7 +3314,7 @@ class Server {
 
 }
 
-let localServerCount = 1;
+let localServerCount = 3;
 let localServers = [];
 if(isLocal){
   (async () => {

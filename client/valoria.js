@@ -51,7 +51,7 @@ class Valoria {
       try {
         await this.loadCredentials();
       } catch(e){
-
+        await this.generateCredentials();
       }
     })()
   }
@@ -278,7 +278,6 @@ class Valoria {
     return new Promise(async(res, rej) => {
       if(!self.group) return res();
       try {
-        console.log("Will set " + path);
         await self.createSetRequest(path, data);
         const groupIndex = jumpConsistentHash("data/" + path, self.groups.length);
         if(groupIndex == self.group.index){
@@ -296,9 +295,7 @@ class Valoria {
                     data: data
                   }
                 }));
-                console.log("my group member " + self.group.members[i] + " WILL set");
               })         
-              console.log("my group member " + self.group.members[i] + " HAS set");
             } catch(e){
               console.log(e)
             }
@@ -794,7 +791,7 @@ class Valoria {
             console.log(data);
             throw e;
           }
-          let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.getLocal(`all/valor/${self.ownerId}/${path}`);
+          let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.get(`valor/${self.ownerId}/${path}`);
           if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.time?.length > 0){
             if(valor.data.size !== size){
               valor.data.size = size;
@@ -854,9 +851,13 @@ class Valoria {
   updateValorClaims = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      let paths = await localforage.keysStartingWith(`${self.path}all/valor`)
+      const keys = await localforage.keysStartingWith(`${self.path}all/valor`);
+      let paths = [];
+      for(let i=0;i<keys.length;i++){
+        paths.push(keys[i].substr(`${self.path}all/`.length))
+      }
       for(let i=0;i<paths.length;i++){
-        const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.getLocal(`all/${paths[i]}`);
+        const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.get(`${paths[i]}`);
         if(!valor || !valor.data) continue;
         if(valor.data.time[valor.data.time.length - 1].length == 1){
           const valorGroupIndex = jumpConsistentHash("data/" + valor.data.path, self.groups.length);
@@ -2313,6 +2314,7 @@ class Valoria {
         self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
         self.group.updated = self.sync;
         self.group.version += 1;
+        // await self.updateValorClaims();
       } else if (self.groups[data.index].indexOf(data.url) !== -1){
         self.groups[data.index].splice(self.groups[data.index].indexOf(data.url), 1); 
         if(self.group.members.indexOf(ws.Url) == -1){
@@ -2810,7 +2812,7 @@ class Valoria {
           // console.log(d);
           throw e;
         }
-        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
+        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.time?.length > 0){
           if(valor.data.size !== size){
             valor.data.size = size;
