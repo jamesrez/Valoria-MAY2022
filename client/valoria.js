@@ -579,8 +579,9 @@ class Valoria {
           if(!self.conns[url]) {
             try {
               if(url.includes("valoria/peers/")){
-                console.log(url);
+                console.log("connecting to peer: " + url);
                 self.conns[url] = await self.connectToPeer(url);
+                console.log("connected");
                 self.conns[url].isP2P = true;
                 self.conns[url].isWS = false;
                 self.conns[url].Url = url;
@@ -664,7 +665,7 @@ class Valoria {
               }));
             } catch(e){
               // console.log(e)
-            } 
+            }
           });
           willCreateGroup = false;
           console.log(self.url + " has joined group " + self.group.index);
@@ -760,7 +761,6 @@ class Valoria {
   claimValorForData = async (path) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      console.log("Will claim for " + path);
       try {
         if(!self.group || self.groups.length <= 0) return res();
         const valorGroupIndex = jumpConsistentHash(`valor/${self.ownerId}/${path}`, self.groups.length);
@@ -782,9 +782,10 @@ class Valoria {
               }));
             })
           }
-          console.log("My group members have claimed the data");
           const request = await self.get("requests/" + path);
+          if(!request) throw "No request";
           let publicD = await self.getPublicFromUrl(request.url);
+          if(!publicD) throw "No public data for requester";
           const dataGroupIndex = jumpConsistentHash("data/" + path, self.groups.length);
           if(dataGroupIndex !== self.group.index) return res()
           const data = await self.getLocal("all/data/" + path);
@@ -795,7 +796,6 @@ class Valoria {
             console.log(data);
             throw e;
           }
-          console.log("Verified data satisifies request");
           let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.get(`valor/${self.ownerId}/${path}`);
           if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.time?.length > 0){
             if(valor.data.size !== size){
@@ -825,9 +825,7 @@ class Valoria {
           self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] = valor;
           await self.setLocal(`all/valor/${self.ownerId}/${path}`, valor);
           await self.shareGroupSig(`valor/${self.ownerId}/${path}`);
-          console.log("add to ledger: " + path);
           await self.addPathToLedger(path);
-          console.log("added");
         } else {  
           for(let i=0;i<self.groups[valorGroupIndex].length;i++){
             const url = self.groups[valorGroupIndex][i];
@@ -846,9 +844,7 @@ class Valoria {
               }));
             })
           }
-          console.log("add to ledger: " + path);
           await self.addPathToLedger(path); 
-          console.log("added");
         }
       } catch(e){
         console.log(e);
@@ -1004,7 +1000,7 @@ class Valoria {
         const paths = Object.keys(ledger.data.paths);
         for(let i=0;i<paths.length;i++){
           try {
-            const v = await self.getValorPath(paths[i], id);
+            const v = self.saving[self.sync][`all/valor/${id}/${paths[i]}`] || await self.get(`valor/${id}/${paths[i]}`);
             if(!v || !v.data) continue;
             const duration = self.getDuration(v.data.time);
             const amount = ((v.data.size / 10000000) * (duration / 1000000000 )) + (duration * 0.0000000005);
@@ -2053,6 +2049,7 @@ class Valoria {
     return new Promise(async (res, rej) => {
       if(!data.index) return res();
       if(data.index == self.groups.length){
+        console.log("group can be created");
         self.canCreate = data.index;
         try {
           for(let i=0;i<self.group.members.length;i++){
@@ -2155,11 +2152,13 @@ class Valoria {
         }
         if(self.group.members.indexOf(ws.Url) !== -1){
           self.groups.push(data.group.members);
+          if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
           await self.updateValorClaims();
           await self.reassignGroupData();
         }
         else if((data.group.index == self.groups.length && data.group.index == self.group.index + 1) || self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1){
           self.groups.push(data.group.members);
+          if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
           for(let i=0;i<self.group.members.length;i++){
             if(self.group.members[i] == self.url) continue;
             await self.connectToServer(self.group.members[i]);
@@ -3177,11 +3176,11 @@ class Valoria {
   handlePeerDisconnect = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      // console.log("Peer disconnect from " + ws.Url);
       // console.log(self.conns[data.url]?.peerServer);
       // if(self.conns[data.url] && self.conns[data.url].peerServer == ws.Url){
       if(ws.Url && ws.verified){
         self.conns[data.url]?.onclose();
+        console.log("Peer disconnect from " + ws.Url);
         delete self.peers[data.url];
       }
       res();
@@ -3194,8 +3193,10 @@ class Valoria {
       if(!url || !url.includes("valoria/peers/")) return rej({err: "Bad peer url"});
       const originUrl = url.substring(0, url.indexOf("valoria/peers/"));
       // let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
-      await self.connectToServer(originUrl);
       if(!self.peers[url]){
+        await self.connectToServer(originUrl);
+        console.log("connected to origin server");
+        console.log("Making new peer connection")
         self.peers[url] = new RTCPeerConnection({iceServers});
         self.peers[url].onStream = self.peers[url].onStream || (() => {});
         self.peers[url].makingOffer = false;
@@ -3203,6 +3204,7 @@ class Valoria {
         self.peers[url].isSRDAnswerPending = false;
         self.peers[url].datachannel = self.peers[url].createDataChannel("Data");
         self.peers[url].datachannel.onopen = async () => {
+          console.log("datachannel open");
           self.peers[url].datachannel.open = true;
           self.peers[url].datachannel.verified = true;
           self.peers[url].datachannel.Url = url;
@@ -3261,6 +3263,8 @@ class Valoria {
             self.peers[url].restartIce();
           }
         };
+      } else if (self.peers[url]?.datachannel?.open){
+        return res(self.peers[url].datachannel);
       }
     })
   }
@@ -3325,6 +3329,7 @@ class Valoria {
           return;
         }
         self.peers[url].isSRDAnswerPending = description.type == 'answer';
+        console.log("Setting remote offer description");
         await self.peers[url].setRemoteDescription(description);
         self.peers[url].isSRDAnswerPending = false;
         if (description.type == "offer") {

@@ -1637,6 +1637,9 @@ class Server {
                 url: ws.Url
               }
             }));
+            if(self.conns[peerUrls[i]].peers[ws.Url]){
+              delete self.conns[peerUrls[i]].peers[ws.Url]
+            }
           }
         }
         delete self.conns[ws.Url];
@@ -2337,11 +2340,13 @@ class Server {
         }
         if(self.group.members.indexOf(ws.Url) !== -1){
           self.groups.push(data.group.members);
+          if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
           await self.updateValorClaims();
           await self.reassignGroupData();
         }
         else if((data.group.index == self.groups.length && data.group.index == self.group.index + 1) || self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1){
           self.groups.push(data.group.members);
+          if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
           for(let i=0;i<self.group.members.length;i++){
             if(self.group.members[i] == self.url) continue;
             await self.connectToServer(self.group.members[i]);
@@ -2403,7 +2408,6 @@ class Server {
           self.group.version += 1;
           self.group.updated = self.sync;
         }
-        if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
         await self.updateValorClaims();
         await self.reassignGroupData();
         if(self.group.members.indexOf(ws.Url) == -1){
