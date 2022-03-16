@@ -1151,7 +1151,7 @@ class Server {
         const paths = Object.keys(ledger.data.paths);
         for(let i=0;i<paths.length;i++){
           try {
-            const v = await self.getValorPath(paths[i], id);
+            const v = self.saving[self.sync][`all/valor/${id}/${paths[i]}`] || await self.get(`valor/${id}/${paths[i]}`);
             if(!v || !v.data) continue;
             const duration = self.getDuration(v.data.time);
             const amount = ((v.data.size / 10000000) * (duration / 1000000000 )) + (duration * 0.0000000005);
