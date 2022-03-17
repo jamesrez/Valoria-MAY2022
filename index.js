@@ -1631,6 +1631,7 @@ class Server {
           let peerUrls = Object.keys(self.conns[ws.Url].peers);
           for(let i=0;i<peerUrls.length;i++){
             if(!self.conns[peerUrls[i]]) continue;
+            console.log("sending disconnect to " + peerUrls[i])
             self.conns[peerUrls[i]].send(JSON.stringify({
               event: "Peer disconnect",
               data: {
@@ -2509,7 +2510,7 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       if(self.group.index == data.index && self.group.members.indexOf(data.url) !== -1){
-        if(self.conns[data.url]) delete self.conns[data.url]
+        // if(self.conns[data.url]) delete self.conns[data.url]
         self.group.members.splice(self.group.members.indexOf(data.url), 1);
         if(self.groups[self.group.index].indexOf(data.url) !== -1){
           self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
@@ -2517,7 +2518,7 @@ class Server {
         self.group.updated = self.sync;
         self.group.version += 1;
       } else if (self.groups[data.index]?.indexOf(data.url) !== -1){
-        if(self.conns[data.url]) delete self.conns[data.url]
+        // if(self.conns[data.url]) delete self.conns[data.url]
         self.groups[data.index]?.splice(self.groups[data.index]?.indexOf(data.url), 1); 
         if(self.group.members.indexOf(ws.Url) == -1){
           for(let i=0;i<self.group.members.length;i++){
@@ -3308,8 +3309,8 @@ class Server {
     if(!self.conns[data.url].peers) self.conns[data.url].peers = {};
     if(!self.conns[ws.Url].peers) self.conns[ws.Url].peers = {};
     // if(!self.conns[ws.Url].peers[data.url] || !self.conns[data.url].peers[ws.Url]){
-      self.conns[ws.Url].peers[data.url] = {polite: false};
-      self.conns[data.url].peers[ws.Url] = {polite: true};
+    self.conns[ws.Url].peers[data.url] = {polite: false};
+    self.conns[data.url].peers[ws.Url] = {polite: true};
     // }
     console.log("Sent desc to peer");
     self.conns[data.url].send(JSON.stringify({
