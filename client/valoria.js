@@ -156,7 +156,7 @@ class Valoria {
     })
   }
 
-  generateCredentials = async (password) => {
+  generateCredentials = async (password="") => {
     const self = this;
     return new Promise(async(res, rej) => {
       self.ecdsa = await window.crypto.subtle.generateKey(
@@ -1540,6 +1540,9 @@ class Valoria {
           case 'New member in group':
             await self.handleNewMemberInGroup(ws, d.data);
             break;
+          case 'Member has left group':
+            await self.handleMemberHasLeftGroup(ws, d.data);
+            break;
           case 'New group':
             await self.handleNewGroup(ws, d.data);
             break;
@@ -2324,12 +2327,15 @@ class Valoria {
   handleMemberHasLeftGroup = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(self.group.index == data.url && self.group.members.indexOf(data.url) !== -1){
+      if(self.group.index == data.index && self.group.members.indexOf(data.url) !== -1){
+        if(self.conns[data.url]) delete self.conns[data.url]
+        if(self.peers[data.url]) delete self.peers[data.url]
         self.group.members.splice(self.group.members.indexOf(data.url), 1);
-        self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
+        if(self.groups[self.group.index].indexOf(data.url) !== -1){
+          self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
+        }
         self.group.updated = self.sync;
         self.group.version += 1;
-        await self.updateValorClaims();
       } else if (self.groups[data.index].indexOf(data.url) !== -1){
         if(self.conns[data.url]) delete self.conns[data.url]
         if(self.peers[data.url]) delete self.peers[data.url]
@@ -2344,7 +2350,6 @@ class Valoria {
             }))
           }
         }
-        await self.updateValorClaims();
       }
       if(self.groups[self.group.index + 1] && data.index <= self.group.index){
         const g = self.groups[self.group.index + 1];
@@ -2354,6 +2359,7 @@ class Valoria {
           event: "Member has left group",
           data
         }))
+        console.log("Telling " + url + " about " + data.url + " disconnect")
       }
       if(self.groups[self.group.index - 1] && data.index >= self.group.index){
         const g = self.groups[self.group.index - 1];
@@ -2363,7 +2369,9 @@ class Valoria {
           event: "Member has left group",
           data
         }))
+        console.log("Telling " + url + " about " + data.url + " disconnect")
       }
+      await self.updateValorClaims();
       return res();
     });
   }
@@ -3268,6 +3276,14 @@ class Valoria {
         };
       } else if (self.peers[url]?.datachannel?.open){
         return res(self.peers[url].datachannel);
+      } else if(self.peers[url].localDescription){
+        self.conns[originUrl].send(JSON.stringify({
+          event: "Send rtc description",
+          data: {
+            desc: self.peers[url].localDescription,
+            url
+          }
+        }));
       }
     })
   }
