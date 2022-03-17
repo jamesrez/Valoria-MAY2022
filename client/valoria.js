@@ -3278,7 +3278,8 @@ class Valoria {
     const url = data.url;
     const polite = data.polite;
     console.log("Got webrtc desc from " + data.url)
-    if(self.peers[url] && self.peers[url].signalingState == "stable") return;
+    if(self.peers[url] && self.peers[url]?.datachannel?.open) return;
+    if(self.peers[url] && description.type == "offer") delete self.peers[url];
     if(!self.peers[url]){
       self.peers[url] = new RTCPeerConnection({iceServers});
       self.peers[url].onStream = self.peers[url].onStream || (() => {});
@@ -3299,7 +3300,6 @@ class Valoria {
           }
         }));
       }
-
       self.peers[url].ondatachannel = async (event) => {
         self.peers[url].datachannel = event.channel;
         self.peers[url].datachannel.onopen = async () => {
@@ -3322,7 +3322,7 @@ class Valoria {
         }
       }
     }
-    
+
     try {
       if (description) {
         const readyForOffer =
@@ -3335,7 +3335,7 @@ class Valoria {
           return;
         }
         self.peers[url].isSRDAnswerPending = description.type == 'answer';
-        console.log("Setting remote offer description");
+        console.log("Setting remote " + description.type + " description");
         await self.peers[url].setRemoteDescription(description);
         self.peers[url].isSRDAnswerPending = false;
         if (description.type == "offer") {
@@ -3352,6 +3352,7 @@ class Valoria {
     } catch(err) {
       console.error(err);
     }
+    
   }
 
   async handleGotRtcCandidate(ws, data){
