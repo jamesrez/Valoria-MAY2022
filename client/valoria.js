@@ -1549,6 +1549,9 @@ class Valoria {
           case 'New group found':
             await self.handleNewGroupFound(ws, d.data);
             break;
+          case 'Group removed':
+            await self.handleGroupRemoved(ws, d.data);
+            break;
           case "Sync ping":
             await self.handleSyncPing(ws, d.data)
             break;
