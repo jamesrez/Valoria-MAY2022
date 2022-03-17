@@ -1675,7 +1675,7 @@ class Server {
               await self.handleVerifyPeerUrl(ws, d.data);
               break;
             case 'Set origin url':
-              await this.handleSetOriginUrl(ws, d.data);
+              await self.handleSetOriginUrl(ws, d.data);
               break;
             case 'Get groups':
               await self.handleGetGroups(ws);
@@ -2403,6 +2403,7 @@ class Server {
     return new Promise(async (res, rej) => {
       if(self.groups[data.index]?.indexOf(data.url) !== -1 && self.groups[data.index]?.length == 1){
         self.groups.splice(data.index, 1);
+        if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
         if(data.index < self.group.index){
           self.group.index -= 1;
           self.group.version += 1;
@@ -3297,13 +3298,17 @@ class Server {
 
   handleSendRtcDescription(ws, data){
     const self = this;
-    if(!self.conns[data.url]) return;
+    if(!self.conns[data.url]) {
+      console.log(data.url + " is not connected");
+      return;
+    }
     if(!self.conns[data.url].peers) self.conns[data.url].peers = {};
     if(!self.conns[ws.Url].peers) self.conns[ws.Url].peers = {};
-    if(!self.conns[ws.Url].peers[data.url] || !self.conns[data.url].peers[ws.Url]){
+    // if(!self.conns[ws.Url].peers[data.url] || !self.conns[data.url].peers[ws.Url]){
       self.conns[ws.Url].peers[data.url] = {polite: false};
       self.conns[data.url].peers[ws.Url] = {polite: true};
-    }
+    // }
+    console.log("Sent desc to peer");
     self.conns[data.url].send(JSON.stringify({
       event: "Got rtc description",
       data: {

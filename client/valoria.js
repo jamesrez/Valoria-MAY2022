@@ -72,6 +72,7 @@ class Valoria {
         self.pathUrl = pathUrl.replace(/\:/g, "");
         self.originUrl = originUrl;
         self.public.url = self.url;
+        console.log("origin set;")
         await self.joinGroup();
         await self.sharePublic();
         const stall = (self.sync + self.syncIntervalMs) - self.now();
@@ -506,6 +507,7 @@ class Valoria {
             servers.splice(servers.indexOf(url), 1);
           } else {
             const data = await new Promise(async (res, rej) => {
+              console.log(url)
               await self.connectToServer(url);
               self.promises["Got groups from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
@@ -1070,25 +1072,25 @@ class Valoria {
 
           }
         }
-        if(self.group.index > 0 && self.groups[self.group.index - 1]?.length > 0){
-          try {
-            const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
-            await self.connectToServer(url);
-            const ping = await self.syncPing(self.conns[url]);
-            offsets.push(ping.offset);
-          } catch(e){
+        // if(self.group.index > 0 && self.groups[self.group.index - 1]?.length > 0){
+        //   try {
+        //     const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
+        //     await self.connectToServer(url);
+        //     const ping = await self.syncPing(self.conns[url]);
+        //     offsets.push(ping.offset);
+        //   } catch(e){
 
-          }
-        }
-        if(self.groups[self.group.index + 1]?.length > 0){
-          try {
-            const url = self.groups[self.group.index + 1][self.groups[self.group.index + 1]?.length * Math.random() << 0];
-            await self.connectToServer(url);
-            const ping = await self.syncPing(self.conns[url]);
-            offsets.push(ping.offset);
-          } catch (e){
-          }
-        }
+        //   }
+        // }
+        // if(self.groups[self.group.index + 1]?.length > 0){
+        //   try {
+        //     const url = self.groups[self.group.index + 1][self.groups[self.group.index + 1]?.length * Math.random() << 0];
+        //     await self.connectToServer(url);
+        //     const ping = await self.syncPing(self.conns[url]);
+        //     offsets.push(ping.offset);
+        //   } catch (e){
+        //   }
+        // }
         if(offsets.length > 0){
           self.timeOffset += offsets.reduce((a, b) => a + b) / offsets.length;
         }
@@ -2215,6 +2217,7 @@ class Valoria {
     return new Promise(async (res, rej) => {
       if(self.groups[data.index]?.indexOf(data.url) !== -1 && self.groups[data.index]?.length == 1){
         self.groups.splice(data.index, 1);
+        if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
         if(data.index < self.group.index){
           self.group.index -= 1;
           self.group.version += 1;
@@ -2328,6 +2331,8 @@ class Valoria {
         self.group.version += 1;
         await self.updateValorClaims();
       } else if (self.groups[data.index].indexOf(data.url) !== -1){
+        if(self.conns[data.url]) delete self.conns[data.url]
+        if(self.peers[data.url]) delete self.peers[data.url]
         self.groups[data.index].splice(self.groups[data.index].indexOf(data.url), 1); 
         if(self.group.members.indexOf(ws.Url) == -1){
           for(let i=0;i<self.group.members.length;i++){
@@ -3199,9 +3204,6 @@ class Valoria {
         console.log("Making new peer connection")
         self.peers[url] = new RTCPeerConnection({iceServers});
         self.peers[url].onStream = self.peers[url].onStream || (() => {});
-        self.peers[url].makingOffer = false;
-        self.peers[url].ignoreOffer = false;
-        self.peers[url].isSRDAnswerPending = false;
         self.peers[url].datachannel = self.peers[url].createDataChannel("Data");
         self.peers[url].datachannel.onopen = async () => {
           console.log("datachannel open");
@@ -3248,6 +3250,7 @@ class Valoria {
                 url
               }
             }));
+            console.log("sent offer");
           } catch (err) {
             console.error(err);
           } finally {
@@ -3274,12 +3277,11 @@ class Valoria {
     const description = data.desc;
     const url = data.url;
     const polite = data.polite;
+    console.log("Got webrtc desc from " + data.url)
+    if(self.peers[url] && self.peers[url].signalingState == "stable") return;
     if(!self.peers[url]){
       self.peers[url] = new RTCPeerConnection({iceServers});
       self.peers[url].onStream = self.peers[url].onStream || (() => {});
-      self.peers[url].makingOffer = false;
-      self.peers[url].ignoreOffer = false;
-      self.peers[url].isSRDAnswerPending = false;
       if(self.stream && self.stream.getTracks){
         self.stream.getTracks().forEach(track => self.peers[url].addTrack(track, self.stream));
       }
@@ -3297,6 +3299,7 @@ class Valoria {
           }
         }));
       }
+
       self.peers[url].ondatachannel = async (event) => {
         self.peers[url].datachannel = event.channel;
         self.peers[url].datachannel.onopen = async () => {
@@ -3309,23 +3312,26 @@ class Valoria {
           }
           self.peers[url].datachannel.peerServer = ws.Url;
           await self.setupWS(self.peers[url].datachannel);
-          self.peers[url].onconnectionstatechange = () => {
-            if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
-              self.peers[url].datachannel?.onclose();
-              delete self.peers[url];
-            }
-          }
           self.conns[url] = self.peers[url].datachannel
         };
       };
+      self.peers[url].onconnectionstatechange = () => {
+        if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
+          self.peers[url].datachannel?.onclose();
+          delete self.peers[url];
+        }
+      }
     }
     
     try {
       if (description) {
-        const offerCollision = (description.type == "offer") &&
-                             (self.peers[url].makingOffer || self.peers[url].signalingState != "stable");
-        self.peers[url].ignoreOffer = !polite && offerCollision;
-        if (self.peers[url].ignoreOffer) {
+        const readyForOffer =
+          !self.peers[url].makingOffer &&
+          (self.peers[url].signalingState == "stable" || self.peers[url].isSRDAnswerPending);
+        const offerCollision = description.type == "offer" && !readyForOffer;
+        let ignoreOffer = !polite && offerCollision;
+        if (ignoreOffer) {
+          console.log('ignoring that shi')
           return;
         }
         self.peers[url].isSRDAnswerPending = description.type == 'answer';
