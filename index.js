@@ -218,6 +218,7 @@ class Server {
   connectToServer(url){
     const self = this;
     return new Promise(async (res, rej) => {
+      if(!url) return rej({err: "No url given"});
       try {
         if(self.conns[url] && self.conns[url].readyState === WebSocket.OPEN){
           return res();
@@ -1604,8 +1605,18 @@ class Server {
         if(self.conns[ws.Url]?.dimension && self.dimensions[ws.dimension]){
           delete self.dimensions[ws.dimension].conns[ws.Url];
           const peers = Object.keys(self.dimensions[ws.dimension].conns)
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.url == self.group.members[i]) continue;
+            self.conns[self.group.members[i]].send(JSON.stringify({
+              event: "Peer has left group dimension",
+              data: {
+                dimension: ws.dimension,
+                url: ws.Url
+              }
+            }))
+          }
           for(let i=0;i<peers.length;i++){
-            self.dimensions[ws.dimension].conns[peers[i]].send(JSON.stringify({
+            self.conns[peers[i]]?.send(JSON.stringify({
               event: "Peer has left dimension",
               data: {
                 dimension: ws.dimension,
@@ -1812,6 +1823,12 @@ class Server {
               break;
             case "Join dimension":
               await self.handleJoinDimension(ws, d.data);
+              break;
+            case "New peer in group dimension":
+              await self.handleNewPeerInGroupDimension(ws, d.data);
+              break;
+            case "Peer has left group dimension":
+              await self.handlePeerHasLeftGroupDimension(ws, d.data);
               break;
             case "Send rtc description":
               self.handleSendRtcDescription(ws, d.data);
@@ -2987,24 +3004,18 @@ class Server {
   handleClaimValorForPath = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      console.log("Handle claim valor for " + data.path);
       try {
         if(!ws.Url || !data.path || !data.url) return err();
         const valorGroupIndex = jumpConsistentHash("valor/" + data.id + "/" + data.path, self.groups.length);
         if(valorGroupIndex !== self.group.index) return err();
-        console.log("is responsible")
         const request = await self.getSetRequest(data.path);
         if(!request) return err();
-        console.log("got request")
         let reqPublicD = await self.getPublicFromUrl(request.url);
         if(!reqPublicD) return err();
-        console.log("got public data of" + request.url)
         const dataGroupIndex = jumpConsistentHash("data/" + data.path, self.groups.length);
         if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err();
         const now = self.now();
-        console.log("connecting")
         await self.connectToServer(data.url);
-        console.log("connected to " + data.url)
         const d = await new Promise(async(res, rej) => {
           self.promises["Got data from " + data.url + " for data/" + data.path + " at " + now] = {res, rej};
           self.conns[data.url].send(JSON.stringify({
@@ -3024,7 +3035,6 @@ class Server {
           console.log(d);
           throw e;
         }
-        console.log("Verified data to request");
         let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.time?.length > 0){
           if(valor.data.size !== size){
@@ -3054,7 +3064,6 @@ class Server {
         self.saving[self.sync][`all/valor/${data.id}/${data.path}`] = valor;
         await self.setLocal(`all/valor/${data.id}/${data.path}`, valor);
         await self.shareGroupSig(`valor/${data.id}/${data.path}`);
-        console.log("done");
         ws.send(JSON.stringify({
           event: "Claimed valor for path",
           data: {
@@ -3279,25 +3288,90 @@ class Server {
       if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
       const peers = Object.keys(self.dimensions[id].conns)
       self.dimensions[id].conns[ws.Url] = ws;
-      self.conns[ws.Url].dimension = id;
-      ws.send(JSON.stringify({
-        event: "Joined dimension",
-        data: {
-          dimension: id,
-          peers
-        }
-      }))
+      if(self.conns[ws.Url]) self.conns[ws.Url].dimension = id;
+      if(ws.send){
+        ws.send(JSON.stringify({
+          event: "Joined dimension",
+          data: {
+            dimension: id,
+            peers
+          }
+        }))
+      }
+      for(let i=0;i<self.group.members.length;i++){
+        if(self.url == self.group.members[i]) continue;
+        console.log(self.group.members[i]);
+        await self.connectToServer(self.group.members[i]);
+        self.conns[self.group.members[i]]?.send(JSON.stringify({
+          event: "New peer in group dimension",
+          data: {
+            url: ws.Url,
+            dimension: id
+          }
+        }))
+      }
       for(let i=0;i<peers.length;i++){
-        self.dimensions[id].conns[peers[i]].send(JSON.stringify({
+        await self.connectToServer(peers[i]);
+        self.dimensions[id].conns[peers[i]]?.send(JSON.stringify({
           event: "New peer in dimension",
           data: {
-            peer: ws.Url,
+            url: ws.Url,
             dimension: id
           }
         }));
       }
       res();
     })
+  }
+
+  handleNewPeerInGroupDimension(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.dimension || jumpConsistentHash(data.dimension, self.groups.length) !== self.group.index) return res();
+        const id = data.dimension;
+        if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
+        const peers = Object.keys(self.dimensions[id].conns);
+        self.dimensions[id].conns[data.url] = 1;
+        if(self.conns[data.url]) self.conns[data.url].dimension = id;
+        for(let i=0;i<peers.length;i++){
+          await self.connectToServer(peers[i]);
+          self.dimensions[id].conns[peers[i]]?.send(JSON.stringify({
+            event: "New peer in dimension",
+            data: {
+              url: data.url,
+              dimension: id
+            }
+          }));
+        }
+      } catch(e){
+        console.log(e)
+      }
+      res();
+    });
+  }
+
+  handlePeerHasLeftGroupDimension(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(jumpConsistentHash(data.dimension, self.groups.length) !== self.group.index || !data.dimension) return res();
+        delete self.dimensions[data.dimension]?.conns[data.url];
+        const peers = Object.keys(self.dimensions[data.dimension].conns);
+        for(let i=0;i<peers.length;i++){
+          self.dimensions[data.dimension].conns[peers[i]]?.send(JSON.stringify({
+            event: "Peer has left dimension",
+            data: {
+              dimension: data.dimension,
+              url: data.url
+            }
+          }))
+        }
+      } catch(e){
+        console.log(e)
+      }
+      res();
+    });
   }
 
   handleSendRtcDescription(ws, data){
@@ -3312,7 +3386,6 @@ class Server {
     self.conns[ws.Url].peers[data.url] = {polite: false};
     self.conns[data.url].peers[ws.Url] = {polite: true};
     // }
-    console.log("Sent desc to peer");
     self.conns[data.url].send(JSON.stringify({
       event: "Got rtc description",
       data: {

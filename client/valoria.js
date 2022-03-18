@@ -1451,6 +1451,30 @@ class Valoria {
     const self = this;
     return new Promise(async(res, rej) => {
       ws.onclose = async (e) => {
+        if(self.conns[ws.Url]?.dimension && self.dimensions[ws.dimension]){
+          delete self.dimensions[ws.dimension].conns[ws.Url];
+          const peers = Object.keys(self.dimensions[ws.dimension].conns);
+          for(let i=0;i<self.group.members.length;i++){
+            if(self.url == self.group.members[i]) continue;
+            self.conns[self.group.members[i]].send(JSON.stringify({
+              event: "Peer has left group dimension",
+              data: {
+                dimension: ws.dimension,
+                url: ws.Url
+              }
+            }))
+          }
+          for(let i=0;i<peers.length;i++){
+            if(peers[i] == self.url) continue;
+            self.conns[peers[i]]?.send(JSON.stringify({
+              event: "Peer has left dimension",
+              data: {
+                dimension: ws.dimension,
+                url: ws.Url
+              }
+            }))
+          }
+        }
         if(ws.Url && self.group && self.group.members.indexOf(ws.Url) !== -1){
           await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
         } else if(
@@ -1630,6 +1654,9 @@ class Valoria {
           case "Path added to ledger":
             await self.handlePathAddedToLedger(ws, d.data);
             break;
+          case "Join dimension":
+            await self.handleJoinDimension(ws, d.data);
+            break;
           case "Joined dimension":
             await self.handleJoinedDimension(ws, d.data);
             break;
@@ -1638,6 +1665,12 @@ class Valoria {
             break;
           case "Peer has left dimension":
             await self.handlePeerHasLeftDimension(ws, d.data);
+            break;
+          case "New peer in group dimension":
+            await self.handleNewPeerInGroupDimension(ws, d.data);
+            break;
+          case "Peer has left group dimension":
+            await self.handlePeerHasLeftGroupDimension(ws, d.data);
             break;
           case "Peer disconnect":
             await self.handlePeerDisconnect(ws, d.data);
@@ -2163,10 +2196,12 @@ class Valoria {
           if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
           await self.updateValorClaims();
           await self.reassignGroupData();
+          if(self.dimension?.id) await self.joinDimension(self.dimension.id)
         }
         else if((data.group.index == self.groups.length && data.group.index == self.group.index + 1) || self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1){
           self.groups.push(data.group.members);
           if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
+          if(self.dimension?.id) await self.joinDimension(self.dimension.id)
           for(let i=0;i<self.group.members.length;i++){
             if(self.group.members[i] == self.url) continue;
             await self.connectToServer(self.group.members[i]);
@@ -3095,7 +3130,7 @@ class Valoria {
     return new Promise(async (res, rej) => {
       const groupIndex = jumpConsistentHash(id, self.groups.length);
       const group = self.groups[groupIndex];
-      const url = group[jumpConsistentHash(id, group.length)];
+      const url = group[group.length * Math.random() << 0];
       if(url !== self.url){
         await self.connectToServer(url);
         self.promises["Joined " + id + " dimension"] = {res, rej};
@@ -3127,12 +3162,26 @@ class Valoria {
             peers
           }
         }))
+      } else if(ws.Url == self.url){
+        await this.handleJoinedDimension({}, {dimension: id, peers});
+      }
+      for(let i=0;i<self.group.members.length;i++){
+        if(self.url == self.group.members[i]) continue;
+        await self.connectToServer(self.group.members[i]);
+        self.conns[self.group.members[i]]?.send(JSON.stringify({
+          event: "New peer in group dimension",
+          data: {
+            url: ws.Url,
+            dimension: id
+          }
+        }))
       }
       for(let i=0;i<peers.length;i++){
-        self.dimensions[id].conns[peers[i]].send(JSON.stringify({
+        await self.connectToServer(peers[i]);
+        self.conns[peers[i]]?.send(JSON.stringify({
           event: "New peer in dimension",
           data: {
-            peer: ws.Url,
+            url: ws.Url,
             dimension: id
           }
         }));
@@ -3144,17 +3193,16 @@ class Valoria {
   handleJoinedDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      self.peers = {};
       const peers = data.peers;
       self.dimension = {
         id: data.dimension,
         peers,
         onPeerJoin: self.dimension.onPeerJoin || (() => {}),
         onPeerLeave: self.dimension.onPeerLeave || (() => {}),
-        ws
       }
       for(let i=0;i<peers.length;i++){
-        if(!self.peers[peers[i]]) {
+        if(peers[i] == self.url) continue;
+        if(!self.conns[peers[i]]) {
           self.connectToPeer(peers[i]);
         }
         self.dimension.onPeerJoin(peers[i]);
@@ -3170,10 +3218,10 @@ class Valoria {
   handleNewPeerInDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(data.dimension !== self.dimension.id || !data.peer) return;
-      self.connectToPeer(data.peer);
-      self.dimension.peers.push(data.peer);
-      self.dimension.onPeerJoin(data.peer);
+      if(data.dimension !== self.dimension.id || !data.url) return res();
+      self.connectToPeer(data.url);
+      self.dimension.peers.push(data.url);
+      self.dimension.onPeerJoin(data.url);
       res();
     });
   }
@@ -3181,10 +3229,54 @@ class Valoria {
   handlePeerHasLeftDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(data.dimension !== self.dimension.id || !data.peer) return;
-      self.dimension.peers.splice(self.dimension.peers.indexOf(data.peer), 1);
-      self.dimension.onPeerLeave(data.peer);
-      delete self.peers[data.peer];
+      if(data.dimension !== self.dimension.id || !data.url) return res();
+      self.dimension.peers.splice(self.dimension.peers.indexOf(data.url), 1);
+      self.dimension.onPeerLeave(data.url);
+      delete self.peers[data.url];
+      res();
+    });
+  }
+
+  handleNewPeerInGroupDimension(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!data.dimension || jumpConsistentHash(data.dimension, self.groups.length) !== self.group.index) return res();
+      const id = data.dimension;
+      if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
+      const peers = Object.keys(self.dimensions[id].conns);
+      self.dimensions[id].conns[data.url] = 1;
+      if(self.conns[data.url]) self.conns[data.url].dimension = id;
+      console.log(peers);
+      for(let i=0;i<peers.length;i++){
+        if(peers[i] == self.url) continue;
+        self.dimensions[id].conns[peers[i]]?.send(JSON.stringify({
+          event: "New peer in dimension",
+          data: {
+            url: data.url,
+            dimension: id
+          }
+        }));
+      }
+      res();
+    });
+  }
+
+  handlePeerHasLeftGroupDimension(ws, data){
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(jumpConsistentHash(data.dimension, self.groups.length) !== self.group.index || !data.dimension) return res();
+      delete self.dimensions[data.dimension]?.conns[data.url];
+      const peers = Object.keys(self.dimensions[data.dimension].conns);
+      for(let i=0;i<peers.length;i++){
+        if(peers[i] == self.url) continue;
+        self.dimensions[data.dimension].conns[peers[i]]?.send(JSON.stringify({
+          event: "Peer has left dimension",
+          data: {
+            dimension: data.dimension,
+            url: data.url
+          }
+        }))
+      }
       res();
     });
   }
@@ -3279,15 +3371,16 @@ class Valoria {
         };
       } else if (self.peers[url]?.datachannel?.open){
         return res(self.peers[url].datachannel);
-      } else if(self.peers[url].localDescription){
-        self.conns[originUrl].send(JSON.stringify({
-          event: "Send rtc description",
-          data: {
-            desc: self.peers[url].localDescription,
-            url
-          }
-        }));
-      }
+      } 
+      // else if(self.peers[url].localDescription){
+      //   self.conns[originUrl].send(JSON.stringify({
+      //     event: "Send rtc description",
+      //     data: {
+      //       desc: self.peers[url].localDescription,
+      //       url
+      //     }
+      //   }));
+      // }
     })
   }
 
