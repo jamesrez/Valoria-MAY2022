@@ -3218,7 +3218,7 @@ class Valoria {
   handleNewPeerInDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(data.dimension !== self.dimension.id || !data.url) return res();
+      if(data.dimension !== self.dimension.id || !data.url || data.url == self.url) return res();
       self.connectToPeer(data.url);
       self.dimension.peers.push(data.url);
       self.dimension.onPeerJoin(data.url);
@@ -3246,7 +3246,6 @@ class Valoria {
       const peers = Object.keys(self.dimensions[id].conns);
       self.dimensions[id].conns[data.url] = 1;
       if(self.conns[data.url]) self.conns[data.url].dimension = id;
-      console.log(peers);
       for(let i=0;i<peers.length;i++){
         if(peers[i] == self.url) continue;
         self.dimensions[id].conns[peers[i]]?.send(JSON.stringify({
