@@ -3218,7 +3218,7 @@ class Valoria {
   handleNewPeerInDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(data.dimension !== self.dimension.id || !data.url || data.url == self.url) return res();
+      if(data.dimension !== self.dimension.id || !data.url || data.url == self.url || self.dimension.peers.indexOf(data.url) !== -1) return res();
       self.connectToPeer(data.url);
       self.dimension.peers.push(data.url);
       self.dimension.onPeerJoin(data.url);
@@ -3371,15 +3371,15 @@ class Valoria {
       } else if (self.peers[url]?.datachannel?.open){
         return res(self.peers[url].datachannel);
       } 
-      // else if(self.peers[url].localDescription){
-      //   self.conns[originUrl].send(JSON.stringify({
-      //     event: "Send rtc description",
-      //     data: {
-      //       desc: self.peers[url].localDescription,
-      //       url
-      //     }
-      //   }));
-      // }
+      else if(self.peers[url].localDescription){
+        self.conns[originUrl].send(JSON.stringify({
+          event: "Send rtc description",
+          data: {
+            desc: self.peers[url].localDescription,
+            url
+          }
+        }));
+      }
     })
   }
 
