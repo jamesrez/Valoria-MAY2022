@@ -2888,11 +2888,11 @@ class Valoria {
         const valorGroupIndex = jumpConsistentHash("valor/" + data.id + "/" + data.path, self.groups.length);
         if(valorGroupIndex !== self.group.index) return err();
         const request = await self.getSetRequest(data.path);
-        if(!request) return err();
+        if(!request) return err("No set request found");
         let reqPublicD = await self.getPublicFromUrl(request.url);
-        if(!reqPublicD) return err();
+        if(!reqPublicD) return err("no public found for " + request.url);
         const dataGroupIndex = jumpConsistentHash("data/" + data.path, self.groups.length);
-        if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err();
+        if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err("data saver is not in the right group");
         const now = self.now();
         await self.connectToServer(data.url);
         console.log("Handling claim: Getting the data for valor");
@@ -2960,7 +2960,8 @@ class Valoria {
       } catch(e){
         err();
       }
-      function err(){
+      function err(e){
+        console.log(e);
         ws.send(JSON.stringify({
           event: "Claimed valor for path",
           data: {
