@@ -2882,9 +2882,9 @@ class Valoria {
   handleClaimValorForPath = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      console.log("Handle claim valor for " + ws.Url);
       try {
         if(!ws.Url || !data.path || !data.url) return err();
+        console.log("Handle claim valor for " + ws.Url);
         const valorGroupIndex = jumpConsistentHash("valor/" + data.id + "/" + data.path, self.groups.length);
         if(valorGroupIndex !== self.group.index) return err();
         const request = await self.getSetRequest(data.path);
