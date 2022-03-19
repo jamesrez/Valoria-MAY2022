@@ -1642,14 +1642,13 @@ class Server {
           let peerUrls = Object.keys(self.conns[ws.Url].peers);
           for(let i=0;i<peerUrls.length;i++){
             if(!self.conns[peerUrls[i]]) continue;
-            console.log("sending disconnect to " + peerUrls[i])
-            self.conns[peerUrls[i]].send(JSON.stringify({
+            self.conns[peerUrls[i]]?.send(JSON.stringify({
               event: "Peer disconnect",
               data: {
                 url: ws.Url
               }
             }));
-            if(self.conns[peerUrls[i]].peers[ws.Url]){
+            if(self.conns[peerUrls[i]]?.peers[ws.Url]){
               delete self.conns[peerUrls[i]].peers[ws.Url]
             }
           }
