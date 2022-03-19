@@ -989,6 +989,7 @@ class Valoria {
                   d.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(d.data)))
                   self.saving[self.sync]["all/ledgers/" + self.ownerId + ".json"] = d;
                   await self.setLocal("all/ledgers/" + self.ownerId + ".json", d);
+                  console.log("sharing group sig");
                   await self.shareGroupSig("ledgers/" + self.ownerId + ".json");
                   console.log("added to ledger")
                 } else {
@@ -1229,7 +1230,7 @@ class Valoria {
         })
         if(!sig) continue;
         const publicD = await self.getPublicFromUrl(url);
-        if(!publicD || !publicD.ecdsaPub) return err();
+        if(!publicD || !publicD.ecdsaPub) return res();
         try {
           await self.verify(JSON.stringify(d.data), base64ToArrayBuffer(sig), publicD.ecdsaPub);
           d.sigs[ws.Url] = data.sig;
