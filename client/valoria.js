@@ -20,6 +20,22 @@ const iceServers = [
   {url: "stun:stun.voiparound.com", urls: "stun:stun.voiparound.com"},
   {url: "stun:stun.voipbuster.com", urls: "stun:stun.voipbuster.com"},
   {url: "stun:stun.voipstunt.com", urls: "stun:stun.voipstunt.com"},
+  {urls: "stun:openrelay.metered.ca:80"},
+  {
+    urls: "turn:openrelay.metered.ca:80",
+    username: "openrelayproject",
+    credential: "openrelayproject"
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443",
+    username: "openrelayproject",
+    credential: "openrelayproject"
+  },
+  {
+    urls: "turn:openrelay.metered.ca:443?transport=tcp",
+    username: "openrelayproject",
+    credential: "openrelayproject"
+  }
 ];
 
 
