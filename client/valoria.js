@@ -850,6 +850,7 @@ class Valoria {
           valor.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(valor)))
           self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] = valor;
           await self.setLocal(`all/valor/${self.ownerId}/${path}`, valor);
+          console.log("sharing group sig");
           await self.shareGroupSig(`valor/${self.ownerId}/${path}`);
           console.log("Valor is saved");
           await self.addPathToLedger(path);
@@ -2945,6 +2946,7 @@ class Valoria {
         valor.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(valor)));
         self.saving[self.sync][`all/valor/${data.id}/${data.path}`] = valor;
         await self.setLocal(`all/valor/${data.id}/${data.path}`, valor);
+        console.log("handling claim: sharing group sig");
         await self.shareGroupSig(`valor/${data.id}/${data.path}`);
         console.log("handling claim: valor saved");
         ws.send(JSON.stringify({
