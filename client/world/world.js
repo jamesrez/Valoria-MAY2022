@@ -340,6 +340,7 @@ function handleObjectsMoving(){
 }
 
 async function addPeerToScene(id){
+  if(peerAvatars[id]) return;
   peerAvatars[id] = await loadModel('assets/default.glb');
   peerAvatars[id].name = "Avatar";
   peerAvatars[id].sound = new THREE.PositionalAudio(listener);
