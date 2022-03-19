@@ -2881,6 +2881,7 @@ class Valoria {
   handleClaimValorForPath = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
+      console.log("Handle claim valor for " + ws.Url);
       try {
         if(!ws.Url || !data.path || !data.url) return err();
         const valorGroupIndex = jumpConsistentHash("valor/" + data.id + "/" + data.path, self.groups.length);
@@ -2893,6 +2894,7 @@ class Valoria {
         if(self.groups[dataGroupIndex].indexOf(data.url) == -1) return err();
         const now = self.now();
         await self.connectToServer(data.url);
+        console.log("Handling claim: Getting the data for valor");
         const d = await new Promise(async(res, rej) => {
           self.promises["Got data from " + data.url + " for data/" + data.path + " at " + now] = {res, rej};
           self.conns[data.url].send(JSON.stringify({
@@ -2905,13 +2907,16 @@ class Valoria {
           }))
         })
         if(!d) return err();
+        console.log("handling claim: got data")
         const size = new TextEncoder().encode(JSON.stringify(d)).length;
         try {
           await self.verify(JSON.stringify(d), base64ToArrayBuffer(request.data), reqPublicD.ecdsaPub);
         } catch(e){
+          console.log(e);
           // console.log(d);
           throw e;
         }
+        console.log("handling claim: data verified")
         let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.time?.length > 0){
           if(valor.data.size !== size){
@@ -2941,6 +2946,7 @@ class Valoria {
         self.saving[self.sync][`all/valor/${data.id}/${data.path}`] = valor;
         await self.setLocal(`all/valor/${data.id}/${data.path}`, valor);
         await self.shareGroupSig(`valor/${data.id}/${data.path}`);
+        console.log("handling claim: valor saved");
         ws.send(JSON.stringify({
           event: "Claimed valor for path",
           data: {
