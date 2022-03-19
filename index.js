@@ -1343,7 +1343,7 @@ class Server {
         })
         if(!sig) continue;
         const publicD = await self.getPublicFromUrl(url);
-        if(!publicD || !publicD.ecdsaPub) return res();
+        if(!publicD || !publicD.ecdsaPub) continue;
         try {
           await self.verify(JSON.stringify(d.data), Buffer.from(sig, "base64"), publicD.ecdsaPub);
           d.sigs[ws.Url] = data.sig;

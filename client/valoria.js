@@ -1230,7 +1230,7 @@ class Valoria {
         })
         if(!sig) continue;
         const publicD = await self.getPublicFromUrl(url);
-        if(!publicD || !publicD.ecdsaPub) return res();
+        if(!publicD || !publicD.ecdsaPub) continue;
         try {
           await self.verify(JSON.stringify(d.data), base64ToArrayBuffer(sig), publicD.ecdsaPub);
           d.sigs[ws.Url] = data.sig;
