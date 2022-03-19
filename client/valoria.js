@@ -2271,6 +2271,7 @@ class Valoria {
         }
         await self.updateValorClaims();
         await self.reassignGroupData();
+        if(self.dimension?.id) await self.joinDimension(self.dimension.id)
         if(self.group.members.indexOf(ws.Url) == -1){
           for(let i=0;i<self.group.members.length;i++){
             const url = self.group.members[i];
