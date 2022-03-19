@@ -91,7 +91,7 @@ class Valoria {
         console.log("origin set;")
         await self.joinGroup();
         await self.sharePublic();
-        const stall = (self.sync + self.syncIntervalMs) - self.now();
+        const stall = Math.abs((self.sync + self.syncIntervalMs) - self.now());
         setTimeout(async () => {
           await self.syncInterval();
         }, self.sync == self.start ? 0 : stall > 0 ? stall : 0)
