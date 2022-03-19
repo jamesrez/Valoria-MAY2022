@@ -1374,7 +1374,7 @@ class Valoria {
           const id = buf2hex(ecdsaPubHash).substr(24, 64);
           if(publicD.id !== id) return rej({err: "Invalid public data"});
         } catch(e){
-          rej(e)
+          return rej(e)
         }
       }
       publicD.ecdsaPub = await subtle.importKey(
