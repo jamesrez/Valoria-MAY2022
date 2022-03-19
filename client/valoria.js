@@ -80,6 +80,7 @@ class Valoria {
           await self.syncInterval();
         }, self.sync == self.start ? 0 : stall > 0 ? stall : 0)
         self.onJoin();
+        console.log("setup");
         res();
       } catch(e){
         console.log(e)
@@ -281,6 +282,7 @@ class Valoria {
       if(!self.group) return res();
       try {
         await self.createSetRequest(path, data);
+        console.log("set request created")
         const groupIndex = jumpConsistentHash("data/" + path, self.groups.length);
         if(groupIndex == self.group.index){
           await self.setLocal("all/data/" + path, data);
@@ -302,8 +304,10 @@ class Valoria {
               console.log(e)
             }
           }
+          console.log("Group set")
           try {
             await self.claimValorForData(path);
+            console.log("Claimed")
             return res();
           } catch(e){
             return res();
@@ -1455,7 +1459,8 @@ class Valoria {
           delete self.dimensions[ws.dimension].conns[ws.Url];
           const peers = Object.keys(self.dimensions[ws.dimension].conns);
           for(let i=0;i<self.group.members.length;i++){
-            if(self.url == self.group.members[i]) continue;
+            if(self.url == self.group.members[i] || ws.Url == self.group.members[i]) continue;
+            await self.connectToServer(self.group.members[i]);
             self.conns[self.group.members[i]].send(JSON.stringify({
               event: "Peer has left group dimension",
               data: {
@@ -3142,6 +3147,7 @@ class Valoria {
         }));
       } else {
         await self.handleJoinDimension({Url : self.url}, {id})
+        res();
       }
     })
   }
@@ -3177,6 +3183,7 @@ class Valoria {
         }))
       }
       for(let i=0;i<peers.length;i++){
+        if(peers[i] == self.url) continue;
         await self.connectToServer(peers[i]);
         self.conns[peers[i]]?.send(JSON.stringify({
           event: "New peer in dimension",
@@ -3297,7 +3304,7 @@ class Valoria {
   async connectToPeer(url){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!url || !url.includes("valoria/peers/")) return rej({err: "Bad peer url"});
+      if(!url || !url.includes("valoria/peers/") || url == self.url) return rej({err: "Bad peer url"});
       const originUrl = url.substring(0, url.indexOf("valoria/peers/"));
       // let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
       if(!self.peers[url]){

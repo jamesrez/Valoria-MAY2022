@@ -23,14 +23,6 @@ window.onload = async () => {
 valoria.onJoin = async () => {
   // console.log("SIGNED IN!");
   // page.style.display = "none";
-  valoria.dimension.onPeerJoin = (id) => {
-    addPeerToScene(id);
-  }
-  valoria.dimension.onPeerLeave = (id) => {
-    removePeerFromScene(id);
-  }
-  await valoria.joinDimension("Valoria"); 
-
   let valorInterval = setInterval(async () => {
     try {
       const valor = await valoria.calculateValor(valoria.id);
@@ -39,6 +31,17 @@ valoria.onJoin = async () => {
       console.log(e)
     }
   }, valoria.syncIntervalMs)
+
+  valoria.dimension.onPeerJoin = (id) => {
+    addPeerToScene(id);
+  }
+  valoria.dimension.onPeerLeave = (id) => {
+    removePeerFromScene(id);
+  }
+  await valoria.joinDimension("Valoria"); 
+  console.log("joined dimension: " + valoria.dimension.id)
+
+  
 
 }
 

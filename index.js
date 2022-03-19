@@ -1606,7 +1606,7 @@ class Server {
           delete self.dimensions[ws.dimension].conns[ws.Url];
           const peers = Object.keys(self.dimensions[ws.dimension].conns)
           for(let i=0;i<self.group.members.length;i++){
-            if(self.url == self.group.members[i]) continue;
+            if(self.url == self.group.members[i] || ws.Url == self.group.members[i]) continue;
             self.conns[self.group.members[i]].send(JSON.stringify({
               event: "Peer has left group dimension",
               data: {
@@ -3287,7 +3287,7 @@ class Server {
       const id = data.id;
       if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
       const peers = Object.keys(self.dimensions[id].conns)
-      self.dimensions[id].conns[ws.Url] = ws;
+      self.dimensions[id].conns[ws.Url] = 1;
       if(self.conns[ws.Url]) self.conns[ws.Url].dimension = id;
       if(ws.send){
         ws.send(JSON.stringify({
@@ -3312,7 +3312,7 @@ class Server {
       }
       for(let i=0;i<peers.length;i++){
         await self.connectToServer(peers[i]);
-        self.dimensions[id].conns[peers[i]]?.send(JSON.stringify({
+        self.conns[peers[i]]?.send(JSON.stringify({
           event: "New peer in dimension",
           data: {
             url: ws.Url,
@@ -3336,7 +3336,7 @@ class Server {
         if(self.conns[data.url]) self.conns[data.url].dimension = id;
         for(let i=0;i<peers.length;i++){
           await self.connectToServer(peers[i]);
-          self.dimensions[id].conns[peers[i]]?.send(JSON.stringify({
+          self.conns[peers[i]]?.send(JSON.stringify({
             event: "New peer in dimension",
             data: {
               url: data.url,
@@ -3359,7 +3359,7 @@ class Server {
         delete self.dimensions[data.dimension]?.conns[data.url];
         const peers = Object.keys(self.dimensions[data.dimension].conns);
         for(let i=0;i<peers.length;i++){
-          self.dimensions[data.dimension].conns[peers[i]]?.send(JSON.stringify({
+          self.conns[peers[i]]?.send(JSON.stringify({
             event: "Peer has left dimension",
             data: {
               dimension: data.dimension,
