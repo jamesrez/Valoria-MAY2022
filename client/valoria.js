@@ -1212,11 +1212,12 @@ class Valoria {
   shareGroupSig = async (path) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      const d = self.saving[self.sync]["all/" + path];
+      const d = self.saving[self.sync]["all/" + path] || self.getLocal("all/" + path);
       if(!d || !d.sigs || !d.sigs[self.url]) return res();
       for(let i=0;i<self.group.members.length;i++){
         const url = self.group.members[i];
         if(url == self.url) continue;
+        console.log("asking sig from: " + url);
         const sig = await new Promise(async (res, rej) => {
           await self.connectToServer(url);
           self.promises["Got group sig for " + path + " from " + url] = {res, rej};
@@ -1229,8 +1230,10 @@ class Valoria {
           }));
         })
         if(!sig) continue;
+        console.log("Got sig");
         const publicD = await self.getPublicFromUrl(url);
         if(!publicD || !publicD.ecdsaPub) continue;
+        console.log("Got public");
         try {
           await self.verify(JSON.stringify(d.data), base64ToArrayBuffer(sig), publicD.ecdsaPub);
           d.sigs[ws.Url] = data.sig;
@@ -1238,7 +1241,7 @@ class Valoria {
           self.saving[self.sync]["all/" + path] = d;
           await self.setLocal("all/" + path, d);
         } catch(e){
-
+          
         }
       }
       return res();
