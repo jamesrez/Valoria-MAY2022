@@ -1362,6 +1362,7 @@ class Valoria {
           pathUrl = pathUrl.replace(/\:/g, "");
           publicD = await self.get(`data/${pathUrl}/public.json`);
           if(!publicD){
+            console.log("Asking the url for its own public info: " + url);
             publicD = await new Promise(async (res, rej) => {
               await self.connectToServer(url);
               self.promises["Got public from " + url] = {res, rej};
@@ -1369,11 +1370,13 @@ class Valoria {
                 event: "Get public",
               }))
             })
+            console.log(publicD);
           }
           const ecdsaPubHash = await subtle.digest("SHA-256", base64ToArrayBuffer(publicD.ecdsaPub));
           const id = buf2hex(ecdsaPubHash).substr(24, 64);
           if(publicD.id !== id) return rej({err: "Invalid public data"});
         } catch(e){
+          console.log(e);
           return rej(e)
         }
       }
