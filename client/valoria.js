@@ -2680,7 +2680,7 @@ class Valoria {
               success: true
             }
           }));
-        } else return err;
+        } else return err();
       } catch(e){
         console.log(e);
         return err();

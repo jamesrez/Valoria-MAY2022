@@ -2800,7 +2800,7 @@ class Server {
           if(data.path.startsWith("data/")){
             await self.claimValorForData(data.path.substr(5));
           }
-        } else return err;
+        } else return err();
       } catch(e){
         console.log(e);
         return err();
