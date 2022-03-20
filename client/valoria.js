@@ -2818,7 +2818,7 @@ class Valoria {
   handleGetPublic = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!ws.Url) return res();
+      // if(!ws.Url) return res();
       ws.send(JSON.stringify({
         event: "Got public",
         data: self.public
