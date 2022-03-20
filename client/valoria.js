@@ -1241,7 +1241,7 @@ class Valoria {
           self.saving[self.sync]["all/" + path] = d;
           await self.setLocal("all/" + path, d);
         } catch(e){
-          
+          continue;
         }
       }
       return res();
@@ -1609,6 +1609,9 @@ class Valoria {
           //   break;
           case 'New member in group':
             await self.handleNewMemberInGroup(ws, d.data);
+            break;
+          case 'New member in group response':
+            await self.handleNewMemberInGroupResponse(ws, d.data);
             break;
           case 'Member has left group':
             await self.handleMemberHasLeftGroup(ws, d.data);
@@ -2002,11 +2005,14 @@ class Valoria {
           self.groups[g.index] = g.members;
           for(let i=0;i<g.members?.length;i++){
             if(g.members[i] == self.url || g.members[i] == ws.Url) continue;
-            await self.connectToServer(g.members[i]);
-            self.conns[g.members[i]].send(JSON.stringify({
-              event: "New member in group",
-              data: g
-            }))
+            await new Promise(async (res, rej) => {
+              await self.connectToServer(g.members[i]);
+              self.promises["New member in group response from " + g.members[i] + " for version " + g.version] = {res, rej};
+              self.conns[g.members[i]].send(JSON.stringify({
+                event: "New member in group",
+                data: g
+              }))
+            })
           }
           self.conns[ws.Url].send(JSON.stringify({
             event: "Joined group",
@@ -2359,6 +2365,12 @@ class Valoria {
           self.groups[data.index] = self.group.members;
           self.group.version += 1;
           self.group.updated = data.updated;
+          ws.send(JSON.stringify({
+            event: "New member in group response",
+            data: {
+              version: data.version
+            }
+          }))
         } else if(self.group.index > 0 && self.groups[self.group.index - 1] && self.groups[self.group.index - 1]?.indexOf(ws.Url) !== -1){
           self.groups[data.index] = Array.from(new Set([...self.groups[data.index], ...data.members]));
           if(self.groups[self.group.index + 1]?.length > 0){
@@ -2406,6 +2418,16 @@ class Valoria {
         console.log(e)
       }
       res();
+    })
+  }
+
+  handleNewMemberInGroupResponse = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises["New member in group response from " + ws.Url + " for version " + data.version]) return res();
+      self.promises["New member in group response from " + ws.Url + " for version " + data.version].res();
+      delete self.promises["New member in group response from " + ws.Url + " for version " + data.version];
+      return res()
     })
   }
 
