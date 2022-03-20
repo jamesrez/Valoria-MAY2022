@@ -189,6 +189,7 @@ class Server {
         await self.loadAllGroups();
         await self.joinGroup();
         await self.sharePublic();
+        await self.syncGroupData();
         const stall = (self.sync + self.syncIntervalMs) - self.now();
         setTimeout(async () => {
           await self.syncInterval();
@@ -832,7 +833,6 @@ class Server {
           self.conns[url].send(JSON.stringify({
             event: "Joined group success"
           }));
-          await self.syncGroupData();
           await self.syncTimeWithNearby();
           // await self.setLocal("group.json", self.group);
           // await self.setLocal("groups.json", self.groups);
@@ -1377,7 +1377,10 @@ class Server {
   syncGroupData = async () => {
     const self = this;
     return new Promise(async(res, rej) => {
-      const url = self.group.members[self.group.members.length * Math.random << 0];
+      const group = [...self.group.members];
+      group.splice(group.indexOf(self.url), 1);
+      if(group.length == 0) return res();
+      const url = group[group.length * Math.random << 0];
       const paths = await new Promise(async (res, rej) => {
         await self.connectToServer(url);
         self.promises[`Got group paths from ${url}`] = {res, rej};
