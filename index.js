@@ -1477,6 +1477,7 @@ class Server {
           pathUrl = pathUrl.replace(/\:/g, "");
           publicD = await self.get(`data/${pathUrl}/public.json`);
           if(!publicD){
+            console.log("Public not found from GET: " + `data/${pathUrl}/public.json`);
             console.log("Asking the url for its own public info: " + url);
             publicD = await new Promise(async (res, rej) => {
               await self.connectToServer(url);
@@ -2789,9 +2790,6 @@ class Server {
         if(ws.Url && self.group?.members.indexOf(ws.Url) !== -1){
           // if(data.path.startsWith("ledgers/")) return err();
           await self.setLocal("all/" + data.path, data.data);
-          if(data.path.startsWith("data/")){
-            await self.claimValorForData(data.path.substr(5));
-          }
           ws.send(JSON.stringify({
             event: "Group sot",
             data: {
@@ -2799,6 +2797,9 @@ class Server {
               success: true
             }
           }));
+          if(data.path.startsWith("data/")){
+            await self.claimValorForData(data.path.substr(5));
+          }
         } else return err;
       } catch(e){
         console.log(e);
