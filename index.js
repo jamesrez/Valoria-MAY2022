@@ -1477,6 +1477,7 @@ class Server {
           pathUrl = pathUrl.replace(/\:/g, "");
           publicD = await self.get(`data/${pathUrl}/public.json`);
           if(!publicD){
+            console.log("Asking the url for its own public info: " + url);
             publicD = await new Promise(async (res, rej) => {
               await self.connectToServer(url);
               self.promises["Got public from " + url] = {res, rej};
@@ -1484,6 +1485,7 @@ class Server {
                 event: "Get public",
               }))
             })
+            console.log("GOT PUBLIC from url");
           }
           const ecdsaPubHash = await subtle.digest("SHA-256", Buffer.from(publicD.ecdsaPub, 'base64'));
           const id = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
@@ -2957,24 +2959,30 @@ class Server {
   handleShareGroupSig = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
+      console.log("Handle share group sig from " + ws.Url);
       if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.path || !data.sig) return err();
       const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
       if(!d || !d.data || !d.sigs || !d.sigs[self.url]) {
         return err()
       }
+      console.log("Got data")
       const publicD = await self.getPublicFromUrl(ws.Url);
       if(!publicD || !publicD.ecdsaPub) return err();
+      console.log("got public")
       try {
         await self.verify(JSON.stringify(d.data), Buffer.from(data.sig, "base64"), publicD.ecdsaPub);
+        console.log("verified");
         d.sigs[ws.Url] = data.sig;
         self.saving[self.sync]["all/" + data.path] = d;
-        await self.setLocal("all/" + data.path, d);ws.send(JSON.stringify({
+        await self.setLocal("all/" + data.path, d);
+        ws.send(JSON.stringify({
           event: "Got group sig",
           data: {
             path: data.path,
             sig: d.sigs[self.url]
           }
         }));
+        console.log("Sent success")
         return res();
       } catch(e){
         return err();
@@ -2987,6 +2995,7 @@ class Server {
             err: true
           }
         }));
+        console.log("Sent error")
         return res()
       }
     })

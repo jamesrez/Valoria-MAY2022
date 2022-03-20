@@ -41,8 +41,6 @@ valoria.onJoin = async () => {
   await valoria.joinDimension("Valoria"); 
   console.log("joined dimension: " + valoria.dimension.id)
 
-  
-
 }
 
 // function playMusic(){
