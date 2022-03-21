@@ -3214,6 +3214,7 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         if(!ws.Url || !data.path || !data.id) return res();
+        console.log("handle add path to ledger for " + ws.Url);
         const valorGroupIndex = jumpConsistentHash(`valor/${data.id}/${data.path}`, self.groups.length);
         const valorGroup = self.groups[valorGroupIndex];
         let valor;
@@ -3227,12 +3228,12 @@ class Server {
             try {
               v = await new Promise(async(res, rej) => {
                 await self.connectToServer(url);
-                self.promises["Got valor path " + data.path + " from " + url + " for " + self.ownerId] = {res, rej};
+                self.promises["Got valor path " + data.path + " from " + url + " for " + data.id] = {res, rej};
                 self.conns[url].send(JSON.stringify({
                   event: "Get valor path",
                   data: {
                     path: data.path,
-                    id: self.ownerId,
+                    id: data.id,
                     group: self.group.index
                   }
                 }))
@@ -3251,6 +3252,7 @@ class Server {
           }
         }
         if(isValid){
+          console.log("handle ledger: Valor is valid");
           let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json");
           if(!d || !d.data) d = {
             data: {
@@ -3268,6 +3270,7 @@ class Server {
                 success: true
               }
             }));
+            console.log("handle ledger success")
             return res();
           }
           d.data.paths[data.path] = 1
@@ -3285,6 +3288,7 @@ class Server {
               success: true
             }
           }));
+          console.log("handle ledger success")
         }
       } catch(e){
         // console.log(e);
@@ -3296,6 +3300,7 @@ class Server {
             err: true
           }
         }));
+        console.log("handle ledger err");
       }
       return res();
     })

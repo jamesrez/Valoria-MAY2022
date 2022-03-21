@@ -921,6 +921,7 @@ class Valoria {
             try {
               if(self.promises[`Path ${path} added to ledger ${self.ownerId} from ${url}`]) continue;
               await self.connectToServer(url);
+              console.log("Asking " + url + " to add ledger path");
               await new Promise(async(res, rej) => {
                 self.promises[`Path ${path} added to ledger ${self.ownerId} from ${url}`] = {res, rej};
                 self.conns[url].send(JSON.stringify({
@@ -931,6 +932,7 @@ class Valoria {
                   }
                 }))
               })
+              console.log("They added");
             }catch(e){
 
             }
@@ -3110,12 +3112,12 @@ class Valoria {
             try {
               v = await new Promise(async(res, rej) => {
                 await self.connectToServer(url);
-                self.promises["Got valor path " + data.path + " from " + url + " for " + self.ownerId] = {res, rej};
+                self.promises["Got valor path " + data.path + " from " + url + " for " +data.id] = {res, rej};
                 self.conns[url].send(JSON.stringify({
                   event: "Get valor path",
                   data: {
                     path: data.path,
-                    id: self.ownerId,
+                    id: data.id,
                     group: self.group.index
                   }
                 }))
@@ -3207,6 +3209,7 @@ class Valoria {
   handlePathAddedToLedger(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
+      console.log("PATH ADDED TO LEDGER FROM " + ws.Url)
       if(self.promises[`Path ${data.path} added to ledger ${data.id} from ${ws.Url}`]){
         self.promises[`Path ${data.path} added to ledger ${data.id} from ${ws.Url}`].res();
         delete self.promises[`Path ${data.path} added to ledger ${data.id} from ${ws.Url}`];
