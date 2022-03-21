@@ -3357,6 +3357,10 @@ class Valoria {
         self.conns[data.url]?.onclose();
         console.log("Peer disconnect from " + ws.Url);
         delete self.peers[data.url];
+        if(self.dimension?.peers?.indexOf(data.url) !== -1){
+          self.dimension.peers.splice(self.dimension.peers.indexOf(data.url), 1);
+          self.dimension.onPeerLeave(data.url);
+        }
       }
       res();
     })
