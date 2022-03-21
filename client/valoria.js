@@ -1547,7 +1547,7 @@ class Valoria {
             }))
           }
         }
-        if(ws.Url && self.group && self.group.members.indexOf(ws.Url) !== -1){
+        if(ws.Url && self.group && self.group?.members.indexOf(ws.Url) !== -1){
           await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
         } else if(
           self.group && self.groups &&
@@ -3204,6 +3204,9 @@ class Valoria {
       }
       self.groups = [];
       self.group = [];
+      self.servers = [];
+      self.originUrl = null;
+      self.url = null;
       setTimeout(() => {
         res();
       }, 500)
