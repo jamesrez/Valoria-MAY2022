@@ -573,6 +573,10 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       if(url == self.url) return rej();
+      let connected = false;
+      setTimeout(() => {
+        if(!connected) return rej();
+      }, 3000)
       try {
         if(self.conns[url] && (self.conns[url].readyState === WebSocket.OPEN || self.conns[url].open)){
           if(!self.conns[url].verified && self.url && self.originUrl !== url){
@@ -598,6 +602,7 @@ class Valoria {
             })
             self.conns[url].verified = true;
           }
+          connected = true;
           return res();
         } else {
           if(!self.conns[url]) {
@@ -609,6 +614,7 @@ class Valoria {
                 self.conns[url].isP2P = true;
                 self.conns[url].isWS = false;
                 self.conns[url].Url = url;
+                connected = true;
                 return res();
               } else {
                 let wsUrl = "ws://" + new URL(url).host + "/"
@@ -622,6 +628,7 @@ class Valoria {
               }
             } catch(e){
               console.log(e)
+              rej(e)
             }
           } 
           if(self.conns[url].isWS){
@@ -651,6 +658,7 @@ class Valoria {
                     }))
                   })
                 }
+                connected = true;
                 return res();
               } catch (e){
                 // console.log(e)
@@ -678,9 +686,13 @@ class Valoria {
         const gIndex = groups.length * Math.random() << 0
         const group = groups[gIndex];
         const url = group[group.length * Math.random() << 0];
-        groups.splice(gIndex, 1);
+        group.splice(group.indexOf(url), 1);
         try {
-          await self.connectToServer(url);
+          try {
+            await self.connectToServer(url);
+          } catch(e){
+            continue;
+          }
           self.group = await new Promise(async(res, rej) => {
             try {
               self.promises["Joined group from " + url] = {res, rej};
@@ -699,6 +711,7 @@ class Valoria {
           }));
           await self.syncTimeWithNearby();
         } catch (e){
+          groups.splice(gIndex, 1);
           continue;
         }
       }
