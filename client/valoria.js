@@ -1246,6 +1246,7 @@ class Valoria {
           continue;
         }
       }
+      console.log("share group sig done");
       return res();
     })
   }

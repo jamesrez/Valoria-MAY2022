@@ -1357,6 +1357,7 @@ class Server {
           
         }
       }
+      console.log("share group sig done");
       return res();
     })
   }
