@@ -3202,6 +3202,8 @@ class Valoria {
       } catch(e){
 
       }
+      self.groups = [];
+      self.group = [];
       setTimeout(() => {
         res();
       }, 500)
