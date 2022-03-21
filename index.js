@@ -1369,7 +1369,7 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         await self.set(`${self.pathUrl}/public.json`, self.public);
-        await self.set(`${self.id}/public.json`, self.public);
+        // await self.set(`${self.id}/public.json`, self.public);
       } catch(e){
         // console.log(e)
       }
