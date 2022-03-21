@@ -186,6 +186,13 @@ class Server {
         clearInterval(heartbeatInterval);
       });
       try {
+        let setup = false;
+        setTimeout(async () => {
+          if(!setup){
+            await self.setup();
+            return;
+          }
+        }, 3000)
         await self.loadAllGroups();
         await self.joinGroup();
         await self.sharePublic();
@@ -194,6 +201,7 @@ class Server {
         setTimeout(async () => {
           await self.syncInterval();
         }, self.sync == self.start ? 0 : stall > 0 ? stall : 0)
+        setup = true;
         res();
       } catch(e){
         // console.log(e)

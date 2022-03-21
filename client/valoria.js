@@ -76,6 +76,13 @@ class Valoria {
   setup = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
+      let setup = false;
+        setTimeout(async () => {
+          if(!setup){
+            await self.setup();
+            return;
+          }
+        }, 3000)
       await self.reset();
       if(!self.id || !self.ecdsa.publicKey) return rej();
       if(!self.ownerId) self.ownerId = self.id;
@@ -91,13 +98,13 @@ class Valoria {
         console.log("origin set;")
         await self.joinGroup();
         await self.sharePublic();
+        setup = true;
+        self.onJoin();
         await self.syncGroupData();
         const stall = Math.abs((self.sync + self.syncIntervalMs) - self.now());
         setTimeout(async () => {
           await self.syncInterval();
         }, self.sync == self.start ? 0 : stall > 0 ? stall : 0)
-        self.onJoin();
-        console.log("setup");
         res();
       } catch(e){
         console.log(e)
@@ -3180,6 +3187,13 @@ class Valoria {
   reset = async () => {
     const self = this;
     return new Promise(async(res, rej) => {
+      const conns = Object.keys(self.conns);
+      for(let i=0;i<conns.length;i++){
+        if(self.conns[conns[i]].close){
+          self.conns[conns[i]].close();
+          // self.conns[conns[i]].terminate();
+        }
+      }
       try {
         const keys = await localforage.keysStartingWith(`${self.path}all`)
         for(let i=0;i<keys.length;i++){
@@ -3188,7 +3202,9 @@ class Valoria {
       } catch(e){
 
       }
-      res();
+      setTimeout(() => {
+        res();
+      }, 500)
     })
   }
 
