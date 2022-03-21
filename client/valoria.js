@@ -899,6 +899,7 @@ class Valoria {
             valor.data.time[valor.data.time.length - 1].push(self.nextSync);
             self.saving[self.sync][`all/${paths[i]}`] = valor;
             await self.setLocal(`all/${paths[i]}`, valor);
+            console.log("Valor duration ended for " + valor.data.url + " on path " + valor.data.path)
             // console.log(valor.data);
           }
         }

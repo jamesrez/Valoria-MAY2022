@@ -1019,11 +1019,12 @@ class Server {
         const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.get(`${paths[i]}`);
         if(!valor || !valor.data) continue;
         if(valor.data.time[valor.data.time.length - 1].length == 1){
-          const valorGroupIndex = jumpConsistentHash("data/" + valor.data.path, self.groups.length);
-          if(self.groups[valorGroupIndex].indexOf(valor.data.url) == -1){
+          const dataGroupIndex = jumpConsistentHash("data/" + valor.data.path, self.groups.length);
+          if(self.groups[dataGroupIndex].indexOf(valor.data.url) == -1){
             valor.data.time[valor.data.time.length - 1].push(self.nextSync);
             self.saving[self.sync][`all/${paths[i]}`] = valor;
             await self.setLocal(`all/${paths[i]}`, valor);
+            console.log("Valor duration ended for " + valor.data.url + " on path " + valor.data.path)
             // console.log(valor.data);
           }
         }
