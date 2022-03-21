@@ -527,9 +527,9 @@ class Valoria {
           if(url.includes("valoria/peers/")){
             servers.splice(servers.indexOf(url), 1);
           } else {
+            await self.connectToServer(url);
             const data = await new Promise(async (res, rej) => {
               console.log(url)
-              await self.connectToServer(url);
               self.promises["Got groups from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
                 event: "Get groups"
@@ -679,9 +679,9 @@ class Valoria {
         const url = group[group.length * Math.random() << 0];
         groups.splice(gIndex, 1);
         try {
+          await self.connectToServer(url);
           self.group = await new Promise(async(res, rej) => {
             try {
-              await self.connectToServer(url);
               self.promises["Joined group from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
                 event: "Join group",
