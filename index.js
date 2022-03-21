@@ -3220,40 +3220,9 @@ class Server {
         console.log("handle add path to ledger for " + ws.Url);
         const valorGroupIndex = jumpConsistentHash(`valor/${data.id}/${data.path}`, self.groups.length);
         const valorGroup = self.groups[valorGroupIndex];
-        let valor;
+        let valor = await self.get(`valor/${data.id}/${data.path}`);
         let isValid = true;
-        for(let j=0;j<valorGroup.length;j++){
-          const url = valorGroup[j];
-          let v;
-          if(url == self.url) {
-            v = await self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
-          } else {
-            try {
-              v = await new Promise(async(res, rej) => {
-                await self.connectToServer(url);
-                self.promises["Got valor path " + data.path + " from " + url + " for " + data.id] = {res, rej};
-                self.conns[url].send(JSON.stringify({
-                  event: "Get valor path",
-                  data: {
-                    path: data.path,
-                    id: data.id,
-                    group: self.group.index
-                  }
-                }))
-              })
-            } catch(e){
-
-            }
-          }
-          if(!v || v.data.for !== data.id){
-            break;
-          } else if(!valor && v) {
-            valor = JSON.stringify(v.data);
-          } else if(v && valor !== JSON.stringify(v.data)){
-            isValid = false;
-            break;
-          }
-        }
+        //TODO VERIFY VALOR WITH SIGS
         if(isValid){
           console.log("handle ledger: Valor is valid");
           let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json");

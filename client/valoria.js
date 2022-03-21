@@ -572,6 +572,7 @@ class Valoria {
   connectToServer(url, opts={}){
     const self = this;
     return new Promise(async (res, rej) => {
+      if(url == self.url) return rej();
       try {
         if(self.conns[url] && (self.conns[url].readyState === WebSocket.OPEN || self.conns[url].open)){
           if(!self.conns[url].verified && self.url && self.originUrl !== url){
@@ -754,8 +755,8 @@ class Valoria {
         self.groups.push([self.url]);
         if(self.group.index > 0){
           const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
+          await self.connectToServer(url);
           await new Promise(async(res, rej) => {
-            await self.connectToServer(url);
             self.promises["New group found at " + url] = {res, rej};
             self.conns[url].send(JSON.stringify({
               event: "New group",
@@ -1325,8 +1326,8 @@ class Valoria {
           try { 
             const paths = groups[gIndices[j]];
             const url = self.groups[gIndices[j]][self.groups[gIndices[j]].length * Math.random() << 0];
+            await self.connectToServer(url);
             await new Promise(async (res, rej) => {
-              await self.connectToServer(url);
               self.promises["Group " + self.group.index + " data taken over from " + url] = {res, rej}
               self.conns[url].send(JSON.stringify({
                 event: "Take over group data",
@@ -1374,8 +1375,8 @@ class Valoria {
           publicD = await self.get(`data/${pathUrl}/public.json`);
           if(!publicD){
             console.log("Asking the url for its own public info: " + url);
+            await self.connectToServer(url);
             publicD = await new Promise(async (res, rej) => {
-              await self.connectToServer(url);
               self.promises["Got public from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
                 event: "Get public",
@@ -1824,9 +1825,9 @@ class Valoria {
       if(!self.promises["Url verified with " + ws.Url] || !data.key) return res();
       let pathUrl = ws.Url.replace(/\//g, "");
       pathUrl = pathUrl.replace(/\:/g, "");
+      await self.connectToServer(self.originUrl);
       await new Promise(async(res, rej) => {
         self.promises["Verified peer url for " + ws.Url + " at " + self.originUrl] = {res, rej};
-        await self.connectToServer(self.originUrl);
         self.conns[self.originUrl].send(JSON.stringify({
           event: "Verify peer url with key",
           data: {
@@ -2010,8 +2011,8 @@ class Valoria {
           self.groups[g.index] = g.members;
           for(let i=0;i<g.members?.length;i++){
             if(g.members[i] == self.url || g.members[i] == ws.Url) continue;
+            await self.connectToServer(g.members[i]);
             await new Promise(async (res, rej) => {
-              await self.connectToServer(g.members[i]);
               self.promises["New member in group response from " + g.members[i] + " for version " + g.version] = {res, rej};
               self.conns[g.members[i]].send(JSON.stringify({
                 event: "New member in group",
@@ -2540,9 +2541,9 @@ class Valoria {
           for(let i=0;i<self.group.members.length;i++){
             if(self.group.members[i] == self.url) continue;
             try {
+              await self.connectToServer(self.group.members[i]);
               await new Promise(async (res, rej) => {
                 self.promises["Group sot for data/" + data.path + " from " + self.group.members[i]] = {res, rej};
-                await self.connectToServer(self.group.members[i]);
                 self.conns[self.group.members[i]].send(JSON.stringify({
                   event: "Group set",
                   data: {
@@ -2609,9 +2610,9 @@ class Valoria {
           for(let i=0;i<self.group.members.length;i++){
             if(self.group.members[i] == self.url) continue;
             try {
+              await self.connectToServer(self.group.members[i]);
               await new Promise(async (res, rej) => {
                 self.promises["Group sot for requests/" + data.request.path + " from " + self.group.members[i]] = {res, rej};
-                await self.connectToServer(self.group.members[i]);
                 self.conns[self.group.members[i]].send(JSON.stringify({
                   event: "Group set",
                   data: {
@@ -3104,40 +3105,9 @@ class Valoria {
         console.log("handle add path to ledger for " + ws.Url);
         const valorGroupIndex = jumpConsistentHash(`valor/${data.id}/${data.path}`, self.groups.length);
         const valorGroup = self.groups[valorGroupIndex];
-        let valor;
+        let valor = await self.get(`valor/${data.id}/${data.path}`);
         let isValid = true;
-        for(let j=0;j<valorGroup.length;j++){
-          const url = valorGroup[j];
-          let v;
-          if(url == self.url) {
-            v = await self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
-          } else {
-            try {
-              v = await new Promise(async(res, rej) => {
-                await self.connectToServer(url);
-                self.promises["Got valor path " + data.path + " from " + url + " for " +data.id] = {res, rej};
-                self.conns[url].send(JSON.stringify({
-                  event: "Get valor path",
-                  data: {
-                    path: data.path,
-                    id: data.id,
-                    group: self.group.index
-                  }
-                }))
-              })
-            } catch(e){
-
-            }
-          }
-          if(!v || v.data.for !== data.id){
-            break;
-          } else if(!valor && v) {
-            valor = JSON.stringify(v.data);
-          } else if(v && valor !== JSON.stringify(v.data)){
-            isValid = false;
-            break;
-          }
-        }
+        //TODO VERIFY VALOR WITH SIGS
         if(isValid){
           console.log("Handle valor is valid");
           let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json");
