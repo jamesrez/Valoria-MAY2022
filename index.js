@@ -527,7 +527,7 @@ class Server {
     });
   }
 
-  get = async (path) => {
+  get = async (path, opts={public: ""}) => {
     const self = this;
     return new Promise(async(res, rej) => {
       try {
@@ -544,13 +544,14 @@ class Server {
         const url = members[members.length * Math.random() << 0];
         await self.connectToServer(url);
         const now = self.now();
-        self.promises["Got data from " + url + " for " + path + " at " + now] = {res, rej};
+        self.promises["Got data from " + url + " for " + path + " at " + now + opts.public] = {res, rej};
         self.conns[url].send(JSON.stringify({
           event: "Get",
           data: {
             path,
             group: self.group.index,
-            now
+            now,
+            public: opts.public
           }
         }))
       } catch(e){
@@ -1497,7 +1498,7 @@ class Server {
         try {
           let pathUrl = url.replace(/\//g, "");
           pathUrl = pathUrl.replace(/\:/g, "");
-          publicD = await self.get(`data/${pathUrl}/public.json`);
+          publicD = await self.get(`data/${pathUrl}/public.json`, {public: true});
           if(!publicD){
             console.log("Public not found from GET: " + `data/${pathUrl}/public.json`);
             console.log("Asking the url for its own public info: " + url);
@@ -1653,7 +1654,6 @@ class Server {
             }))
           }
         }
-        if(ws.Url) console.log(ws.Url + " websocket closed");
         if(ws.Url && ws.Url !== self.url && self.group.members.indexOf(ws.Url) !== -1){
           await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
         } else if(
@@ -2633,7 +2633,8 @@ class Server {
             data: {
               path: data.path,
               data: d,
-              now: data.now
+              now: data.now,
+              public: data.public
             }
           }))
         }
@@ -2955,9 +2956,10 @@ class Server {
   handleGot = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]) return res();
-      self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now].res(data.data);
-      delete self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]
+      if(!data.public) data.public = "";
+      if(!self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now + data.public]) return res();
+      self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now + data.public].res(data.data);
+      delete self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now + data.public]
       return res()
     })
   }

@@ -268,7 +268,7 @@ class Valoria {
     });
   }
 
-  get = async (path) => {
+  get = async (path, opts={public: ""}) => {
     const self = this;
     return new Promise(async(res, rej) => {
       try {
@@ -285,13 +285,14 @@ class Valoria {
         const url = members[members.length * Math.random() << 0];
         await self.connectToServer(url);
         const now = self.now();
-        self.promises["Got data from " + url + " for " + path + " at " + now] = {res, rej};
+        self.promises["Got data from " + url + " for " + path + " at " + now + opts.public] = {res, rej};
         self.conns[url].send(JSON.stringify({
           event: "Get",
           data: {
             path,
             group: self.group.index,
-            now
+            now,
+            public: opts.public
           }
         }))
       } catch(e){
@@ -1068,6 +1069,7 @@ class Valoria {
             const v = self.saving[self.sync][`all/valor/${id}/${paths[i]}`] || await self.get(`valor/${id}/${paths[i]}`);
             if(!v || !v.data) continue;
             const duration = self.getDuration(v.data.time);
+            console.log(duration);
             const amount = ((v.data.size / 10000000) * (duration / 1000000000 )) + (duration * 0.0000000005);
             valor += amount;
           } catch(e){
@@ -1311,12 +1313,15 @@ class Valoria {
         }))
       });
       let dataPaths = [];
+      console.log("Got sync group paths");
+      console.log(paths);
       for(let i=0;i<paths.length;i++){
         try {
           if(paths[i].startsWith("data/")){
             dataPaths.push(paths[i].substr(paths[i].indexOf("/") + 1));
           }
           const d = await self.get(paths[i]);
+          console.log(d);
           await self.setLocal("all/" + paths[i], d);
         } catch(e){
           continue;
@@ -1401,7 +1406,7 @@ class Valoria {
         try {
           let pathUrl = url.replace(/\//g, "");
           pathUrl = pathUrl.replace(/\:/g, "");
-          publicD = await self.get(`data/${pathUrl}/public.json`);
+          publicD = await self.get(`data/${pathUrl}/public.json`, {public: true});
           if(!publicD){
             console.log("Asking the url for its own public info: " + url);
             await self.connectToServer(url);
@@ -1411,7 +1416,6 @@ class Valoria {
                 event: "Get public",
               }))
             })
-            console.log(publicD);
           }
           const ecdsaPubHash = await subtle.digest("SHA-256", base64ToArrayBuffer(publicD.ecdsaPub));
           const id = buf2hex(ecdsaPubHash).substr(24, 64);
@@ -1556,7 +1560,7 @@ class Valoria {
             }))
           }
         }
-        if(ws.Url && self.group && self.group?.members?.indexOf(ws.Url) !== -1){
+        if(ws.Url && ws.Url !== self.url && self.group && self.group?.members?.indexOf(ws.Url) !== -1){
           await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
         } else if(
           self.group && self.groups &&
@@ -2530,7 +2534,8 @@ class Valoria {
             data: {
               path: data.path,
               data: d,
-              now: data.now
+              now: data.now,
+              public: data.public
             }
           }))
         }
@@ -2848,9 +2853,10 @@ class Valoria {
   handleGot = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]) return res();
-      self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now].res(data.data);
-      delete self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]
+      if(!data.public) data.public = "";
+      if(!self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now + data.public]) return res();
+      self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now + data.public].res(data.data);
+      delete self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now + data.public]
       return res()
     })
   }
