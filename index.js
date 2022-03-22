@@ -3473,10 +3473,10 @@ class Server {
     }
     if(!self.conns[data.url].peers) self.conns[data.url].peers = {};
     if(!self.conns[ws.Url].peers) self.conns[ws.Url].peers = {};
-    // if(!self.conns[ws.Url].peers[data.url] || !self.conns[data.url].peers[ws.Url]){
+    if(!self.conns[ws.Url].peers[data.url] || !self.conns[data.url].peers[ws.Url]){
     self.conns[ws.Url].peers[data.url] = {polite: false};
     self.conns[data.url].peers[ws.Url] = {polite: true};
-    // }
+    }
     self.conns[data.url].send(JSON.stringify({
       event: "Got rtc description",
       data: {
