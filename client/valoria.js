@@ -324,6 +324,7 @@ class Valoria {
                     data: data
                   }
                 }));
+                console.log("Sent data to group member " + self.group.members[i])
               // })         
             } catch(e){
               console.log(e)
@@ -536,7 +537,6 @@ class Valoria {
           } else {
             await self.connectToServer(url);
             const data = await new Promise(async (res, rej) => {
-              console.log(url)
               self.promises["Got groups from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
                 event: "Get groups"
@@ -691,8 +691,9 @@ class Valoria {
     return new Promise(async (res, rej) => {
       const groups = [...self.groups];
       let willCreateGroup = true;
+      console.log(self.group);
       while(groups.length > 0 && !self.group){
-        const gIndex = groups.length * Math.random() << 0
+        const gIndex = groups.length * Math.random() << 0;
         const group = groups[gIndex];
         const url = group[group.length * Math.random() << 0];
         group.splice(group.indexOf(url), 1);
@@ -702,6 +703,7 @@ class Valoria {
           } catch(e){
             continue;
           }
+          console.log("Asking " + url);
           self.group = await new Promise(async(res, rej) => {
             try {
               self.promises["Joined group from " + url] = {res, rej};
@@ -3211,7 +3213,7 @@ class Valoria {
 
       }
       self.groups = [];
-      self.group = [];
+      self.group = null;
       self.servers = [];
       self.originUrl = null;
       self.url = null;

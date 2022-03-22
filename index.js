@@ -2832,7 +2832,9 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         if(!data.path || !data.data) return err();
-        if(ws.Url && self.group?.members.indexOf(ws.Url) !== -1){
+        console.log("Group set from " + ws.Url);
+        if(ws.Url && self.group?.members?.indexOf(ws.Url) !== -1){
+          console.log("Setting");
           // if(data.path.startsWith("ledgers/")) return err();
           await self.setLocal("all/" + data.path, data.data);
           ws.send(JSON.stringify({
