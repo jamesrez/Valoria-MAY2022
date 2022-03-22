@@ -1182,7 +1182,7 @@ class Valoria {
         if(!self.saving[self.sync]) self.saving[self.sync] = {};
         if((self.now() - self.nextSync) > (self.syncIntervalMs + 5000)) {
           console.log("?");
-          await self.reset();
+          await self.setup();
           return;
         }  
         self.syncGroup = Object.assign({}, self.group);
