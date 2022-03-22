@@ -1174,8 +1174,12 @@ class Valoria {
         // await self.saveGroups();
       }
       res();
-      const main = setInterval(async () => {
+      self.syncIntervalMain = setInterval(async () => {
         if(!self.saving[self.sync]) self.saving[self.sync] = {};
+        if((self.now() - self.nextSync) > self.syncIntervalMs * 1.5) {
+          await self.reset();
+          return;
+        }  
         self.syncGroup = Object.assign({}, self.group);
         self.syncGroups = [...self.groups];
         try {
@@ -3189,6 +3193,7 @@ class Valoria {
   reset = async () => {
     const self = this;
     return new Promise(async(res, rej) => {
+      if(self.syncIntervalMain) clearInterval(self.syncIntervalMain);
       const conns = Object.keys(self.conns);
       for(let i=0;i<conns.length;i++){
         if(self.conns[conns[i]].close){
