@@ -3540,7 +3540,7 @@ class Valoria {
             self.peers[url].restartIce();
           }
         };
-      } else if (self.peers[url]?.datachannel?.open){
+      } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open"){
         return res(self.peers[url].datachannel);
       } 
       else if(self.peers[url].localDescription){
@@ -3561,7 +3561,7 @@ class Valoria {
     const url = data.url;
     const polite = data.polite;
     console.log("Got webrtc desc from " + data.url)
-    if(self.peers[url] && self.peers[url]?.datachannel?.open) return;
+    if(self.peers[url] && self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open") return;
     if(self.peers[url] && description.type == "offer") delete self.peers[url];
     if(!self.peers[url]){
       self.peers[url] = new RTCPeerConnection({iceServers});
