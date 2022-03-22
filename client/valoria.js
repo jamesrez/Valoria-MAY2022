@@ -3583,6 +3583,11 @@ class Valoria {
           }
         }));
       }
+      self.peers[url].oniceconnectionstatechange = () => {
+        if (self.peers[url] && self.peers[url].iceConnectionState === "failed") {
+          self.peers[url].restartIce();
+        }
+      };
       self.peers[url].ondatachannel = async (event) => {
         self.peers[url].datachannel = event.channel;
         self.peers[url].datachannel.onopen = async () => {
