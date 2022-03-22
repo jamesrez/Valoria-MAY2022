@@ -1653,7 +1653,8 @@ class Server {
             }))
           }
         }
-        if(ws.Url && self.group.members.indexOf(ws.Url) !== -1){
+        if(ws.Url) console.log(ws.Url + " websocket closed");
+        if(ws.Url && ws.Url !== self.url && self.group.members.indexOf(ws.Url) !== -1){
           await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
         } else if(
           self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1 &&
