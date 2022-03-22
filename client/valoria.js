@@ -2469,7 +2469,7 @@ class Valoria {
       if(self.group.index == data.index && self.group?.members?.indexOf(data.url) !== -1){
         if(self.conns[data.url]) delete self.conns[data.url]
         if(self.peers[data.url]) delete self.peers[data.url]
-        self.group.members.splice(self.group.members?.indexOf(data.url), 1);
+        self.group.members?.splice(self.group.members?.indexOf(data.url), 1);
         if(self.groups[self.group.index]?.indexOf(data.url) !== -1){
           self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
         }
@@ -2479,8 +2479,8 @@ class Valoria {
         if(self.conns[data.url]) delete self.conns[data.url]
         if(self.peers[data.url]) delete self.peers[data.url]
         self.groups[data.index].splice(self.groups[data.index].indexOf(data.url), 1); 
-        if(self.group.members.indexOf(ws.Url) == -1){
-          for(let i=0;i<self.group.members.length;i++){
+        if(self.group.members?.indexOf(ws.Url) == -1){
+          for(let i=0;i<self.group.members?.length;i++){
             let url = self.group.members[i];
             if(url == self.url) continue;
             self.conns[url].send(JSON.stringify({
