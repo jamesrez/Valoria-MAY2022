@@ -176,6 +176,7 @@ class Server {
       const heartbeatInterval = setInterval(() => {
         self.wss.clients.forEach(function each(ws) {
           if (ws.isAlive === false) {
+            if(ws.close) ws.close();
             return ws.terminate();
           }
           ws.isAlive = false;
@@ -1617,7 +1618,7 @@ class Server {
   setupWS = async (ws) => {
     const self = this;
     return new Promise(async(res, rej) => {
-      ws.isAlive = true;
+      // ws.isAlive = true;
       ws.on('pong', () => {
         ws.isAlive = true;
       })

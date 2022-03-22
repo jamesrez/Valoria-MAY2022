@@ -582,7 +582,9 @@ class Valoria {
       if(url == self.url) return rej();
       let connected = false;
       setTimeout(() => {
-        if(!connected) return rej();
+        if(!connected) {
+          return rej();
+        }
       }, 3000)
       try {
         if(self.conns[url] && (self.conns[url].readyState === WebSocket.OPEN || self.conns[url].open)){
