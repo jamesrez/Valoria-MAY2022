@@ -1760,6 +1760,12 @@ class Valoria {
           case "Peer has left group dimension":
             await self.handlePeerHasLeftGroupDimension(ws, d.data);
             break;
+          case "Get peers in group dimension":
+            await self.handleGetPeersInGroupDimension(ws, d.data);
+            break;
+          case "Got peers in group dimension":
+            await self.handleGotPeersInGroupDimension(ws, d.data);
+            break;
           case "Peer disconnect":
             await self.handlePeerDisconnect(ws, d.data);
             break;
@@ -3267,7 +3273,24 @@ class Valoria {
     const self = this;
     return new Promise(async( res, rej) => {
       const id = data.id;
-      if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
+      if(!self.dimensions[id]) {
+        self.dimensions[id] = {conns: {}};
+        const g = [...self.group.members];
+        g.splice(g.indexOf(self.url), 1);
+        if(g.length > 0){
+          const url = g[g.length * Math.random() << 0];
+          await this.connectToServer(url);
+          self.dimensions[id].conns = await new Promise(async (res, rej) => {
+            self.promises["Got peers in group dimension " + id + " from " + url] = {res, rej};
+            self.conns[url].send(JSON.stringify({
+              event: "Get peers in group dimension",
+              data: {
+                id
+              }
+            }))
+          });
+        }
+      }
       const peers = Object.keys(self.dimensions[id].conns)
       self.dimensions[id].conns[ws.Url] = ws;
       if(self.conns[ws.Url]) self.conns[ws.Url].dimension = id;
@@ -3280,6 +3303,8 @@ class Valoria {
           }
         }))
       } else if(ws.Url == self.url){
+        console.log("WILL HANDLE OWN JOIN DIMENSION");
+        console.log(peers);
         await this.handleJoinedDimension({}, {dimension: id, peers});
       }
       for(let i=0;i<self.group.members.length;i++){
@@ -3397,6 +3422,31 @@ class Valoria {
       res();
     });
   }
+
+  handleGetPeersInGroupDimension = async (ws, data) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      if(!ws.Url || self.group?.members?.indexOf(ws.Url) == -1 || !data.id) return res();
+      ws.send(JSON.stringify({
+        event: "Got peers in group dimension",
+        data: {
+          conns: self.dimensions[data.id]?.conns || {},
+          id: data.id
+        } 
+      }))
+      return res()
+    })
+  } 
+
+  handleGotPeersInGroupDimension = async (ws, data) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      if(!self.promises["Got peers in group dimension " + data.id + " from " + ws.Url]) return res();
+      self.promises["Got peers in group dimension " + data.id + " from " + ws.Url].res(data.conns)
+      delete self.promises["Got peers in group dimension " + data.id + " from " + ws.Url];
+      return res()
+    })
+  } 
 
   handlePeerDisconnect = async (ws, data) => {
     const self = this;

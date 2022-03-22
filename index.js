@@ -1861,6 +1861,12 @@ class Server {
             case "Peer has left group dimension":
               await self.handlePeerHasLeftGroupDimension(ws, d.data);
               break;
+            case "Get peers in group dimension":
+              await self.handleGetPeersInGroupDimension(ws, d.data);
+              break;
+            case "Got peers in group dimension":
+              await self.handleGotPeersInGroupDimension(ws, d.data);
+              break;
             case "Send rtc description":
               self.handleSendRtcDescription(ws, d.data);
               break;
@@ -3326,11 +3332,30 @@ class Server {
     const self = this;
     return new Promise(async( res, rej) => {
       const id = data.id;
-      if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
+      if(!self.dimensions[id]) {
+        self.dimensions[id] = {conns: {}};
+        const g = [...self.group.members];
+        g.splice(g.indexOf(self.url), 1);
+        if(g.length > 0){
+          const url = g[g.length * Math.random() << 0];
+          await this.connectToServer(url);
+          self.dimensions[id].conns = await new Promise(async (res, rej) => {
+            self.promises["Got peers in group dimension " + id + " from " + url] = {res, rej};
+            self.conns[url].send(JSON.stringify({
+              event: "Get peers in group dimension",
+              data: {
+                id
+              }
+            }))
+          });
+        }
+      }
       const peers = Object.keys(self.dimensions[id].conns)
       self.dimensions[id].conns[ws.Url] = 1;
       if(self.conns[ws.Url]) self.conns[ws.Url].dimension = id;
       if(ws.send){
+        console.log("NEW PEER IN DIMENSION");
+        console.log(peers);
         ws.send(JSON.stringify({
           event: "Joined dimension",
           data: {
@@ -3341,7 +3366,6 @@ class Server {
       }
       for(let i=0;i<self.group.members.length;i++){
         if(self.url == self.group.members[i]) continue;
-        console.log(self.group.members[i]);
         await self.connectToServer(self.group.members[i]);
         self.conns[self.group.members[i]]?.send(JSON.stringify({
           event: "New peer in group dimension",
@@ -3414,6 +3438,31 @@ class Server {
       res();
     });
   }
+
+  handleGetPeersInGroupDimension = async (ws, data) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      if(!ws.Url || self.group?.members?.indexOf(ws.Url) == -1 || !data.id) return res();
+      ws.send(JSON.stringify({
+        event: "Got peers in group dimension",
+        data: {
+          conns: self.dimensions[data.id]?.conns || {},
+          id: data.id
+        } 
+      }))
+      return res()
+    })
+  } 
+
+  handleGotPeersInGroupDimension = async (ws, data) => {
+    const self = this;
+    return new Promise(async(res, rej) => {
+      if(!self.promises["Got peers in group dimension " + data.id + " from " + ws.Url]) return res();
+      self.promises["Got peers in group dimension " + data.id + " from " + ws.Url].res(data.conns)
+      delete self.promises["Got peers in group dimension " + data.id + " from " + ws.Url];
+      return res()
+    })
+  } 
 
   handleSendRtcDescription(ws, data){
     const self = this;
