@@ -1180,23 +1180,27 @@ class Valoria {
       res();
       self.syncIntervalMain = setInterval(async () => {
         if(!self.saving[self.sync]) self.saving[self.sync] = {};
-        if((self.now() - self.nextSync) > (self.syncIntervalMs + 5000)) {
-          console.log("?");
+        if(self.now() - self.sync > 5000){
           await self.setup();
           return;
-        }  
+        }
+        // if((self.now() - self.nextSync) > (self.syncIntervalMs + 5000)) {
+        //   console.log("?");
+        //   await self.setup();
+        //   return;
+        // }  
         self.syncGroup = Object.assign({}, self.group);
         self.syncGroups = [...self.groups];
-        try {
-          await self.syncTimeWithNearby();
+        // try {
+          // await self.syncTimeWithNearby();
           // await self.saveGroups();
           // await self.sharePublic();
           // await self.syncGroupData();
           // await self.updateValorClaims();
           // await self.reassignGroupData();
-        } catch(e){
+        // } catch(e){
           
-        }
+        // }
         delete self.saving[self.sync - (self.syncIntervalMs * 2)];
         self.sync = self.nextSync;
         self.nextSync += self.syncIntervalMs;
