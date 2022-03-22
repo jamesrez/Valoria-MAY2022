@@ -1147,6 +1147,7 @@ class Server {
   calculateValor = async (id) => {
     const self = this;
     return new Promise(async (res, rej) => {
+      if(!id) return res(0);
       if(id.startsWith('http')){
         const publicD = await self.getPublicFromUrl(id);
         id = publicD.id;
