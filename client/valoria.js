@@ -1177,6 +1177,7 @@ class Valoria {
       self.syncIntervalMain = setInterval(async () => {
         if(!self.saving[self.sync]) self.saving[self.sync] = {};
         if((self.now() - self.nextSync) > (self.syncIntervalMs + 2000)) {
+          console.log("?");
           await self.reset();
           return;
         }  
