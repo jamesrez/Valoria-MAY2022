@@ -3562,7 +3562,7 @@ class Valoria {
     const polite = data.polite;
     console.log("Got webrtc desc from " + data.url)
     if(self.peers[url] && self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open") return;
-    if(self.peers[url] && description.type == "offer") delete self.peers[url];
+    if(self.peers[url] && description.type == "offer" && self.peers[url].signalingState !== "stable") delete self.peers[url];
     if(!self.peers[url]){
       self.peers[url] = new RTCPeerConnection({iceServers});
       self.peers[url].onStream = self.peers[url].onStream || (() => {});
@@ -3624,10 +3624,14 @@ class Valoria {
         }
         self.peers[url].isSRDAnswerPending = description.type == 'answer';
         console.log("Setting remote " + description.type + " description");
+        if(description.type == 'answer') {
+          console.log("GOT ANSWER");
+        }
         await self.peers[url].setRemoteDescription(description);
         self.peers[url].isSRDAnswerPending = false;
         if (description.type == "offer") {
           await self.peers[url].setLocalDescription();
+          console.log("GOT OFFER");
           ws.send(JSON.stringify({
             event: "Send rtc description",
             data: {
