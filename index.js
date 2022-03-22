@@ -176,7 +176,6 @@ class Server {
       const heartbeatInterval = setInterval(() => {
         self.wss.clients.forEach(function each(ws) {
           if (ws.isAlive === false) {
-            if(ws.close) ws.close();
             return ws.terminate();
           }
           ws.isAlive = false;
