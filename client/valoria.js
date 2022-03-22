@@ -1180,7 +1180,7 @@ class Valoria {
         console.log(self.nextSync);
         console.log(self.now() - self.nextSync);
         console.log(self.syncIntervalMs + 2000);
-        if((self.now() - self.nextSync) > (self.syncIntervalMs + 4000)) {
+        if((self.now() - self.nextSync) > (self.syncIntervalMs + 5000)) {
           console.log("?");
           await self.reset();
           return;
