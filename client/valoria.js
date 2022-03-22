@@ -697,7 +697,7 @@ class Valoria {
         const gIndex = groups.length * Math.random() << 0;
         const group = groups[gIndex];
         const url = group[group.length * Math.random() << 0];
-        group.splice(group.indexOf(url), 1);
+        groups[gIndex].splice(groups[gIndex].indexOf(url), 1);
         try {
           try {
             await self.connectToServer(url);
