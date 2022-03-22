@@ -1126,7 +1126,7 @@ class Valoria {
       try {
         let offsets = [];
         if(!self.group) return res();
-        for(let i=0;i<self.group.members?.length;i++){
+        for(let i=0;i<self.group?.members?.length;i++){
           try {
             const url = self.group.members[i];
             if(url == self.url) continue;
