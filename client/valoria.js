@@ -579,7 +579,7 @@ class Valoria {
   connectToServer(url, opts={}){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(url == self.url) return rej();
+      if(!url || url == self.url) return rej();
       let connected = false;
       setTimeout(() => {
         if(!connected) {
@@ -1176,10 +1176,6 @@ class Valoria {
       res();
       self.syncIntervalMain = setInterval(async () => {
         if(!self.saving[self.sync]) self.saving[self.sync] = {};
-
-        console.log(self.nextSync);
-        console.log(self.now() - self.nextSync);
-        console.log(self.syncIntervalMs + 2000);
         if((self.now() - self.nextSync) > (self.syncIntervalMs + 5000)) {
           console.log("?");
           await self.reset();

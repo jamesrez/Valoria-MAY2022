@@ -227,9 +227,16 @@ class Server {
   connectToServer(url){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!url) return rej({err: "No url given"});
+      if(!url || url == self.url) return rej();
+      let connected = false;
+      setTimeout(() => {
+        if(!connected) {
+          return rej();
+        }
+      }, 3000)
       try {
         if(self.conns[url] && self.conns[url].readyState === WebSocket.OPEN){
+          connected = true;
           return res();
         } else {
           if(!self.conns[url]) {
@@ -267,6 +274,7 @@ class Server {
                       }
                     }))
                   })
+                  connected = true;
                   return res();
                 } catch (e){
                   // console.log(e)
