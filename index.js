@@ -125,6 +125,7 @@ class Server {
       this.url = 'http://localhost:' + port + "/";
     } else {
       this.app.use(async (req, res, next) => {
+        next();
         if(!self.url && !self.verifyingSelf){
           self.verifyingSelf = true;
           try {
@@ -141,7 +142,6 @@ class Server {
             // console.log(e)
           }
         }
-        next();
       });
     }
     this.setupRoutes();
@@ -1685,7 +1685,7 @@ class Server {
                 url: ws.Url
               }
             }));
-            if(self.conns[pseerUrls[i]]?.peers[ws.Url]){
+            if(self.conns[peerUrls[i]]?.peers[ws.Url]){
               delete self.conns[peerUrls[i]].peers[ws.Url]
             }
           }

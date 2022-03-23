@@ -12,7 +12,7 @@
 const subtle = window.crypto.subtle;
 const initialServers = window.location.hostname == "localhost" ? [window.location.origin + "/"] : [
   "https://www.valoria.live/",
-  "https://valoria-1.onrender.com/",
+  // "https://valoria-1.onrender.com/",
 ];
 const iceServers = [
   {url: "stun:stun.l.google.com:19302", urls: "stun:stun.l.google.com:19302"},
