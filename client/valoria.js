@@ -2010,6 +2010,7 @@ class Valoria {
   handleJoinGroupRequest = async (ws) => {
     const self = this;
     return new Promise(async (res, rej) => {
+      console.log("handle join group request from " + ws.Url);
       try {
         const g = self.group;
         if(g.members.indexOf(ws.Url) !== -1){
