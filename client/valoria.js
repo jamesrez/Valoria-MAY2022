@@ -3538,15 +3538,15 @@ class Valoria {
       } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open"){
         return res(self.peers[url].datachannel);
       } 
-      else if(self.peers[url].localDescription){
-        self.conns[originUrl].send(JSON.stringify({
-          event: "Send rtc description",
-          data: {
-            desc: self.peers[url].localDescription,
-            url
-          }
-        }));
-      }
+      // else if(self.peers[url].localDescription){
+      //   self.conns[originUrl].send(JSON.stringify({
+      //     event: "Send rtc description",
+      //     data: {
+      //       desc: self.peers[url].localDescription,
+      //       url
+      //     }
+      //   }));
+      // }
     })
   }
 
