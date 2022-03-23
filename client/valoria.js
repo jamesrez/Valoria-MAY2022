@@ -2022,6 +2022,7 @@ class Valoria {
         }
         if(g.members.length < g.max){
           try {
+            console.log("NEW MEMBER WANTS JOIN GROUP. LET ME MAKE SURE WITH OTHER MEMBERS");
             for(let i=0;i<g.members.length;i++){
               if(g.members[i] == self.url) continue;
               await self.connectToServer(g.members[i]);
@@ -2032,6 +2033,7 @@ class Valoria {
                 }))
               })
             }
+            console.log("GROUP IS NOT FULL!");
           } catch (e){
             ws.send(JSON.stringify({
               event: "Joined group",
@@ -2129,11 +2131,19 @@ class Valoria {
   handleGroupNotFull = async (ws) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1) return res();
+      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1) return err();
       ws.send(JSON.stringify({
         event: "Group not full response",
         data: self.group.members.length < self.group.max
       }))
+      function err(){
+        ws.send(JSON.stringify({
+          event: "Group not full response",
+          data: {
+            err: true
+          }
+        }))
+      }
       return res()
     })
   }
@@ -2143,7 +2153,7 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!self.promises["Group not full from " + ws.Url]) return res();
-      if(data){
+      if(data.success){
         self.promises["Group not full from " + ws.Url].res();
       } else {
         self.promises["Group not full from " + ws.Url].rej();

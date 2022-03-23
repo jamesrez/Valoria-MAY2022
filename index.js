@@ -2244,11 +2244,21 @@ class Server {
   handleGroupNotFull = async (ws) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1) return res();
+      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1) return err();
       ws.send(JSON.stringify({
         event: "Group not full response",
-        data: self.group.members.length < self.group.max
+        data: {
+          success: self.group.members.length < self.group.max
+        }
       }))
+      function err(){
+        ws.send(JSON.stringify({
+          event: "Group not full response",
+          data: {
+            err: true
+          }
+        }))
+      }
       return res()
     })
   }
@@ -2258,7 +2268,7 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!self.promises["Group not full from " + ws.Url]) return res();
-      if(data){
+      if(data.success){
         self.promises["Group not full from " + ws.Url].res();
       } else {
         self.promises["Group not full from " + ws.Url].rej();
