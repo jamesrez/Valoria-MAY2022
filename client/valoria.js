@@ -699,14 +699,10 @@ class Valoria {
         const url = group[group.length * Math.random() << 0];
         groups[gIndex].splice(groups[gIndex].indexOf(url), 1);
         try {
-          try {
-            await self.connectToServer(url);
-          } catch(e){
-            continue;
-          }
           console.log("Asking " + url);
           self.group = await new Promise(async(res, rej) => {
             try {
+              await self.connectToServer(url);
               self.promises["Joined group from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
                 event: "Join group",
@@ -3602,21 +3598,21 @@ class Valoria {
           self.peers[url].datachannel.verified = true;
           self.peers[url].datachannel.open = true;
           self.peers[url].datachannel.Url = url;
+          self.peers[url].datachannel.peerServer = ws.Url;
+          await self.setupWS(self.peers[url].datachannel);
           self.peers[url].datachannel.on = (event, cb) => {
             if(!self.peers[url].datachannel.callbacks) self.peers[url].datachannel.callbacks = {}
             self.peers[url].datachannel.callbacks[event] = cb;
           }
-          self.peers[url].datachannel.peerServer = ws.Url;
-          await self.setupWS(self.peers[url].datachannel);
           self.conns[url] = self.peers[url].datachannel
+          self.peers[url].onconnectionstatechange = () => {
+            if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
+              self.peers[url].datachannel?.onclose();
+              delete self.peers[url];
+            }
+          }
         };
       };
-      self.peers[url].onconnectionstatechange = () => {
-        if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
-          self.peers[url].datachannel?.onclose();
-          delete self.peers[url];
-        }
-      }
     }
 
     try {
