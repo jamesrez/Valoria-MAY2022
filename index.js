@@ -125,7 +125,6 @@ class Server {
       this.url = 'http://localhost:' + port + "/";
     } else {
       this.app.use(async (req, res, next) => {
-        next();
         if(!self.url && !self.verifyingSelf){
           self.verifyingSelf = true;
           try {
@@ -142,6 +141,7 @@ class Server {
             // console.log(e)
           }
         }
+        next();
       });
     }
     this.setupRoutes();
