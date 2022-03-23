@@ -76,13 +76,13 @@ class Valoria {
   setup = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      let setup = false;
-        setTimeout(async () => {
-          if(!setup){
-            await self.setup();
-            return;
-          }
-        }, 3000)
+      // let setup = false;
+      //   setTimeout(async () => {
+      //     if(!setup){
+      //       await self.setup();
+      //       return;
+      //     }
+      //   }, 3000)
       await self.reset();
       if(!self.id || !self.ecdsa.publicKey) return rej();
       if(!self.ownerId) self.ownerId = self.id;
