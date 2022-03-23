@@ -10,9 +10,9 @@
 
 
 const subtle = window.crypto.subtle;
-const initialServers = window.location.hostname == "localhost" ? [window.location.origin + "/"] : [
+const initialServers = window.location.hostname == "localhost" ? ['http://localhost:3000/', 'http://localhost:3001/'] : [
   "https://www.valoria.live/",
-  // "https://valoria-1.onrender.com/",
+  "https://valoria-1.onrender.com/"
 ];
 const iceServers = [
   {url: "stun:stun.l.google.com:19302", urls: "stun:stun.l.google.com:19302"},
@@ -79,7 +79,7 @@ class Valoria {
   setup = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      let setup = false;
+      // let setup = false;
       //   setTimeout(async () => {
       //     if(!setup){
       //       await self.setup();
@@ -101,7 +101,7 @@ class Valoria {
         console.log("origin set;")
         await self.joinGroup();
         await self.sharePublic();
-        setup = true;
+        // setup = true;
         self.onJoin();
         await self.syncGroupData();
         const stall = Math.abs((self.sync + self.syncIntervalMs) - self.now());
@@ -531,31 +531,36 @@ class Valoria {
         let used = [];
         let startClaims = [];
         let syncClaims = [];
-        while(askCount < askAmount){
-          if(servers.length < 1){
-            break;
-          }
+        console.log("Load all groups from servers");
+        console.log(servers);
+        while(askCount < askAmount && servers.length > 0){
           const url = servers[servers.length * Math.random() << 0];
           if(url.includes("valoria/peers/")){
             servers.splice(servers.indexOf(url), 1);
           } else {
-            await self.connectToServer(url);
-            const data = await new Promise(async (res, rej) => {
-              self.promises["Got groups from " + url] = {res, rej};
-              self.conns[url].send(JSON.stringify({
-                event: "Get groups"
-              }));
-            })
-            // delete self.conns[url];
-            const groups = data.groups;
-            startClaims.push(data.start);
-            syncClaims.push(data.sync);
-            if(groups.length > self.groups.length){
-              self.groups = [...groups];
-              self.syncGroups = [...groups];
+            console.log("get groups from " + url);
+            try {
+              await self.connectToServer(url);
+              const data = await new Promise(async (res, rej) => {
+                self.promises["Got groups from " + url] = {res, rej};
+                self.conns[url].send(JSON.stringify({
+                  event: "Get groups"
+                }));
+              })
+              if(data.groups && data.sync && data.start){
+                const groups = data.groups;
+                startClaims.push(data.start);
+                syncClaims.push(data.sync);
+                if(groups.length > self.groups.length){
+                  self.groups = [...groups];
+                  self.syncGroups = [...groups];
+                }
+              } 
+            } catch(e){
+
             }
             used.push(url);
-            servers = self.groups.flat();
+            servers = [...new Set([...servers, ...self.groups.flat()])];
             for(let i=0;i<used.length;i++){
               if(servers.indexOf(used[i]) !== -1){
                 servers.splice(servers.indexOf(used[i]), 1);
@@ -564,6 +569,9 @@ class Valoria {
             askCount += 1;
           }
         }
+        if(self.groups.length == 0) throw "No servers in network :(";
+        console.log(startClaims);
+        console.log(syncClaims);
         self.start = mode(startClaims)
         self.sync = mode(syncClaims)
         self.nextSync = self.sync + self.syncIntervalMs;
@@ -575,6 +583,7 @@ class Valoria {
         }
         res();
       } catch(e){
+        console.log(e);
         return rej();
       }
     })
@@ -630,14 +639,18 @@ class Valoria {
                 connected = true;
                 return res();
               } else {
-                let wsUrl = "ws://" + new URL(url).host + "/"
-                if(url.startsWith('https')){
-                  wsUrl = "wss://" + new URL(url).host + "/"
+                try {
+                  let wsUrl = "ws://" + new URL(url).host + "/"
+                  if(url.startsWith('https')){
+                    wsUrl = "wss://" + new URL(url).host + "/"
+                  }
+                  self.conns[url] = new WebSocket(wsUrl);
+                  self.conns[url].isWS = true;
+                  self.conns[url].isP2P = false;
+                  self.conns[url].Url = url;
+                } catch(e){
+                  rej(e);
                 }
-                self.conns[url] = new WebSocket(wsUrl);
-                self.conns[url].isWS = true;
-                self.conns[url].isP2P = false;
-                self.conns[url].Url = url;
               }
             } catch(e){
               console.log(e)
@@ -679,6 +692,7 @@ class Valoria {
               }
             });
             this.conns[url].onerror = (error) => {
+              console.log("Could not connect");
               rej(error);
             }
           }
