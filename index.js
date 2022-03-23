@@ -788,8 +788,13 @@ class Server {
             break;
           }
           const url = servers[servers.length * Math.random() << 0];
-          const data = await new Promise(async (res, rej) => {
+          try {
             await self.connectToServer(url);
+          } catch (e) {
+            servers.splice(servers.indexOf(url), 1);
+            continue;
+          }
+          const data = await new Promise(async (res, rej) => {
             self.promises["Got groups from " + url] = {res, rej};
             self.conns[url].send(JSON.stringify({
               event: "Get groups"
@@ -1300,7 +1305,7 @@ class Server {
         self.saving[self.sync] = {};
 
         //VALOR TESTS
-        if(self.url == 'http://localhost:3000/' || self.url == 'https://www.valoria.live/'){
+        if(self.url == 'http://localhost:3000/' || self.url.startsWith('https')){
           for(let i=0;i<self.groups.length;i++){
             for(let j=0;j<self.groups[i]?.length;j++){
               try {
