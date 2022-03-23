@@ -2131,7 +2131,9 @@ class Valoria {
       if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1) return err();
       ws.send(JSON.stringify({
         event: "Group not full response",
-        data: self.group.members.length < self.group.max
+        data: {
+          success: self.group.members.length < self.group.max
+        }
       }))
       function err(){
         ws.send(JSON.stringify({
