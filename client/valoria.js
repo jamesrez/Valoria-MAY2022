@@ -586,7 +586,7 @@ class Valoria {
         if(!connected) {
           return rej();
         }
-      }, 3000)
+      }, 5000)
       try {
         if(self.conns[url] && (self.conns[url].readyState === WebSocket.OPEN || self.conns[url].open)){
           if(!self.conns[url].verified && self.url && self.originUrl !== url){
@@ -699,10 +699,10 @@ class Valoria {
         const url = group[group.length * Math.random() << 0];
         groups[gIndex].splice(groups[gIndex].indexOf(url), 1);
         try {
+          await self.connectToServer(url);
           console.log("Asking " + url);
           self.group = await new Promise(async(res, rej) => {
             try {
-              await self.connectToServer(url);
               self.promises["Joined group from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
                 event: "Join group",
