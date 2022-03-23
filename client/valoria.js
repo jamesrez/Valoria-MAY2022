@@ -76,7 +76,7 @@ class Valoria {
   setup = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      // let setup = false;
+      let setup = false;
       //   setTimeout(async () => {
       //     if(!setup){
       //       await self.setup();
