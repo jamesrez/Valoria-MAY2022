@@ -1766,6 +1766,9 @@ class Valoria {
           case "Got rtc candidate":
             self.handleGotRtcCandidate(ws, d.data);
             break;
+          case "Webrtc setup":
+            self.handleWebrtcSetup(ws, d.data)
+            break;
         }
         if(ws.callbacks && typeof ws.callbacks[d.event] == "function"){
           ws.callbacks[d.event](d.data);
@@ -3495,14 +3498,18 @@ class Valoria {
             self.peers[url].datachannel.callbacks[event] = cb;
           }
           self.peers[url].datachannel.peerServer = originUrl;
-          await self.setupWS(self.peers[url].datachannel);
           self.peers[url].onconnectionstatechange = () => {
             if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
               self.peers[url].datachannel?.onclose();
               delete self.peers[url];
             }
           };
-          self.conns[url] = self.peers[url].datachannel
+          self.conns[url] = self.peers[url].datachannel;
+          await self.setupWS(self.peers[url].datachannel);
+          await new Promise(async (res, rej) => {
+            self.promises["Webrtc connection with " + url + " is setup"] = {res, rej};
+          })
+          self.peers[url].datachannel.setup = true;
           res(self.peers[url].datachannel);
         };
         if(self.stream && self.stream.getTracks){
@@ -3546,7 +3553,7 @@ class Valoria {
             self.peers[url].restartIce();
           }
         };
-      } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open"){
+      } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open" && self.peers[url]?.datachannel?.setup){
         return res(self.peers[url].datachannel);
       } 
       // else if(self.peers[url].localDescription){
@@ -3614,11 +3621,13 @@ class Valoria {
               delete self.peers[url];
             }
           }
+          await self.setupWS(self.peers[url].datachannel);
+          self.peers[url].datachannel.send(JSON.stringify({
+            event: "Webrtc setup"
+          }));
         };
-        await self.setupWS(self.peers[url].datachannel);
       };
     }
-
     try {
       if (description) {
         const readyForOffer =
@@ -3663,6 +3672,13 @@ class Valoria {
       await self.peers[data.url].addIceCandidate(data.candidate)
     } catch (e) {
     }
+  }
+
+  async handleWebrtcSetup(ws, data){
+    const self = this;
+    if(!self.promises["Webrtc connection with " + ws.Url + " is setup"]) return;
+    self.promises["Webrtc connection with " + ws.Url + " is setup"].res()
+    delete self.promises["Webrtc connection with " + ws.Url + " is setup"]
   }
 
 }
