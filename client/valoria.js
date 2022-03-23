@@ -2043,6 +2043,7 @@ class Valoria {
           g.updated = self.now();
           g.version += 1;
           self.groups[g.index] = g.members;
+          console.log("NEW MEMBER IN GROUP. GOTTA TELL OTHER MEMBERS!");
           for(let i=0;i<g.members?.length;i++){
             if(g.members[i] == self.url || g.members[i] == ws.Url) continue;
             await self.connectToServer(g.members[i]);
@@ -2054,6 +2055,7 @@ class Valoria {
               }))
             })
           }
+          console.log("TOLD!!!!!!")
           self.conns[ws.Url].send(JSON.stringify({
             event: "Joined group",
             data: g
