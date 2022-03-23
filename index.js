@@ -1637,7 +1637,7 @@ class Server {
           const peers = Object.keys(self.dimensions[ws.dimension].conns)
           for(let i=0;i<self.group.members.length;i++){
             if(self.url == self.group.members[i] || ws.Url == self.group.members[i]) continue;
-            self.conns[self.group.members[i]].send(JSON.stringify({
+            self.conns[self.group.members[i]]?.send(JSON.stringify({
               event: "Peer has left group dimension",
               data: {
                 dimension: ws.dimension,
