@@ -1660,18 +1660,20 @@ class Server {
             }))
           }
         }
-        if(ws.Url && ws.Url !== self.url && self.group.members.indexOf(ws.Url) !== -1){
-          await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
-        } else if(
-          self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1 &&
-          self.groups[self.group.index + 1]?.length == 1
-        ){
-          await self.handleGroupRemoved(ws, {index: self.group.index + 1, url: ws.Url})
-        } else if(
-          self.groups[self.group.index - 1]?.indexOf(ws.Url) !== -1 && 
-          self.groups[self.group.index - 1]?.length == 1
-        ){
-          await self.handleGroupRemoved(ws, {index: self.group.index - 1, url: ws.Url})
+        if(self.group){
+          if(ws.Url && ws.Url !== self.url && self.group.members.indexOf(ws.Url) !== -1){
+            await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
+          } else if(
+            self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1 &&
+            self.groups[self.group.index + 1]?.length == 1
+          ){
+            await self.handleGroupRemoved(ws, {index: self.group.index + 1, url: ws.Url})
+          } else if(
+            self.groups[self.group.index - 1]?.indexOf(ws.Url) !== -1 && 
+            self.groups[self.group.index - 1]?.length == 1
+          ){
+            await self.handleGroupRemoved(ws, {index: self.group.index - 1, url: ws.Url})
+          }
         }
         if(self.conns[ws.Url]?.peers){
           let peerUrls = Object.keys(self.conns[ws.Url].peers);
@@ -1683,7 +1685,7 @@ class Server {
                 url: ws.Url
               }
             }));
-            if(self.conns[peerUrls[i]]?.peers[ws.Url]){
+            if(self.conns[pseerUrls[i]]?.peers[ws.Url]){
               delete self.conns[peerUrls[i]].peers[ws.Url]
             }
           }
