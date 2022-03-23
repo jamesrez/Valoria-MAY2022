@@ -2133,11 +2133,13 @@ class Server {
             event: "Joined group",
             data: {err: "Already joined group"}
           }));
+          console.log("already in group");
           res();
           return
         }
         if(g.members.length < g.max){
           try {
+            console.log("Asking if group is full");
             for(let i=0;i<g.members.length;i++){
               if(g.members[i] == self.url) continue;
               await self.connectToServer(g.members[i]);
@@ -2148,6 +2150,7 @@ class Server {
                 }))
               })
             }
+            console.log("Group not full");
           } catch (e){
             ws.send(JSON.stringify({
               event: "Joined group",
