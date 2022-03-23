@@ -537,6 +537,7 @@ class Valoria {
           const url = servers[servers.length * Math.random() << 0];
           if(url.includes("valoria/peers/")){
             servers.splice(servers.indexOf(url), 1);
+            used.push(url);
           } else {
             console.log("get groups from " + url);
             try {

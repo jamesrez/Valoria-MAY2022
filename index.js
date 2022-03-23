@@ -787,6 +787,7 @@ class Server {
           const url = servers[servers.length * Math.random() << 0];
           if(url.includes("valoria/peers/")){
             servers.splice(servers.indexOf(url), 1);
+            used.push(url)
           } else {
             try {
               await self.connectToServer(url);
