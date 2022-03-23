@@ -3601,7 +3601,8 @@ class Valoria {
           self.peers[url].datachannel.open = true;
           self.peers[url].datachannel.Url = url;
           self.peers[url].datachannel.peerServer = ws.Url;
-          await self.setupWS(self.peers[url].datachannel);
+          console.log("datachannel being setup")
+          console.log("datachannel is setup")
           self.peers[url].datachannel.on = (event, cb) => {
             if(!self.peers[url].datachannel.callbacks) self.peers[url].datachannel.callbacks = {}
             self.peers[url].datachannel.callbacks[event] = cb;
@@ -3614,6 +3615,7 @@ class Valoria {
             }
           }
         };
+        await self.setupWS(self.peers[url].datachannel);
       };
     }
 
