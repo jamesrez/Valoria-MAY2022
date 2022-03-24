@@ -344,7 +344,7 @@ async function addPeerToScene(id){
   peerAvatars[id] = await loadModel('assets/default.glb');
   peerAvatars[id].name = "Avatar";
   peerAvatars[id].sound = new THREE.PositionalAudio(listener);
-  peerAvatars[id].attach(peerAvatars[id].sound);
+  // peerAvatars[id].attach(peerAvatars[id].sound);
   setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
   valoria.conns[id].on("Movement", (data) => {
     if(
@@ -363,19 +363,24 @@ async function addPeerToScene(id){
   })
   valoria.peers[id].onStream = (stream) => {
     let audio = document.createElement('audio');
-    audio.autoplay = true;
+    // audio.autoplay = true;
+    let audioStream = new MediaStream();
+    stream.getAudioTracks().forEach(track => audioStream.addTrack(track));
     try {
-      audio.srcObject = stream;
+      audio.srcObject = audioStream;
     } catch(e) {
-      audio.src = URL.createObjectURL(stream);
+      audio.src = URL.createObjectURL(audioStream);
     }
-    world.appendChild(audio);
+    // world.appendChild(audio);
     audio.play();
     peerAvatars[id].sound.autoplay = true;
-    peerAvatars[id].sound.setMediaElementSource(audio);
-    peerAvatars[id].sound.setRefDistance(0.75);
+    peerAvatars[id].sound.setRefDistance(1);
     peerAvatars[id].sound.setRolloffFactor(1);
-    peerAvatars[id].sound.setDirectionalCone(180, 230, 0.1);
+    peerAvatars[id].sound.setMaxDistance(5)
+    peerAvatars[id].sound.setDistanceModel("exponential")
+    peerAvatars[id].sound.setMediaElementSource(audio);
+    // peerAvatars[id].sound.setDirectionalCone(180, 230, 0.1);
+    peerAvatars[id].add(peerAvatars[id].sound);
     // peerAvatars[id].sound.play();
 
   };
