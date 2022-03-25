@@ -557,7 +557,7 @@ class Valoria {
                 const groups = data.groups;
                 startClaims.push(data.start);
                 syncClaims.push(data.sync);
-                if(groups.length >= self.groups.length){
+                if(groups.flat().length >= self.groups.flat().length){
                   self.groups = [...groups];
                   self.syncGroups = [...groups];
                 }

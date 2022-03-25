@@ -299,8 +299,8 @@ async function sendPeerUpdates(){
     if(valoria.dimension?.peers){
       const peers = valoria.dimension?.peers;
       for(let i=0;i<peers.length;i++){
-        if(valoria.peers[peers[i]] && valoria.peers[peers[i]]?.datachannel?.readyState == "open"){
-          valoria.peers[peers[i]].datachannel.send(JSON.stringify({
+        if(valoria.conns[peers[i]]){
+          valoria.conns[peers[i]].send(JSON.stringify({
             event: "Movement",
             data: {
               position: {x: avatar.position.x, y: avatar.position.y, z: avatar.position.z},

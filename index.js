@@ -188,10 +188,10 @@ class Server {
       try {
         self.isSetup = false;
         setTimeout(async () => {
-          if(!self.isSetup){
-            await self.setup();
-            return;
-          }
+          // if(!self.isSetup){
+          //   await self.setup();
+          //   return;
+          // }
         }, 6000)
         await self.loadAllGroups();
         await self.joinGroup();
@@ -799,7 +799,7 @@ class Server {
             syncClaims.push(data.sync);
             // self.groups = [...new Set([...groups, ...self.groups])]
             // self.syncGroups = self.groups;
-            if(groups.length >= self.groups.length){
+            if(groups.flat().length >= self.groups.flat().length){
               self.groups = [...groups];
               self.syncGroups = [...groups];
             }
@@ -3498,7 +3498,7 @@ class Server {
 
 }
 
-let localServerCount = 2;
+let localServerCount = 3;
 let localServers = [];
 if(isLocal){
   (async () => {
