@@ -783,32 +783,25 @@ class Server {
         let used = [];
         let startClaims = [];
         let syncClaims = [];
-        console.log("Loading all groups");
+        console.log("Loading all groups")
         while(askCount < askAmount && servers.length > 0){
           const url = servers[servers.length * Math.random() << 0];
-          if(url.includes("valoria/peers/")){
-            servers.splice(servers.indexOf(url), 1);
-            // used.push(url)
-          } else {
-            try {
-              await self.connectToServer(url);
-              const data = await new Promise(async (res, rej) => {
-                self.promises["Got groups from " + url] = {res, rej};
-                self.conns[url].send(JSON.stringify({
-                  event: "Get groups"
-                }));
-              })
-              const groups = data.groups;
-              startClaims.push(data.start);
-              syncClaims.push(data.sync);
-              if(groups.length > self.groups.length){
-                self.groups = [...groups];
-                self.syncGroups = [...groups];
-              }
-            } catch (e) {
-              // continue;
-              console.log("could not get groups from " + url);
-              // console.log(e);
+          try {
+            await self.connectToServer(url);
+            const data = await new Promise(async (res, rej) => {
+              self.promises["Got groups from " + url] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "Get groups"
+              }));
+            })
+            const groups = data.groups;
+            startClaims.push(data.start);
+            syncClaims.push(data.sync);
+            // self.groups = [...new Set([...groups, ...self.groups])]
+            // self.syncGroups = self.groups;
+            if(groups.length >= self.groups.length){
+              self.groups = [...groups];
+              self.syncGroups = [...groups];
             }
             used.push(url);
             servers = self.groups.flat();
@@ -817,8 +810,10 @@ class Server {
                 servers.splice(servers.indexOf(used[i]), 1);
               }
             }
-            console.log(servers);
             askCount += 1;
+          } catch (e) {
+            // used.push(url);
+            servers.splice(servers.indexOf(url));
           }
         }
         console.log("LOADED GROUPs");

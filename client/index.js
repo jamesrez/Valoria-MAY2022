@@ -39,7 +39,7 @@ valoria.onJoin = async () => {
     removePeerFromScene(id);
   }
   await valoria.joinDimension("Valoria"); 
-  await valoria.startMediaStream({audio: true, video: true});
+  await valoria.startMediaStream({audio: true, video: false});
   console.log("joined dimension: " + valoria.dimension.id)
 
 }

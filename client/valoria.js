@@ -536,8 +536,11 @@ class Valoria {
         let used = [];
         let startClaims = [];
         let syncClaims = [];
+        console.log("Loading groups from initial:");
+        console.log(servers);
         while(askCount < askAmount && servers.length > 0){
           const url = servers[servers.length * Math.random() << 0];
+          console.log("Getting groups from " + url);
           if(url.includes("valoria/peers/")){
             servers.splice(servers.indexOf(url), 1);
             used.push(url);
@@ -554,7 +557,7 @@ class Valoria {
                 const groups = data.groups;
                 startClaims.push(data.start);
                 syncClaims.push(data.sync);
-                if(groups.length > self.groups.length){
+                if(groups.length >= self.groups.length){
                   self.groups = [...groups];
                   self.syncGroups = [...groups];
                 }
