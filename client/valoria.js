@@ -2000,6 +2000,7 @@ class Valoria {
   handleJoinGroupRequest = async (ws) => {
     const self = this;
     return new Promise(async (res, rej) => {
+      console.log("Handle join group request from " + ws.Url);
       try {
         const g = self.group;
         if(g.members.indexOf(ws.Url) !== -1){
@@ -2011,6 +2012,7 @@ class Valoria {
           return
         }
         if(g.members.length < g.max){
+          console.log("checking if group is full");
           try {
             for(let i=0;i<g.members.length;i++){
               if(g.members[i] == self.url) continue;
@@ -2022,11 +2024,13 @@ class Valoria {
                 }))
               })
             }
+            console.log("group not full");
           } catch (e){
             ws.send(JSON.stringify({
               event: "Joined group",
               data: {err: "Not seeking new members"}
             }));
+            console.log("IS FULL")
             return res();
           }
           g.members.push(ws.Url);

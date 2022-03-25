@@ -783,12 +783,12 @@ class Server {
         let used = [];
         let startClaims = [];
         let syncClaims = [];
+        console.log("Loading all groups");
         while(askCount < askAmount && servers.length > 0){
-          console.log(servers);
           const url = servers[servers.length * Math.random() << 0];
           if(url.includes("valoria/peers/")){
             servers.splice(servers.indexOf(url), 1);
-            used.push(url)
+            // used.push(url)
           } else {
             try {
               await self.connectToServer(url);
@@ -807,8 +807,8 @@ class Server {
               }
             } catch (e) {
               // continue;
-              // console.log("could not get groups from " + url);
-              console.log(e);
+              console.log("could not get groups from " + url);
+              // console.log(e);
             }
             used.push(url);
             servers = self.groups.flat();
@@ -817,6 +817,7 @@ class Server {
                 servers.splice(servers.indexOf(used[i]), 1);
               }
             }
+            console.log(servers);
             askCount += 1;
           }
         }
@@ -2148,7 +2149,7 @@ class Server {
         }
         if(g.members.length < g.max){
           try {
-            console.log("Asking if group is full");
+            console.log("Checking if group is full");
             for(let i=0;i<g.members.length;i++){
               if(g.members[i] == self.url) continue;
               await self.connectToServer(g.members[i]);
@@ -2165,6 +2166,7 @@ class Server {
               event: "Joined group",
               data: {err: "Not seeking new members"}
             }));
+            console.log("IS FULL")
             return res();
           }
           g.members.push(ws.Url);
