@@ -507,7 +507,7 @@ class Valoria {
     const self = this;
     return new Promise(async(res, rej) => {
       self.stream = await navigator.mediaDevices.getUserMedia(opts);
-      const peers = Object.keys(self.peers);
+      const peers = self.dimension.peers;
       for(let i=0;i<peers.length;i++){
         if(!self.peers[peers[i]].addTrack) continue;
         self.stream.getTracks().forEach(track => self.peers[peers[i]].addTrack(track, self.stream));
