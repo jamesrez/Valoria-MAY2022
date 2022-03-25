@@ -1519,7 +1519,7 @@ class Server {
           const id = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
           if(publicD.id !== id) return rej({err: "Invalid public data"});
         } catch(e){
-          rej(e)
+          return res(null)
         }
       }
       publicD.ecdsaPub = await subtle.importKey(

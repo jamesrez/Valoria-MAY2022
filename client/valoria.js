@@ -1407,7 +1407,7 @@ class Valoria {
           if(publicD.id !== id) return rej({err: "Invalid public data"});
         } catch(e){
           console.log(e);
-          return rej(e)
+          return res(null)
         }
       }
       publicD.ecdsaPub = await subtle.importKey(
