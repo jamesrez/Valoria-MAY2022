@@ -75,7 +75,8 @@ let rightController;
   //   }
   // })
   avatar.name = "Avatar";
-  avatar.attach(camera);
+  avatar.add(camera);
+  avatar.add(listener);
   avatar.position.z = -0.5;
   avatar.ray = new THREE.Raycaster();
   avatar.ray.set(new THREE.Vector3(avatar.position.x, 0.3, avatar.position.z), new THREE.Vector3(0, -1, 0));
@@ -146,8 +147,13 @@ renderer.setAnimationLoop(async () => {
     //   }
     // }
     if(node.mixer) node.mixer.update(delta);
+
+    // if(node.audio) node.audio.volume = Math.min(1, 1 / camera.position.distanceTo(node.position))
+
+
   })
   updateAvatarAnimation();
+  updatePeerAvatarVolume();
   sendPeerUpdates();
   handleObjectsMoving();
   updateGridWave();
@@ -343,8 +349,7 @@ async function addPeerToScene(id){
   if(peerAvatars[id]) return;
   peerAvatars[id] = await loadModel('assets/default.glb');
   peerAvatars[id].name = "Avatar";
-  peerAvatars[id].sound = new THREE.PositionalAudio(listener);
-  // peerAvatars[id].attach(peerAvatars[id].sound);
+  // peerAvatars[id].sound = new THREE.PositionalAudio(listener);
   setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
   valoria.conns[id].on("Movement", (data) => {
     if(
@@ -361,9 +366,17 @@ async function addPeerToScene(id){
       data
     }
   })
-  valoria.peers[id].onStream = (stream) => {
+  valoria.peers[id].onStream = (stream) => { 
+    // document.getElementById('song').play();
+    if(peerAvatars[id].audio) {
+      peerAvatars[id].audio.remove();
+    }
     let audio = document.createElement('audio');
-    // audio.autoplay = true;
+    world.append(audio);
+    // let audio = new Audio("assets/Raven_DigitalSunlight.mp3");
+    // // audio.id = "audio-" + id;
+    // audio.loop = true;
+    // audio.preload = "auto";
     let audioStream = new MediaStream();
     stream.getAudioTracks().forEach(track => audioStream.addTrack(track));
     try {
@@ -371,17 +384,37 @@ async function addPeerToScene(id){
     } catch(e) {
       audio.src = URL.createObjectURL(audioStream);
     }
+    peerAvatars[id].audio = audio;
+    audio.play()
+    // peerAvatars[id].sound = new THREE.PositionalAudio(listener);
+    // peerAvatars[id].add(peerAvatars[id].sound);
+    // peerAvatars[id].sound.setMaxDistance(20)
+    // peerAvatars[id].sound.setMediaElementSource(audio)
+
+    // audio.src = 
+    // let audioStream = new MediaStream()
+    // let aTracks = stream.getAudioTracks();
+    // for(let i=0;i<aTracks.length;i++){
+    //   audioStream.addTrack(aTracks[i]);
+    // }
+    // let source = new AudioContext().createMediaStreamSource(audioStream);
+
     // world.appendChild(audio);
-    audio.play();
-    peerAvatars[id].sound.autoplay = true;
-    peerAvatars[id].sound.setRefDistance(1);
-    peerAvatars[id].sound.setRolloffFactor(1);
-    peerAvatars[id].sound.setMaxDistance(5)
-    peerAvatars[id].sound.setDistanceModel("exponential")
-    peerAvatars[id].sound.setMediaElementSource(audio);
+    // audio.play();
+    // peerAvatars[id].sound.autoplay = true;
+    // peerAvatars[id].sound.loop = true;
+    // peerAvatars[id].sound.setRefDistance(1);
+    // peerAvatars[id].sound.setRolloffFactor(1);
+    // peerAvatars[id].sound.setDistanceModel("exponential")
+    // peerAvatars[id].sound.setRolloffFactor(10);
     // peerAvatars[id].sound.setDirectionalCone(180, 230, 0.1);
-    peerAvatars[id].add(peerAvatars[id].sound);
-    // peerAvatars[id].sound.play();
+    
+
+
+    // peerAvatars[id].audio = audio;
+
+    // audio.pause();
+    // peerAvatars[id].sound.setDirectionalCone(180, 230, 0.1);
 
   };
   if(valoria.peers[id].stream){
@@ -393,6 +426,22 @@ async function removePeerFromScene(id){
   if(peerAvatars[id]) {
     peerAvatars[id].clear();
     delete peerAvatars[id];
+  }
+}
+
+async function updatePeerAvatarVolume(){
+  const peers = Object.keys(peerAvatars);
+  for(let i=0;i<peers.length;i++){
+    if(!peerAvatars[peers[i]].audio) continue;
+    let distSquared = avatar.position.distanceToSquared(
+      peerAvatars[peers[i]].position
+    );
+    if (distSquared > 500) {
+      peerAvatars[peers[i]].audio.volume = 0;
+    } else {
+      let volume = Math.min(1, 10 / distSquared);
+      peerAvatars[peers[i]].audio.volume = volume;
+    }
   }
 }
 

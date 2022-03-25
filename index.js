@@ -784,6 +784,7 @@ class Server {
         let startClaims = [];
         let syncClaims = [];
         while(askCount < askAmount && servers.length > 0){
+          console.log(servers);
           const url = servers[servers.length * Math.random() << 0];
           if(url.includes("valoria/peers/")){
             servers.splice(servers.indexOf(url), 1);
@@ -806,6 +807,8 @@ class Server {
               }
             } catch (e) {
               // continue;
+              // console.log("could not get groups from " + url);
+              console.log(e);
             }
             used.push(url);
             servers = self.groups.flat();
@@ -817,6 +820,8 @@ class Server {
             askCount += 1;
           }
         }
+        console.log("LOADED GROUPs");
+        console.log(self.groups);
         self.start = mode(startClaims) || self.now();
         self.sync = mode(syncClaims) || self.start;
         self.nextSync = self.sync + self.syncIntervalMs;
