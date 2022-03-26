@@ -2485,44 +2485,47 @@ class Server {
   handleGroupRemoved = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(self.groups[data.index]?.indexOf(data.url) !== -1 && self.groups[data.index]?.length == 1){
-        self.groups.splice(data.index, 1);
-        if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
-        if(data.index < self.group.index){
-          self.group.index -= 1;
-          self.group.version += 1;
-          self.group.updated = self.sync;
-        }
-        await self.updateValorClaims();
-        await self.reassignGroupData();
-        if(self.group.members.indexOf(ws.Url) == -1){
-          for(let i=0;i<self.group.members.length;i++){
-            const url = self.group.members[i];
-            if(url == self.url) continue;
-            self.conns[url].send(JSON.stringify({
-              event: "Group removed",
-              data
-            }))
+      try {
+        if(self.groups[data.index]?.indexOf(data.url) !== -1 && self.groups[data.index]?.length == 1){
+          self.groups.splice(data.index, 1);
+          if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
+          if(data.index < self.group.index){
+            self.group.index -= 1;
+            self.group.version += 1;
+            self.group.updated = self.sync;
           }
-          if(data.index > self.group.index && self.groups[self.group.index - 1]){
-            const g = self.groups[self.group.index - 1];
-            const url = g[g.length * Math.random() << 0];
-            await self.connectToServer(url);
-            self.conns[url].send(JSON.stringify({
-              event: "Group removed",
-              data
-            }))
-          } else if(data.index < self.group.index && self.groups[self.group.index + 1]){
-            const g = self.groups[self.group.index + 1];
-            const url = g[g.length * Math.random() << 0];
-            await self.connectToServer(url);
-            self.conns[url].send(JSON.stringify({
-              event: "Group removed",
-              data
-            }))
+          await self.updateValorClaims();
+          await self.reassignGroupData();
+          if(self.group.members.indexOf(ws.Url) == -1){
+            for(let i=0;i<self.group.members.length;i++){
+              const url = self.group.members[i];
+              if(url == self.url) continue;
+              self.conns[url].send(JSON.stringify({
+                event: "Group removed",
+                data
+              }))
+            }
+            if(data.index > self.group.index && self.groups[self.group.index - 1]){
+              const g = self.groups[self.group.index - 1];
+              const url = g[g.length * Math.random() << 0];
+              await self.connectToServer(url);
+              self.conns[url].send(JSON.stringify({
+                event: "Group removed",
+                data
+              }))
+            } else if(data.index < self.group.index && self.groups[self.group.index + 1]){
+              const g = self.groups[self.group.index + 1];
+              const url = g[g.length * Math.random() << 0];
+              await self.connectToServer(url);
+              self.conns[url].send(JSON.stringify({
+                event: "Group removed",
+                data
+              }))
+            }
           }
         }
-
+      } catch(e){
+        console.log(e)
       }
       return res();
     })
@@ -3340,57 +3343,61 @@ class Server {
   handleJoinDimension(ws, data){
     const self = this;
     return new Promise(async( res, rej) => {
-      const id = data.id;
-      if(!self.dimensions[id]) {
-        self.dimensions[id] = {conns: {}};
-        const g = [...self.group.members];
-        g.splice(g.indexOf(self.url), 1);
-        if(g.length > 0){
-          const url = g[g.length * Math.random() << 0];
-          await this.connectToServer(url);
-          self.dimensions[id].conns = await new Promise(async (res, rej) => {
-            self.promises["Got peers in group dimension " + id + " from " + url] = {res, rej};
-            self.conns[url].send(JSON.stringify({
-              event: "Get peers in group dimension",
-              data: {
-                id
-              }
-            }))
-          });
+      try {
+        const id = data.id;
+        if(!self.dimensions[id]) {
+          self.dimensions[id] = {conns: {}};
+          const g = [...self.group.members];
+          g.splice(g.indexOf(self.url), 1);
+          if(g.length > 0){
+            const url = g[g.length * Math.random() << 0];
+            await this.connectToServer(url);
+            self.dimensions[id].conns = await new Promise(async (res, rej) => {
+              self.promises["Got peers in group dimension " + id + " from " + url] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "Get peers in group dimension",
+                data: {
+                  id
+                }
+              }))
+            });
+          }
         }
-      }
-      const peers = Object.keys(self.dimensions[id].conns)
-      self.dimensions[id].conns[ws.Url] = 1;
-      if(self.conns[ws.Url]) self.conns[ws.Url].dimension = id;
-      if(ws.send){
-        ws.send(JSON.stringify({
-          event: "Joined dimension",
-          data: {
-            dimension: id,
-            peers
-          }
-        }))
-      }
-      for(let i=0;i<self.group.members.length;i++){
-        if(self.url == self.group.members[i]) continue;
-        await self.connectToServer(self.group.members[i]);
-        self.conns[self.group.members[i]]?.send(JSON.stringify({
-          event: "New peer in group dimension",
-          data: {
-            url: ws.Url,
-            dimension: id
-          }
-        }))
-      }
-      for(let i=0;i<peers.length;i++){
-        await self.connectToServer(peers[i]);
-        self.conns[peers[i]]?.send(JSON.stringify({
-          event: "New peer in dimension",
-          data: {
-            url: ws.Url,
-            dimension: id
-          }
-        }));
+        const peers = Object.keys(self.dimensions[id].conns)
+        self.dimensions[id].conns[ws.Url] = 1;
+        if(self.conns[ws.Url]) self.conns[ws.Url].dimension = id;
+        if(ws.send){
+          ws.send(JSON.stringify({
+            event: "Joined dimension",
+            data: {
+              dimension: id,
+              peers
+            }
+          }))
+        }
+        for(let i=0;i<self.group.members.length;i++){
+          if(self.url == self.group.members[i]) continue;
+          await self.connectToServer(self.group.members[i]);
+          self.conns[self.group.members[i]]?.send(JSON.stringify({
+            event: "New peer in group dimension",
+            data: {
+              url: ws.Url,
+              dimension: id
+            }
+          }))
+        }
+        for(let i=0;i<peers.length;i++){
+          await self.connectToServer(peers[i]);
+          self.conns[peers[i]]?.send(JSON.stringify({
+            event: "New peer in dimension",
+            data: {
+              url: ws.Url,
+              dimension: id
+            }
+          }));
+        }
+      } catch(e){
+        console.log()
       }
       res();
     })
