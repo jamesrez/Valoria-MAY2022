@@ -3236,20 +3236,25 @@ class Valoria {
   joinDimension(id){
     const self = this;
     return new Promise(async (res, rej) => {
-      const groupIndex = jumpConsistentHash(id, self.groups.length);
-      const group = self.groups[groupIndex];
-      const url = group[group.length * Math.random() << 0];
-      if(url !== self.url){
-        await self.connectToServer(url);
-        self.promises["Joined " + id + " dimension"] = {res, rej};
-        self.conns[url].send(JSON.stringify({
-          event: "Join dimension",
-          data: {
-            id: id
-          }
-        }));
-      } else {
-        await self.handleJoinDimension({Url : self.url}, {id})
+      try {
+        const groupIndex = jumpConsistentHash(id, self.groups.length);
+        const group = self.groups[groupIndex];
+        const url = group[group.length * Math.random() << 0];
+        if(url !== self.url){
+          await self.connectToServer(url);
+          self.promises["Joined " + id + " dimension"] = {res, rej};
+          self.conns[url].send(JSON.stringify({
+            event: "Join dimension",
+            data: {
+              id: id
+            }
+          }));
+        } else {
+          await self.handleJoinDimension({Url : self.url}, {id})
+          res();
+        }
+      } catch(e){
+        console.log(e);
         res();
       }
     })
@@ -3330,7 +3335,7 @@ class Valoria {
       for(let i=0;i<peers.length;i++){
         if(peers[i] == self.url) continue;
         if(!self.conns[peers[i]]) {
-          self.connectToPeer(peers[i]);
+          await self.connectToPeer(peers[i]);
         }
         self.dimension.onPeerJoin(peers[i]);
       }
@@ -3345,8 +3350,12 @@ class Valoria {
   handleNewPeerInDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
+      console.log("New peer in dimension");
+      console.log(data);
       if(data.dimension !== self.dimension.id || !data.url || data.url == self.url || self.dimension.peers.indexOf(data.url) !== -1) return res();
-      self.connectToPeer(data.url);
+      console.log("connecting");
+      await self.connectToPeer(data.url);
+      console.log("connected");
       self.dimension.peers.push(data.url);
       self.dimension.onPeerJoin(data.url);
       res();
@@ -3524,7 +3533,7 @@ class Valoria {
             self.peers[url].restartIce();
           }
         };
-      } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open" && self.peers[url]?.datachannel?.setup){
+      } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.datachannel?.readyState == "open"){
         return res(self.peers[url].datachannel);
       } 
       // else if(self.peers[url].localDescription){
@@ -3545,7 +3554,7 @@ class Valoria {
     const url = data.url;
     const polite = data.polite;
     if(self.peers[url] && self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open") return;
-    if(self.peers[url] && description.type == "offer" && self.peers[url].signalingState !== "stable") delete self.peers[url];
+    // if(self.peers[url] && description.type == "offer" && self.peers[url].signalingState !== "stable") delete self.peers[url];
     if(!self.peers[url]){
       self.peers[url] = new RTCPeerConnection({iceServers});
       self.peers[url].onStream = self.peers[url].onStream || (() => {});
@@ -3590,6 +3599,7 @@ class Valoria {
             }
           }
           await self.setupWS(self.peers[url].datachannel);
+          self.peers[url].datachannel.setup = true;
           self.peers[url].datachannel.send(JSON.stringify({
             event: "Webrtc setup"
           }));

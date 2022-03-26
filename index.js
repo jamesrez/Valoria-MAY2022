@@ -2608,47 +2608,52 @@ class Server {
   handleMemberHasLeftGroup = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(self.group.index == data.index && self.group.members.indexOf(data.url) !== -1){
-        // if(self.conns[data.url]) delete self.conns[data.url]
-        self.group.members.splice(self.group.members.indexOf(data.url), 1);
-        if(self.groups[self.group.index].indexOf(data.url) !== -1){
-          self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
-        }
-        self.group.updated = self.sync;
-        self.group.version += 1;
-      } else if (self.groups[data.index]?.indexOf(data.url) !== -1){
-        // if(self.conns[data.url]) delete self.conns[data.url]
-        self.groups[data.index]?.splice(self.groups[data.index]?.indexOf(data.url), 1); 
-        if(self.group.members.indexOf(ws.Url) == -1){
-          for(let i=0;i<self.group.members.length;i++){
-            let url = self.group.members[i];
-            if(url == self.url) continue;
-            self.conns[url].send(JSON.stringify({
-              event: "Member has left group",
-              data
-            }))
+      if(!self.group) return res();
+      try {
+        if(self.group.index == data.index && self.group.members.indexOf(data.url) !== -1){
+          // if(self.conns[data.url]) delete self.conns[data.url]
+          self.group.members.splice(self.group.members.indexOf(data.url), 1);
+          if(self.groups[self.group.index].indexOf(data.url) !== -1){
+            self.groups[self.group.index].splice(self.groups[self.group.index].indexOf(data.url), 1); 
+          }
+          self.group.updated = self.sync;
+          self.group.version += 1;
+        } else if (self.groups[data.index]?.indexOf(data.url) !== -1){
+          // if(self.conns[data.url]) delete self.conns[data.url]
+          self.groups[data.index]?.splice(self.groups[data.index]?.indexOf(data.url), 1); 
+          if(self.group.members.indexOf(ws.Url) == -1){
+            for(let i=0;i<self.group.members.length;i++){
+              let url = self.group.members[i];
+              if(url == self.url) continue;
+              self.conns[url].send(JSON.stringify({
+                event: "Member has left group",
+                data
+              }))
+            }
           }
         }
+        if(self.groups[self.group.index + 1] && data.index <= self.group.index){
+          const g = self.groups[self.group.index + 1];
+          const url = g[g.length * Math.random() << 0];
+          await self.connectToServer(url);
+          self.conns[url].send(JSON.stringify({
+            event: "Member has left group",
+            data
+          }))
+        }
+        if(self.groups[self.group.index - 1] && data.index >= self.group.index){
+          const g = self.groups[self.group.index - 1];
+          const url = g[g.length * Math.random() << 0];
+          await self.connectToServer(url);
+          self.conns[url].send(JSON.stringify({
+            event: "Member has left group",
+            data
+          }))
+        }
+        await self.updateValorClaims();
+      } catch(e){
+        console.log(e);
       }
-      if(self.groups[self.group.index + 1] && data.index <= self.group.index){
-        const g = self.groups[self.group.index + 1];
-        const url = g[g.length * Math.random() << 0];
-        await self.connectToServer(url);
-        self.conns[url].send(JSON.stringify({
-          event: "Member has left group",
-          data
-        }))
-      }
-      if(self.groups[self.group.index - 1] && data.index >= self.group.index){
-        const g = self.groups[self.group.index - 1];
-        const url = g[g.length * Math.random() << 0];
-        await self.connectToServer(url);
-        self.conns[url].send(JSON.stringify({
-          event: "Member has left group",
-          data
-        }))
-      }
-      await self.updateValorClaims();
       return res();
     });
   }
