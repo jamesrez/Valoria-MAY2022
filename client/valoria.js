@@ -3254,9 +3254,9 @@ class Valoria {
           res();
         }
       } catch(e){
-        console.log(e);
-        res();
+        console.log(e)
       }
+      
     })
   }
 
@@ -3335,7 +3335,7 @@ class Valoria {
       for(let i=0;i<peers.length;i++){
         if(peers[i] == self.url) continue;
         if(!self.conns[peers[i]]) {
-          await self.connectToPeer(peers[i]);
+          self.connectToPeer(peers[i]);
         }
         self.dimension.onPeerJoin(peers[i]);
       }
@@ -3350,12 +3350,8 @@ class Valoria {
   handleNewPeerInDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      console.log("New peer in dimension");
-      console.log(data);
       if(data.dimension !== self.dimension.id || !data.url || data.url == self.url || self.dimension.peers.indexOf(data.url) !== -1) return res();
-      console.log("connecting");
-      await self.connectToPeer(data.url);
-      console.log("connected");
+      self.connectToPeer(data.url);
       self.dimension.peers.push(data.url);
       self.dimension.onPeerJoin(data.url);
       res();
@@ -3533,7 +3529,7 @@ class Valoria {
             self.peers[url].restartIce();
           }
         };
-      } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.datachannel?.readyState == "open"){
+      } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open" && self.peers[url]?.datachannel?.setup){
         return res(self.peers[url].datachannel);
       } 
       // else if(self.peers[url].localDescription){
@@ -3599,7 +3595,6 @@ class Valoria {
             }
           }
           await self.setupWS(self.peers[url].datachannel);
-          self.peers[url].datachannel.setup = true;
           self.peers[url].datachannel.send(JSON.stringify({
             event: "Webrtc setup"
           }));
@@ -3610,7 +3605,7 @@ class Valoria {
       if (description) {
         const readyForOffer =
           !self.peers[url].makingOffer &&
-          (self.peers[url].signalingState == "stable");
+          (self.peers[url].signalingState == "stable" || self.peers[url].isSRDAnswerPending);
         const offerCollision = description.type == "offer" && !readyForOffer;
         let ignoreOffer = !polite && offerCollision;
         if (ignoreOffer) {
