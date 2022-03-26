@@ -1635,62 +1635,65 @@ class Server {
         ws.isAlive = true;
       })
       ws.on('close', async () => {
-        if(self.conns[ws.Url]?.dimension && self.dimensions[ws.dimension]){
-          delete self.dimensions[ws.dimension].conns[ws.Url];
-          const peers = Object.keys(self.dimensions[ws.dimension].conns)
-          for(let i=0;i<self.group.members.length;i++){
-            if(self.url == self.group.members[i] || ws.Url == self.group.members[i]) continue;
-            self.conns[self.group.members[i]]?.send(JSON.stringify({
-              event: "Peer has left group dimension",
-              data: {
-                dimension: ws.dimension,
-                url: ws.Url
-              }
-            }))
-          }
-          for(let i=0;i<peers.length;i++){
-            self.conns[peers[i]]?.send(JSON.stringify({
-              event: "Peer has left dimension",
-              data: {
-                dimension: ws.dimension,
-                url: ws.Url
-              }
-            }))
-          }
-        }
-        if(self.group){
-          if(ws.Url && ws.Url !== self.url && self.group.members.indexOf(ws.Url) !== -1){
-            await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
-          } else if(
-            self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1 &&
-            self.groups[self.group.index + 1]?.length == 1
-          ){
-            await self.handleGroupRemoved(ws, {index: self.group.index + 1, url: ws.Url})
-          } else if(
-            self.groups[self.group.index - 1]?.indexOf(ws.Url) !== -1 && 
-            self.groups[self.group.index - 1]?.length == 1
-          ){
-            await self.handleGroupRemoved(ws, {index: self.group.index - 1, url: ws.Url})
-          }
-        }
-        if(self.conns[ws.Url]?.peers){
-          let peerUrls = Object.keys(self.conns[ws.Url].peers);
-          for(let i=0;i<peerUrls.length;i++){
-            if(!self.conns[peerUrls[i]]) continue;
-            self.conns[peerUrls[i]]?.send(JSON.stringify({
-              event: "Peer disconnect",
-              data: {
-                url: ws.Url
-              }
-            }));
-            if(self.conns[peerUrls[i]]?.peers[ws.Url]){
-              delete self.conns[peerUrls[i]].peers[ws.Url]
+        try {
+          if(self.conns[ws.Url]?.dimension && self.dimensions[ws.dimension]){
+            delete self.dimensions[ws.dimension].conns[ws.Url];
+            const peers = Object.keys(self.dimensions[ws.dimension].conns)
+            for(let i=0;i<self.group.members.length;i++){
+              if(self.url == self.group.members[i] || ws.Url == self.group.members[i]) continue;
+              self.conns[self.group.members[i]]?.send(JSON.stringify({
+                event: "Peer has left group dimension",
+                data: {
+                  dimension: ws.dimension,
+                  url: ws.Url
+                }
+              }))
+            }
+            for(let i=0;i<peers.length;i++){
+              self.conns[peers[i]]?.send(JSON.stringify({
+                event: "Peer has left dimension",
+                data: {
+                  dimension: ws.dimension,
+                  url: ws.Url
+                }
+              }))
             }
           }
+          if(self.group){
+            if(ws.Url && ws.Url !== self.url && self.group.members.indexOf(ws.Url) !== -1){
+              await self.handleMemberHasLeftGroup(ws, {index: self.group.index, url: ws.Url})
+            } else if(
+              self.groups[self.group.index + 1]?.indexOf(ws.Url) !== -1 &&
+              self.groups[self.group.index + 1]?.length == 1
+            ){
+              await self.handleGroupRemoved(ws, {index: self.group.index + 1, url: ws.Url})
+            } else if(
+              self.groups[self.group.index - 1]?.indexOf(ws.Url) !== -1 && 
+              self.groups[self.group.index - 1]?.length == 1
+            ){
+              await self.handleGroupRemoved(ws, {index: self.group.index - 1, url: ws.Url})
+            }
+          }
+          if(self.conns[ws.Url]?.peers){
+            let peerUrls = Object.keys(self.conns[ws.Url].peers);
+            for(let i=0;i<peerUrls.length;i++){
+              if(!self.conns[peerUrls[i]]) continue;
+              self.conns[peerUrls[i]]?.send(JSON.stringify({
+                event: "Peer disconnect",
+                data: {
+                  url: ws.Url
+                }
+              }));
+              if(self.conns[peerUrls[i]]?.peers[ws.Url]){
+                delete self.conns[peerUrls[i]].peers[ws.Url]
+              }
+            }
+          }
+        } catch(e){
+          delete self.conns[ws.Url];
+          ws.Url = "";
+          ws.terminate();
         }
-        delete self.conns[ws.Url];
-        ws.Url = "";
-        ws.terminate();
       })
       ws.on('message', async (d) => {
         d = JSON.parse(d);

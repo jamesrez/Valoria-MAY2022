@@ -506,12 +506,16 @@ class Valoria {
   startMediaStream = async(opts) => {
     const self = this;
     return new Promise(async(res, rej) => {
-      self.stream = await navigator.mediaDevices.getUserMedia(opts);
-      const peers = self.dimension.peers;
-      for(let i=0;i<peers.length;i++){
-        if(!self.peers[peers[i]].addTrack) continue;
-        self.stream.getTracks().forEach(track => self.peers[peers[i]].addTrack(track, self.stream));
-      }
+      try {
+        self.stream = await navigator.mediaDevices.getUserMedia(opts);
+        const peers = self.dimension.peers;
+        for(let i=0;i<peers?.length;i++){
+          if(!self.peers[peers[i]].addTrack) continue;
+          self.stream.getTracks().forEach(track => self.peers[peers[i]].addTrack(track, self.stream));
+        }
+      } catch(e){
+
+      } 
       res();
     })
   }
@@ -519,7 +523,7 @@ class Valoria {
   stopMediaStream = async() => {
     const self = this;
     return new Promise(async(res, rej) => {
-      self.stream.getTracks().forEach(track => track.stop());
+      self.stream?.getTracks()?.forEach(track => track?.stop());
       res();
     })
   }
