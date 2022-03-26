@@ -764,7 +764,7 @@ class Valoria {
     const self = this;
     return new Promise(async(res, rej) => {
       try {
-        await self.loadAllGroups();
+        // await self.loadAllGroups();
         const groupIndex = self.groups.length;
         if(groupIndex == 0) return res();
         if(self.groups[groupIndex]) return rej()
