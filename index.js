@@ -233,7 +233,7 @@ class Server {
         if(!connected) {
           return rej();
         }
-      }, 3000)
+      }, 5000)
       try {
         if(self.conns[url] && self.conns[url].readyState === WebSocket.OPEN){
           connected = true;
@@ -824,7 +824,7 @@ class Server {
         self.saving[self.sync] = {};
         res();
       } catch(e){
-        return rej();
+        return res();
       }
     })
   }
@@ -971,6 +971,7 @@ class Server {
             // })
           }
           const request = await self.get("requests/" + path);
+          if(!request) return res();
           let publicD = await self.getPublicFromUrl(request.url);
           const dataGroupIndex = jumpConsistentHash("data/" + path, self.groups.length);
           if(dataGroupIndex !== self.group.index) return res()
@@ -1041,20 +1042,24 @@ class Server {
   updateValorClaims = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all/valor");
-      for(let i=0;i<paths.length;i++){
-        const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.get(`${paths[i]}`);
-        if(!valor || !valor.data) continue;
-        if(valor.data.time[valor.data.time.length - 1].length == 1){
-          const dataGroupIndex = jumpConsistentHash("data/" + valor.data.path, self.groups.length);
-          if(self.groups[dataGroupIndex].indexOf(valor.data.url) == -1){
-            valor.data.time[valor.data.time.length - 1].push(self.nextSync);
-            self.saving[self.sync][`all/${paths[i]}`] = valor;
-            await self.setLocal(`all/${paths[i]}`, valor);
-            // console.log("Valor duration ended for " + valor.data.url + " on path " + valor.data.path)
-            // console.log(valor.data);
+      try {
+        let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all/valor");
+        for(let i=0;i<paths.length;i++){
+          const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.get(`${paths[i]}`);
+          if(!valor || !valor.data) continue;
+          if(valor.data.time[valor.data.time.length - 1].length == 1){
+            const dataGroupIndex = jumpConsistentHash("data/" + valor.data.path, self.groups.length);
+            if(self.groups[dataGroupIndex].indexOf(valor.data.url) == -1){
+              valor.data.time[valor.data.time.length - 1].push(self.nextSync);
+              self.saving[self.sync][`all/${paths[i]}`] = valor;
+              await self.setLocal(`all/${paths[i]}`, valor);
+              // console.log("Valor duration ended for " + valor.data.url + " on path " + valor.data.path)
+              // console.log(valor.data);
+            }
           }
         }
+      } catch(e){
+        console.log(e)
       }
       return res();
     });
@@ -1158,11 +1163,11 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!id) return res(0);
-      if(id.startsWith('http')){
-        const publicD = await self.getPublicFromUrl(id);
-        id = publicD.id;
-      }
       try {
+        if(id.startsWith('http')){
+          const publicD = await self.getPublicFromUrl(id);
+          id = publicD.id;
+        }
         const ledger = await self.get(`ledgers/${id}.json`);
         if(!ledger || !ledger.sigs) {
           return res(0)
@@ -1353,38 +1358,39 @@ class Server {
   shareGroupSig = async (path) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      const d = self.saving[self.sync]["all/" + path] || self.getLocal("all/" + path);
-      if(!d || !d.sigs || !d.sigs[self.url]) return res();
-      for(let i=0;i<self.group.members.length;i++){
-        const url = self.group.members[i];
-        if(url == self.url) continue;
-        new Promise(async (res, rej) => {
-          await self.connectToServer(url);
-          self.promises["Got group sig for " + path + " from " + url] = {res, rej};
-          self.conns[url].send(JSON.stringify({
-            event: "Share group sig",
-            data: {
-              path,
-              sig: d.sigs[self.url]
-            }
-          }));
-        }).then(async (sig) => {
-          const publicD = await self.getPublicFromUrl(url);
-          if(!publicD || !publicD.ecdsaPub) return
+      try {
+        const d = self.saving[self.sync]["all/" + path] || await self.getLocal("all/" + path);
+        if(!d || !d.sigs || !d.sigs[self.url]) return res();
+        for(let i=0;i<self.group.members.length;i++){
+          const url = self.group.members[i];
+          if(url == self.url) continue;
           try {
+            await new Promise(async (res, rej) => {
+              await self.connectToServer(url);
+              self.promises["Got group sig for " + path + " from " + url] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "Share group sig",
+                data: {
+                  path,
+                  sig: d.sigs[self.url]
+                }
+              }));
+            });
+            const publicD = await self.getPublicFromUrl(url);
+            if(!publicD || !publicD.ecdsaPub) return
             await self.verify(JSON.stringify(d.data), Buffer.from(sig, "base64"), publicD.ecdsaPub);
             d.sigs[ws.Url] = data.sig;
             d.sigs[url] = sig;
             self.saving[self.sync]["all/" + path] = d;
             await self.setLocal("all/" + path, d);
           } catch(e){
-            
+
           }
-        }).catch((e) => {
-          
-        })       
-      }
-      return res();
+        }
+        return res();
+      } catch(e){
+        return res();
+      }     
     })
   }
 
@@ -1404,35 +1410,39 @@ class Server {
   syncGroupData = async () => {
     const self = this;
     return new Promise(async(res, rej) => {
-      const group = [...self.group.members];
-      group.splice(group.indexOf(self.url), 1);
-      if(group.length == 0) return res();
-      const url = group[group.length * Math.random << 0];
-      const paths = await new Promise(async (res, rej) => {
-        await self.connectToServer(url);
-        self.promises[`Got group paths from ${url}`] = {res, rej};
-        self.conns[url].send(JSON.stringify({
-          event: "Get group paths",
-        }))
-      });
-      let dataPaths = [];
-      for(let i=0;i<paths.length;i++){
-        try {
-          if(paths[i].startsWith("data/")){
-            dataPaths.push(paths[i].substr(paths[i].indexOf("/") + 1));
+      try {
+        const group = [...self.group.members];
+        group.splice(group.indexOf(self.url), 1);
+        if(group.length == 0) return res();
+        const url = group[group.length * Math.random << 0];
+        const paths = await new Promise(async (res, rej) => {
+          await self.connectToServer(url);
+          self.promises[`Got group paths from ${url}`] = {res, rej};
+          self.conns[url].send(JSON.stringify({
+            event: "Get group paths",
+          }))
+        });
+        let dataPaths = [];
+        for(let i=0;i<paths.length;i++){
+          try {
+            if(paths[i].startsWith("data/")){
+              dataPaths.push(paths[i].substr(paths[i].indexOf("/") + 1));
+            }
+            const d = await self.get(paths[i]);
+            await self.setLocal("all/" + paths[i], d);
+          } catch(e){
+            continue;
           }
-          const d = await self.get(paths[i]);
-          await self.setLocal("all/" + paths[i], d);
-        } catch(e){
-          continue;
         }
-      }
-      for(let j=0;j<dataPaths.length;j++){
-        try {
-          await self.claimValorForData(dataPaths[j]);
-        } catch(e){
-          continue;
+        for(let j=0;j<dataPaths.length;j++){
+          try {
+            await self.claimValorForData(dataPaths[j]);
+          } catch(e){
+            continue;
+          }
         }
+      } catch(e){
+
       }
       return res();
     })
@@ -1498,51 +1508,55 @@ class Server {
   getPublicFromUrl = async (url) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      let publicD;
-      if(url == self.url) {
-        publicD = Object.assign({}, self.public);
-      } else {
-        try {
-          let pathUrl = url.replace(/\//g, "");
-          pathUrl = pathUrl.replace(/\:/g, "");
-          publicD = await self.get(`data/${pathUrl}/public.json`, {public: true});
-          if(!publicD){
-            publicD = await new Promise(async (res, rej) => {
-              await self.connectToServer(url);
-              self.promises["Got public from " + url] = {res, rej};
-              self.conns[url].send(JSON.stringify({
-                event: "Get public",
-              }))
-            })
+      try {
+        let publicD;
+        if(url == self.url) {
+          publicD = Object.assign({}, self.public);
+        } else {
+          try {
+            let pathUrl = url.replace(/\//g, "");
+            pathUrl = pathUrl.replace(/\:/g, "");
+            publicD = await self.get(`data/${pathUrl}/public.json`, {public: true});
+            if(!publicD){
+              publicD = await new Promise(async (res, rej) => {
+                await self.connectToServer(url);
+                self.promises["Got public from " + url] = {res, rej};
+                self.conns[url].send(JSON.stringify({
+                  event: "Get public",
+                }))
+              })
+            }
+            const ecdsaPubHash = await subtle.digest("SHA-256", Buffer.from(publicD.ecdsaPub, 'base64'));
+            const id = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
+            if(publicD.id !== id) return rej({err: "Invalid public data"});
+          } catch(e){
+            return res(null)
           }
-          const ecdsaPubHash = await subtle.digest("SHA-256", Buffer.from(publicD.ecdsaPub, 'base64'));
-          const id = Buffer.from(ecdsaPubHash).toString('hex').substr(24, 64);
-          if(publicD.id !== id) return rej({err: "Invalid public data"});
-        } catch(e){
-          return res(null)
         }
+        publicD.ecdsaPub = await subtle.importKey(
+          'raw',
+          Buffer.from(publicD.ecdsaPub, 'base64'),
+          {
+            name: 'ECDSA',
+            namedCurve: 'P-384'
+          },
+          true,
+          ['verify']
+        )
+        publicD.ecdhPub = await subtle.importKey(
+          'raw',
+          Buffer.from(publicD.ecdhPub, 'base64'),
+          {
+            name: 'ECDH',
+            namedCurve: 'P-384'
+          },
+          true,
+          ['deriveKey']
+        )    
+        return res(publicD);     
+      } catch(e){
+        return res(null);
       }
-      publicD.ecdsaPub = await subtle.importKey(
-        'raw',
-        Buffer.from(publicD.ecdsaPub, 'base64'),
-        {
-          name: 'ECDSA',
-          namedCurve: 'P-384'
-        },
-        true,
-        ['verify']
-      )
-      publicD.ecdhPub = await subtle.importKey(
-        'raw',
-        Buffer.from(publicD.ecdhPub, 'base64'),
-        {
-          name: 'ECDH',
-          namedCurve: 'P-384'
-        },
-        true,
-        ['deriveKey']
-      )         
-      return res(publicD);
     });
   };
 

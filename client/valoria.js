@@ -86,10 +86,11 @@ class Valoria {
       //       return;
       //     }
       //   }, 3000)
-      await self.reset();
-      if(!self.id || !self.ecdsa.publicKey) return rej();
-      if(!self.ownerId) self.ownerId = self.id;
+     
       try {
+        await self.reset();
+        if(!self.id || !self.ecdsa.publicKey) return rej();
+        if(!self.ownerId) self.ownerId = self.id;
         await self.loadAllGroups();
         const originUrl = self.servers[jumpConsistentHash(self.id, self.servers.length)];
         await self.connectToServer(originUrl, {origin: true});
@@ -715,45 +716,49 @@ class Valoria {
   joinGroup = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      const groups = [...self.groups];
-      let willCreateGroup = true;
-      while(groups.length > 0 && !self.group){
-        const gIndex = groups.length * Math.random() << 0;
-        const group = groups[gIndex];
-        const url = group[group.length * Math.random() << 0];
-        groups[gIndex].splice(groups[gIndex].indexOf(url), 1);
-        try {
-          await self.connectToServer(url);
-          self.group = await new Promise(async(res, rej) => {
-            try {
-              self.promises["Joined group from " + url] = {res, rej};
-              self.conns[url].send(JSON.stringify({
-                event: "Join group",
-              }));
-            } catch(e){
-              // console.log(e)
-            }
-          });
-          willCreateGroup = false;
-          console.log(self.url + " has joined group " + self.group.index);
-          self.groups[self.group.index] = self.group.members;
-          self.conns[url].send(JSON.stringify({
-            event: "Joined group success"
-          }));
-          await self.syncTimeWithNearby();
-        } catch (e){
-          groups.splice(gIndex, 1);
-          continue;
+      try {
+        const groups = [...self.groups];
+        let willCreateGroup = true;
+        while(groups.length > 0 && !self.group){
+          const gIndex = groups.length * Math.random() << 0;
+          const group = groups[gIndex];
+          const url = group[group.length * Math.random() << 0];
+          groups[gIndex].splice(groups[gIndex].indexOf(url), 1);
+          try {
+            await self.connectToServer(url);
+            self.group = await new Promise(async(res, rej) => {
+              try {
+                self.promises["Joined group from " + url] = {res, rej};
+                self.conns[url].send(JSON.stringify({
+                  event: "Join group",
+                }));
+              } catch(e){
+                // console.log(e)
+              }
+            });
+            willCreateGroup = false;
+            console.log(self.url + " has joined group " + self.group.index);
+            self.groups[self.group.index] = self.group.members;
+            self.conns[url].send(JSON.stringify({
+              event: "Joined group success"
+            }));
+            await self.syncTimeWithNearby();
+          } catch (e){
+            groups.splice(gIndex, 1);
+            continue;
+          }
         }
-      }
-      if(willCreateGroup){
-        try {
-          await self.requestNewGroup();
-          await self.createGroup();
-        } catch (e){
-          await self.loadAllGroups();
-          await self.joinGroup();
+        if(willCreateGroup){
+          try {
+            await self.requestNewGroup();
+            await self.createGroup();
+          } catch (e){
+            await self.loadAllGroups();
+            await self.joinGroup();
+          }
         }
+      } catch(e){
+        return rej(e);
       }
       return res();
     });
@@ -923,23 +928,27 @@ class Valoria {
   updateValorClaims = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      const keys = await localforage.keysStartingWith(`${self.path}all/valor`);
-      let paths = [];
-      for(let i=0;i<keys.length;i++){
-        paths.push(keys[i].substr(`${self.path}all/`.length))
-      }
-      for(let i=0;i<paths.length;i++){
-        const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.get(`${paths[i]}`);
-        if(!valor || !valor.data) continue;
-        if(valor.data.time[valor.data.time.length - 1].length == 1){
-          const valorGroupIndex = jumpConsistentHash("data/" + valor.data.path, self.groups.length);
-          if(self.groups[valorGroupIndex].indexOf(valor.data.url) == -1){
-            valor.data.time[valor.data.time.length - 1].push(self.nextSync);
-            self.saving[self.sync][`all/${paths[i]}`] = valor;
-            await self.setLocal(`all/${paths[i]}`, valor);
-            // console.log(valor.data);
+      try {
+        const keys = await localforage.keysStartingWith(`${self.path}all/valor`);
+        let paths = [];
+        for(let i=0;i<keys.length;i++){
+          paths.push(keys[i].substr(`${self.path}all/`.length))
+        }
+        for(let i=0;i<paths.length;i++){
+          const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.get(`${paths[i]}`);
+          if(!valor || !valor.data) continue;
+          if(valor.data.time[valor.data.time.length - 1].length == 1){
+            const valorGroupIndex = jumpConsistentHash("data/" + valor.data.path, self.groups.length);
+            if(self.groups[valorGroupIndex].indexOf(valor.data.url) == -1){
+              valor.data.time[valor.data.time.length - 1].push(self.nextSync);
+              self.saving[self.sync][`all/${paths[i]}`] = valor;
+              await self.setLocal(`all/${paths[i]}`, valor);
+              // console.log(valor.data);
+            }
           }
         }
+      } catch(e){
+        console.log(e)
       }
       return res();
     });
@@ -1241,37 +1250,40 @@ class Valoria {
   shareGroupSig = async (path) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      const d = self.saving[self.sync]["all/" + path] || self.getLocal("all/" + path);
-      if(!d || !d.sigs || !d.sigs[self.url]) return res();
-      for(let i=0;i<self.group.members.length;i++){
-        const url = self.group.members[i];
-        if(url == self.url) continue;
-
-        new Promise(async (res, rej) => {
-          await self.connectToServer(url);
-          self.promises["Got group sig for " + path + " from " + url] = {res, rej};
-          self.conns[url].send(JSON.stringify({
-            event: "Share group sig",
-            data: {
-              path,
-              sig: d.sigs[self.url]
+      try {
+        const d = self.saving[self.sync]["all/" + path] || await self.getLocal("all/" + path);
+        if(!d || !d.sigs || !d.sigs[self.url]) return res();
+        for(let i=0;i<self.group.members.length;i++){
+          const url = self.group.members[i];
+          if(url == self.url) continue;
+  
+          new Promise(async (res, rej) => {
+            await self.connectToServer(url);
+            self.promises["Got group sig for " + path + " from " + url] = {res, rej};
+            self.conns[url].send(JSON.stringify({
+              event: "Share group sig",
+              data: {
+                path,
+                sig: d.sigs[self.url]
+              }
+            }));
+          }).then(async (sig) => {
+            const publicD = await self.getPublicFromUrl(url);
+            if(!publicD || !publicD.ecdsaPub) return
+            try {
+              await self.verify(JSON.stringify(d.data), base64ToArrayBuffer(sig), publicD.ecdsaPub);
+              d.sigs[ws.Url] = data.sig;
+              d.sigs[url] = sig;
+              self.saving[self.sync]["all/" + path] = d;
+              await self.setLocal("all/" + path, d);
+            } catch(e){
+  
             }
-          }));
-        }).then(async (sig) => {
-          const publicD = await self.getPublicFromUrl(url);
-          if(!publicD || !publicD.ecdsaPub) return
-          try {
-            await self.verify(JSON.stringify(d.data), base64ToArrayBuffer(sig), publicD.ecdsaPub);
-            d.sigs[ws.Url] = data.sig;
-            d.sigs[url] = sig;
-            self.saving[self.sync]["all/" + path] = d;
-            await self.setLocal("all/" + path, d);
-          } catch(e){
-
-          }
-        }).catch((e) => {
-
-        })
+          }).catch((e) => {
+  
+          })
+        }
+      } catch(e){
 
       }
       return res();
@@ -1294,35 +1306,39 @@ class Valoria {
   syncGroupData = async () => {
     const self = this;
     return new Promise(async(res, rej) => {
-      const group = [...self.group.members];
-      group.splice(group.indexOf(self.url), 1);
-      if(group.length == 0) return res();
-      const url = group[group.length * Math.random << 0];
-      const paths = await new Promise(async (res, rej) => {
-        await self.connectToServer(url);
-        self.promises[`Got group paths from ${url}`] = {res, rej};
-        self.conns[url].send(JSON.stringify({
-          event: "Get group paths",
-        }))
-      });
-      let dataPaths = [];
-      for(let i=0;i<paths.length;i++){
-        try {
-          if(paths[i].startsWith("data/")){
-            dataPaths.push(paths[i].substr(paths[i].indexOf("/") + 1));
+      try {
+        const group = [...self.group.members];
+        group.splice(group.indexOf(self.url), 1);
+        if(group.length == 0) return res();
+        const url = group[group.length * Math.random << 0];
+        const paths = await new Promise(async (res, rej) => {
+          await self.connectToServer(url);
+          self.promises[`Got group paths from ${url}`] = {res, rej};
+          self.conns[url].send(JSON.stringify({
+            event: "Get group paths",
+          }))
+        });
+        let dataPaths = [];
+        for(let i=0;i<paths.length;i++){
+          try {
+            if(paths[i].startsWith("data/")){
+              dataPaths.push(paths[i].substr(paths[i].indexOf("/") + 1));
+            }
+            const d = await self.get(paths[i]);
+            await self.setLocal("all/" + paths[i], d);
+          } catch(e){
+            continue;
           }
-          const d = await self.get(paths[i]);
-          await self.setLocal("all/" + paths[i], d);
-        } catch(e){
-          continue;
         }
-      }
-      for(let j=0;j<dataPaths.length;j++){
-        try {
-          await self.claimValorForData(dataPaths[j]);
-        } catch(e){
-          continue;
+        for(let j=0;j<dataPaths.length;j++){
+          try {
+            await self.claimValorForData(dataPaths[j]);
+          } catch(e){
+            continue;
+          }
         }
+      } catch(e){
+
       }
       return res();
     })
