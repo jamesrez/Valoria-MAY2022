@@ -2385,6 +2385,7 @@ class Valoria {
             for(let i=0;i<self.group.members.length;i++){
               const url = self.group.members[i];
               if(url == self.url) continue;
+              await self.connectToServer(url);
               self.conns[url].send(JSON.stringify({
                 event: "Group removed",
                 data

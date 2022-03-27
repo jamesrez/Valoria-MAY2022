@@ -121,12 +121,9 @@ class Server {
     this.syncIntervalMs = 1000;
     this.ownerId = process.env.VALORIA_USER_ID;
     const self = this;
-    if(isLocal){
-      this.url = 'http://localhost:' + port + "/";
-      // (async() => {
-      //   await this.setup();
-      // })()
-    } else {
+    // if(isLocal){
+    //   this.url = 'http://localhost:' + port + "/";
+    // } else {
       this.app.use(async (req, res, next) => {
         if(!self.url && !self.verifyingSelf && (isLocal || !req.get('host').startsWith('localhost'))){
           self.verifyingSelf = true;
@@ -146,7 +143,7 @@ class Server {
         }
         next();
       });
-    }
+    // }
     this.setupRoutes();
     this.wss.on('connection', async (ws) => {
       try {
@@ -2513,6 +2510,7 @@ class Server {
             for(let i=0;i<self.group.members.length;i++){
               const url = self.group.members[i];
               if(url == self.url) continue;
+              await self.connectToServer(url);
               self.conns[url].send(JSON.stringify({
                 event: "Group removed",
                 data
@@ -3449,7 +3447,7 @@ class Server {
       try {
         if(jumpConsistentHash(data.dimension, self.groups.length) !== self.group.index || !data.dimension) return res();
         delete self.dimensions[data.dimension]?.conns[data.url];
-        const peers = Object.keys(self.dimensions[data.dimension].conns);
+        const peers = Object.keys(self.dimensions[data.dimension]?.conns || {});
         for(let i=0;i<peers.length;i++){
           self.conns[peers[i]]?.send(JSON.stringify({
             event: "Peer has left dimension",
@@ -3535,7 +3533,7 @@ if(isLocal){
       //   setTimeout(async () => {
           try {
             const server = new Server(i + Port);
-            await server.setup();
+            // await server.setup();
             localServers.push(server);
           } catch(e){
           }
