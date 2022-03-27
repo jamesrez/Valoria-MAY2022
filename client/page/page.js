@@ -25,6 +25,11 @@ async function showJoin(){
     if(!isMobile){
       controls.lock();
     }
+    try {
+      await valoria.startMediaStream({audio: true, video: false});
+    } catch(e){
+      
+    }
     // await valoria.startMediaStream({audio: {
     //   echoCancellation: true,
     //   noiseSuppression: true,
