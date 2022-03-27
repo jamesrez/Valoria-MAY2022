@@ -541,11 +541,8 @@ class Valoria {
         let used = [];
         let startClaims = [];
         let syncClaims = [];
-        console.log("Loading groups from initial:");
-        console.log(servers);
         while(askCount < askAmount && servers.length > 0){
           const url = servers[servers.length * Math.random() << 0];
-          console.log("Getting groups from " + url);
           if(url.includes("valoria/peers/")){
             servers.splice(servers.indexOf(url), 1);
             used.push(url);
@@ -593,7 +590,7 @@ class Valoria {
         res();
       } catch(e){
         console.log(e);
-        return rej();
+        return res();
       }
     })
   }
@@ -639,9 +636,7 @@ class Valoria {
           if(!self.conns[url]) {
             try {
               if(url.includes("valoria/peers/")){
-                console.log("connecting to peer: " + url);
                 self.conns[url] = await self.connectToPeer(url);
-                console.log("connected");
                 self.conns[url].isP2P = true;
                 self.conns[url].isWS = false;
                 self.conns[url].Url = url;
@@ -701,13 +696,12 @@ class Valoria {
               }
             });
             this.conns[url].onerror = (error) => {
-              console.log("Could not connect");
               rej(error);
             }
           }
         }
       } catch(e){
-        console.log("Could not connect to " + url)
+        // console.log("Could not connect to " + url)
         rej();
       }
     })
@@ -865,7 +859,7 @@ class Valoria {
           try {
             await self.verify(JSON.stringify(data), base64ToArrayBuffer(request.data), publicD.ecdsaPub);
           } catch(e){
-            console.log(data);
+            // console.log(data);
             throw e;
           }
           let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.get(`valor/${self.ownerId}/${path}`);
@@ -1087,7 +1081,7 @@ class Valoria {
         }
         res(+valor.toFixed(12));
       } catch(e){
-        rej(e);
+        res(0);
       }
     })
   }
@@ -1256,32 +1250,37 @@ class Valoria {
         for(let i=0;i<self.group.members.length;i++){
           const url = self.group.members[i];
           if(url == self.url) continue;
-  
-          new Promise(async (res, rej) => {
+          try {
             await self.connectToServer(url);
-            self.promises["Got group sig for " + path + " from " + url] = {res, rej};
-            self.conns[url].send(JSON.stringify({
-              event: "Share group sig",
-              data: {
-                path,
-                sig: d.sigs[self.url]
+            new Promise(async (res, rej) => {
+              self.promises["Got group sig for " + path + " from " + url] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "Share group sig",
+                data: {
+                  path,
+                  sig: d.sigs[self.url]
+                }
+              }));
+            }).then(async (sig) => {
+
+              try {
+                if(!sig) throw "No sig";
+                const publicD = await self.getPublicFromUrl(url);
+                if(!publicD || !publicD.ecdsaPub) throw "No public";
+                await self.verify(JSON.stringify(d.data), base64ToArrayBuffer(sig), publicD.ecdsaPub);
+                d.sigs[ws.Url] = data.sig;
+                d.sigs[url] = sig;
+                self.saving[self.sync]["all/" + path] = d;
+                await self.setLocal("all/" + path, d);
+              } catch(e){
+
               }
-            }));
-          }).then(async (sig) => {
-            const publicD = await self.getPublicFromUrl(url);
-            if(!publicD || !publicD.ecdsaPub) return
-            try {
-              await self.verify(JSON.stringify(d.data), base64ToArrayBuffer(sig), publicD.ecdsaPub);
-              d.sigs[ws.Url] = data.sig;
-              d.sigs[url] = sig;
-              self.saving[self.sync]["all/" + path] = d;
-              await self.setLocal("all/" + path, d);
-            } catch(e){
-  
-            }
-          }).catch((e) => {
-  
-          })
+            }).catch((e) => {
+              throw e;
+            })
+          } catch(e){
+            continue;
+          }
         }
       } catch(e){
 
@@ -2023,7 +2022,6 @@ class Valoria {
   handleJoinGroupRequest = async (ws) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      console.log("Handle join group request from " + ws.Url);
       try {
         const g = self.group;
         if(g.members.indexOf(ws.Url) !== -1){
@@ -2035,7 +2033,6 @@ class Valoria {
           return
         }
         if(g.members.length < g.max){
-          console.log("checking if group is full");
           try {
             for(let i=0;i<g.members.length;i++){
               if(g.members[i] == self.url) continue;
@@ -2047,13 +2044,11 @@ class Valoria {
                 }))
               })
             }
-            console.log("group not full");
           } catch (e){
             ws.send(JSON.stringify({
               event: "Joined group",
               data: {err: "Not seeking new members"}
             }));
-            console.log("IS FULL")
             return res();
           }
           g.members.push(ws.Url);
@@ -3472,7 +3467,7 @@ class Valoria {
       // if(self.conns[data.url] && self.conns[data.url].peerServer == ws.Url){
       if(ws.Url && ws.verified){
         self.conns[data.url]?.onclose();
-        console.log("Peer disconnect from " + ws.Url);
+        // console.log("Peer disconnect from " + ws.Url);
         delete self.peers[data.url];
         if(self.dimension?.peers?.indexOf(data.url) !== -1){
           self.dimension.peers.splice(self.dimension.peers.indexOf(data.url), 1);

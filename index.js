@@ -121,29 +121,32 @@ class Server {
     this.syncIntervalMs = 1000;
     this.ownerId = process.env.VALORIA_USER_ID;
     const self = this;
-    // if(isLocal){
-    //   this.url = 'http://localhost:' + port + "/";
-    // } else {
-    this.app.use(async (req, res, next) => {
-      if(!self.url && !self.verifyingSelf && (isLocal || !req.get('host').startsWith('localhost'))){
-        self.verifyingSelf = true;
-        try {
-          let url = req.protocol + "://" + req.get('host') + "/";
-          self.selfKey = Buffer.from(crypto.randomBytes(32)).toString('hex');
-          const data = (await axios.get(url + "valoria/self-verification")).data;
-          if(data.key == self.selfKey){
-            self.url = url;
-            await this.setup();
+    if(isLocal){
+      this.url = 'http://localhost:' + port + "/";
+      // (async() => {
+      //   await this.setup();
+      // })()
+    } else {
+      this.app.use(async (req, res, next) => {
+        if(!self.url && !self.verifyingSelf && (isLocal || !req.get('host').startsWith('localhost'))){
+          self.verifyingSelf = true;
+          try {
+            let url = req.protocol + "://" + req.get('host') + "/";
+            self.selfKey = Buffer.from(crypto.randomBytes(32)).toString('hex');
+            const data = (await axios.get(url + "valoria/self-verification")).data;
+            if(data.key == self.selfKey){
+              self.url = url;
+              await this.setup();
+            }
+            self.verifyingSelf = false;
+            self.selfKey = "";
+          } catch(e){
+            // console.log(e)
           }
-          self.verifyingSelf = false;
-          self.selfKey = "";
-        } catch(e){
-          // console.log(e)
         }
-      }
-      next();
-    });
-    // }
+        next();
+      });
+    }
     this.setupRoutes();
     this.wss.on('connection', async (ws) => {
       try {
@@ -783,7 +786,7 @@ class Server {
         let used = [];
         let startClaims = [];
         let syncClaims = [];
-        console.log("Loading all groups")
+        // console.log("Loading all groups")
         while(askCount < askAmount && servers.length > 0){
           const url = servers[servers.length * Math.random() << 0];
           try {
@@ -816,8 +819,6 @@ class Server {
             servers.splice(servers.indexOf(url));
           }
         }
-        console.log("LOADED GROUPs");
-        console.log(self.groups);
         self.start = mode(startClaims) || self.now();
         self.sync = mode(syncClaims) || self.start;
         self.nextSync = self.sync + self.syncIntervalMs;
@@ -834,13 +835,11 @@ class Server {
     return new Promise(async (res, rej) => {
       const groups = [...self.groups];
       let willCreateGroup = true;
-      console.log(self.url + " might join group. Has groups length of " + groups.length);
       while(groups.length > 0 && !self.group){
         const gIndex = groups.length * Math.random() << 0
         const group = groups[gIndex];
         const url = group[group.length * Math.random() << 0];
         groups.splice(gIndex, 1);
-        console.log("Asking " + url);
         try {
           self.group = await new Promise(async(res, rej) => {
             try {
@@ -1196,7 +1195,7 @@ class Server {
         }
         res(+valor.toFixed(12));
       } catch(e){
-        rej(e);
+        res(0);
       }
     })
   }
@@ -1365,8 +1364,8 @@ class Server {
           const url = self.group.members[i];
           if(url == self.url) continue;
           try {
-            await new Promise(async (res, rej) => {
-              await self.connectToServer(url);
+            await self.connectToServer(url);
+            new Promise(async (res, rej) => {
               self.promises["Got group sig for " + path + " from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
                 event: "Share group sig",
@@ -1375,22 +1374,29 @@ class Server {
                   sig: d.sigs[self.url]
                 }
               }));
-            });
-            const publicD = await self.getPublicFromUrl(url);
-            if(!publicD || !publicD.ecdsaPub) return
-            await self.verify(JSON.stringify(d.data), Buffer.from(sig, "base64"), publicD.ecdsaPub);
-            d.sigs[ws.Url] = data.sig;
-            d.sigs[url] = sig;
-            self.saving[self.sync]["all/" + path] = d;
-            await self.setLocal("all/" + path, d);
-          } catch(e){
+            }).then(async (sig) => {
+              try {
+                if(!sig) throw "No sig";
+                const publicD = await self.getPublicFromUrl(url);
+                if(!publicD || !publicD.ecdsaPub) throw "No public";
+                await self.verify(JSON.stringify(d.data), Buffer.from(sig, "base64"), publicD.ecdsaPub);
+                d.sigs[ws.Url] = data.sig;
+                d.sigs[url] = sig;
+                self.saving[self.sync]["all/" + path] = d;
+                await self.setLocal("all/" + path, d);
+              } catch(e){
 
+              }
+            }).catch((e) => {
+              // throw e;
+            });
+          } catch(e){
+            continue;
           }
         }
-        return res();
       } catch(e){
-        return res();
       }     
+      return res();
     })
   }
 
@@ -2147,7 +2153,6 @@ class Server {
   handleJoinGroupRequest = async (ws) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      console.log("handle join group request from " + ws.Url);
       try {
         const g = self.group;
         if(g.members.indexOf(ws.Url) !== -1){
@@ -2155,13 +2160,11 @@ class Server {
             event: "Joined group",
             data: {err: "Already joined group"}
           }));
-          console.log("already in group");
           res();
           return
         }
         if(g.members.length < g.max){
           try {
-            console.log("Checking if group is full");
             for(let i=0;i<g.members.length;i++){
               if(g.members[i] == self.url) continue;
               await self.connectToServer(g.members[i]);
@@ -2172,20 +2175,17 @@ class Server {
                 }))
               })
             }
-            console.log("Group not full");
           } catch (e){
             ws.send(JSON.stringify({
               event: "Joined group",
               data: {err: "Not seeking new members"}
             }));
-            console.log("IS FULL")
             return res();
           }
           g.members.push(ws.Url);
           g.updated = self.now();
           g.version += 1;
           self.groups[g.index] = g.members;
-          console.log("NEW MEMBER IN GROUP. GOTTA TELL OTHER MEMBERS!");
           for(let i=0;i<g.members?.length;i++){
             if(g.members[i] == self.url || g.members[i] == ws.Url) continue;
             await new Promise(async (res, rej) => {
@@ -2197,7 +2197,6 @@ class Server {
               }))
             })
           }
-          console.log("TOLD!!!!")
           self.conns[ws.Url].send(JSON.stringify({
             event: "Joined group",
             data: g
@@ -3136,7 +3135,7 @@ class Server {
         try {
           await self.verify(JSON.stringify(d), Buffer.from(request.data, "base64"), reqPublicD.ecdsaPub);
         } catch(e){
-          console.log(e);
+          // console.log(e);
           throw e;
         }
         let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
@@ -3536,7 +3535,7 @@ if(isLocal){
       //   setTimeout(async () => {
           try {
             const server = new Server(i + Port);
-            // await server.setup();
+            await server.setup();
             localServers.push(server);
           } catch(e){
           }
