@@ -1118,6 +1118,13 @@ class Valoria {
         resp.offset = resp.pingReceived - resp.end + resp.latency;
         return res(resp)
       } catch(e){
+        console.log("Potential reset method for reopened clients without refreshing.");
+        try {
+          await self.setup();
+          return;
+        } catch(e){
+
+        }
         return rej();
       }
     })
@@ -1140,25 +1147,25 @@ class Valoria {
 
           }
         }
-        // if(self.group.index > 0 && self.groups[self.group.index - 1]?.length > 0){
-        //   try {
-        //     const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
-        //     await self.connectToServer(url);
-        //     const ping = await self.syncPing(self.conns[url]);
-        //     offsets.push(ping.offset);
-        //   } catch(e){
+        if(self.group.index > 0 && self.groups[self.group.index - 1]?.length > 0){
+          try {
+            const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
+            await self.connectToServer(url);
+            const ping = await self.syncPing(self.conns[url]);
+            offsets.push(ping.offset);
+          } catch(e){
 
-        //   }
-        // }
-        // if(self.groups[self.group.index + 1]?.length > 0){
-        //   try {
-        //     const url = self.groups[self.group.index + 1][self.groups[self.group.index + 1]?.length * Math.random() << 0];
-        //     await self.connectToServer(url);
-        //     const ping = await self.syncPing(self.conns[url]);
-        //     offsets.push(ping.offset);
-        //   } catch (e){
-        //   }
-        // }
+          }
+        }
+        if(self.groups[self.group.index + 1]?.length > 0){
+          try {
+            const url = self.groups[self.group.index + 1][self.groups[self.group.index + 1]?.length * Math.random() << 0];
+            await self.connectToServer(url);
+            const ping = await self.syncPing(self.conns[url]);
+            offsets.push(ping.offset);
+          } catch (e){
+          }
+        }
         if(offsets.length > 0){
           self.timeOffset += offsets.reduce((a, b) => a + b) / offsets.length;
         }
@@ -1185,16 +1192,16 @@ class Valoria {
         if(!self.saving[self.sync]) self.saving[self.sync] = {};
         self.syncGroup = Object.assign({}, self.group);
         self.syncGroups = [...self.groups];
-        // try {
-          // await self.syncTimeWithNearby();
+        try {
+          await self.syncTimeWithNearby();
           // await self.saveGroups();
           // await self.sharePublic();
           // await self.syncGroupData();
           // await self.updateValorClaims();
           // await self.reassignGroupData();
-        // } catch(e){
+        } catch(e){
           
-        // }
+        }
         delete self.saving[self.sync - (self.syncIntervalMs * 2)];
         self.sync = self.nextSync;
         self.nextSync += self.syncIntervalMs;
@@ -1806,6 +1813,19 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       // setTimeout(() => {
+        if(!ws.Url || (
+          self.groups[self.group.index].indexOf(ws.Url) == -1 &&
+          self.groups[self.group.index - 1]?.indexOf(ws.Url) == -1 &&
+          self.groups[self.group.index + 1]?.indexOf(ws.Url) == -1
+        )){
+          ws.send({
+            event: "Sync pong",
+            data: {
+              err: "Not in sync time group"
+            }
+          });
+          return res();
+        }
         data.pingReceived = self.now();
         ws.send(JSON.stringify({
           event: "Sync pong",
@@ -1821,7 +1841,11 @@ class Valoria {
     return new Promise(async (res, rej) => {
       data.end = self.now();
       if(self.promises["Pong from " + ws.Url + " at " + data.start]){
-        self.promises["Pong from " + ws.Url + " at " + data.start].res(data);
+        if(!data.err){
+          self.promises["Pong from " + ws.Url + " at " + data.start].res(data);
+        } else {
+          self.promises["Pong from " + ws.Url + " at " + data.start].rej();
+        }
         delete self.promises["Pong from " + ws.Url + " at " + data.start]
       }
       return res();
