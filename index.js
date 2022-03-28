@@ -1,4 +1,5 @@
 const isLocal = process.env.PORT ? false : true;
+// if(isLocal) require('longjohn');
 const http = require('http');
 const fs = require('fs');
 const fsPromises = require("fs/promises");
@@ -10,17 +11,6 @@ const subtle = crypto.webcrypto.subtle;
 const WebSocket = require('ws');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
-
-const iceServers = [
-  "stun:stun.l.google.com:19302",
-  "stun:stun2.l.google.com:19302",
-  "stun:stun3.l.google.com:19302",
-  "stun:stu4.l.google.com:19302",
-  "stun:stunserver.org",
-  "stun:stun.voiparound.com",
-  "stun:stun.voipbuster.com",
-  "stun:stun.voipstunt.com"
-];
 
 function getDirContents(dir, results=[]){
   try {
@@ -121,9 +111,9 @@ class Server {
     this.syncIntervalMs = 1000;
     this.ownerId = process.env.VALORIA_USER_ID;
     const self = this;
-    // if(isLocal){
-    //   this.url = 'http://localhost:' + port + "/";
-    // } else {
+    if(isLocal){
+      this.url = 'http://localhost:' + port + "/";
+    } else {
       this.app.use(async (req, res, next) => {
         if(!self.url && !self.verifyingSelf && (isLocal || !req.get('host').startsWith('localhost'))){
           self.verifyingSelf = true;
@@ -143,13 +133,8 @@ class Server {
         }
         next();
       });
-    // }
+    }
     this.setupRoutes();
-    this.wss.on('connection', async (ws) => {
-      try {
-        await this.setupWS(ws);
-      } catch(e){}
-    })
     this.server.listen(port, () => {
       console.log("Server started on port " + port);
     })
@@ -173,7 +158,12 @@ class Server {
       self.app.get('/valoria/public', async (req, res) => {
         res.send(self.public)
       });
-      const heartbeatInterval = setInterval(() => {
+      self.wss.on('connection', async (ws) => {
+        try {
+          await self.setupWS(ws);
+        } catch(e){}
+      })
+      self.heartbeatInterval = setInterval(() => {
         self.wss.clients.forEach(function each(ws) {
           if (ws.isAlive === false) {
             return ws.terminate();
@@ -183,16 +173,16 @@ class Server {
         });
       }, 2500);
       self.wss.on('close', function close() {
-        clearInterval(heartbeatInterval);
+        clearInterval(self.heartbeatInterval);
       });
       try {
         self.isSetup = false;
-        setTimeout(async () => {
+        // setTimeout(async () => {
           // if(!self.isSetup){
           //   await self.setup();
           //   return;
           // }
-        }, 6000)
+        // }, 6000)
         await self.loadAllGroups();
         await self.joinGroup();
         await self.sharePublic();
@@ -227,72 +217,77 @@ class Server {
   connectToServer(url){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!url || url == self.url) return rej();
-      let connected = false;
-      setTimeout(() => {
-        if(!connected) {
-          return rej();
-        }
-      }, 5000)
       try {
-        if(self.conns[url] && self.conns[url].readyState === WebSocket.OPEN){
-          connected = true;
-          return res();
-        } else {
-          if(!self.conns[url]) {
-            if(url.includes("valoria/peers/")){
-              let originUrl = url.substring(0, url.indexOf("valoria/peers/"));
-              let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
-              await self.connectToServer(originUrl);
-              self.conns[url] = await new Promise(async (res, rej) => {
-                self.promises["Connected to peer ws for " + url] = {res, rej};
-                self.conns[originUrl].send(JSON.stringify({
-                  event: "Connect to peer ws",
-                  data: {
-                    id
-                  }
-                }))
-              })
-            } else {
-              let wsUrl = "ws://" + new URL(url).host + "/"
-              if(url.startsWith('https')){
-                wsUrl = "wss://" + new URL(url).host + "/"
-              }
-              self.conns[url] = new WebSocket(wsUrl);
-            }
-            try {
-              self.conns[url].Url = url;
-              self.conns[url].onopen = ( async () => {
-                try {
-                  await self.setupWS(self.conns[url]);
-                  await new Promise(async(res, rej) => {
-                    self.promises["Url verified with " + url] = {res, rej};
-                    self.conns[url].send(JSON.stringify({
-                      event: "Verify url request",
-                      data: {
-                        url: self.url
-                      }
-                    }))
-                  })
-                  connected = true;
-                  return res();
-                } catch (e){
-                  // console.log(e)
-                  rej(e);
+        if(!url || url == self.url) return rej();
+        let connected = false;
+        setTimeout(() => {
+          if(!connected) {
+            return rej();
+          }
+        }, 5000)
+        try {
+          if(self.conns[url] && self.conns[url].readyState === WebSocket.OPEN){
+            connected = true;
+            return res();
+          } else {
+            if(!self.conns[url]) {
+              if(url.includes("valoria/peers/")){
+                let originUrl = url.substring(0, url.indexOf("valoria/peers/"));
+                let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
+                await self.connectToServer(originUrl);
+                self.conns[url] = await new Promise(async (res, rej) => {
+                  self.promises["Connected to peer ws for " + url] = {res, rej};
+                  self.conns[originUrl].send(JSON.stringify({
+                    event: "Connect to peer ws",
+                    data: {
+                      id
+                    }
+                  }))
+                })
+                connected = true;
+              } else {
+                let wsUrl = "ws://" + new URL(url).host + "/"
+                if(url.startsWith('https')){
+                  wsUrl = "wss://" + new URL(url).host + "/"
                 }
-              });
-              self.conns[url].onerror = (error) => {
-                console.log("COULD NOT CONNECT TO " + url);
-                rej(error);
+                self.conns[url] = new WebSocket(wsUrl);
               }
-            } catch(e){
-              console.log(e)
-              rej(e);
-            }
-          } 
+              try {
+                self.conns[url].Url = url;
+                self.conns[url].onopen = ( async () => {
+                  try {
+                    await self.setupWS(self.conns[url]);
+                    await new Promise(async(res, rej) => {
+                      self.promises["Url verified with " + url] = {res, rej};
+                      self.conns[url].send(JSON.stringify({
+                        event: "Verify url request",
+                        data: {
+                          url: self.url
+                        }
+                      }))
+                    })
+                    connected = true;
+                    return res();
+                  } catch (e){
+                    // console.log(e)
+                    return rej(e);
+                  }
+                });
+                self.conns[url].onerror = (error) => {
+                  console.log("COULD NOT CONNECT TO " + url);
+                  return rej(error);
+                }
+              } catch(e){
+                console.log(e)
+                return rej(e);
+              }
+            } 
+          }
+        } catch(e){
+          return rej(e);
         }
       } catch(e){
-        rej(e);
+       return rej(e); 
       }
     })
   }
@@ -597,7 +592,7 @@ class Server {
           const members = self.groups[groupIndex];
           const url = members[members.length * Math.random() << 0];
           await self.connectToServer(url);
-          self.promises["Set data from " + url + " for " + path] = {res, rej};
+          // self.promises["Set data from " + url + " for " + path] = {res, rej};
           self.conns[url].send(JSON.stringify({
             event: "Set",
             data: {
@@ -606,6 +601,7 @@ class Server {
               group: self.group.index
             }
           }))
+          return res();
         }
       } catch(e){
         return rej(e);
@@ -764,7 +760,7 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         let initialServers = isLocal ? ['http://localhost:3000/', 'http://localhost:3001/'] : require('./servers.json');
-        if(!initialServers || initialServers.length == 0) rej("No initial servers found.");
+        if(!initialServers || initialServers.length == 0) return rej("No initial servers found.");
         let servers = [...initialServers];
         let askAmount = 10;
         let askCount = 0
@@ -830,51 +826,55 @@ class Server {
   joinGroup = async () => {
     const self = this;
     return new Promise(async (res, rej) => {
-      const groups = [...self.groups];
-      let willCreateGroup = true;
-      while(groups.length > 0 && !self.group){
-        const gIndex = groups.length * Math.random() << 0
-        const group = groups[gIndex];
-        const url = group[group.length * Math.random() << 0];
-        groups.splice(gIndex, 1);
-        try {
-          self.group = await new Promise(async(res, rej) => {
-            try {
-              await self.connectToServer(url);
-              self.promises["Joined group from " + url] = {res, rej};
-              self.conns[url].send(JSON.stringify({
-                event: "Join group",
-              }));
-            } catch(e){
-              // console.log(e)
-              rej(e);
-            } 
-          });
-          willCreateGroup = false;
-          console.log(self.url + " has joined group " + self.group.index);
-          self.groups[self.group.index] = self.group.members;
-          self.conns[url].send(JSON.stringify({
-            event: "Joined group success"
-          }));
-          await self.syncTimeWithNearby();
-          // await self.setLocal("group.json", self.group);
-          // await self.setLocal("groups.json", self.groups);
-        } catch (e){
-          continue;
-        }
-      }
-      if(willCreateGroup){
-        try {
-          await self.requestNewGroup();
-          await self.createGroup();
-        } catch (e){
+      try {
+        const groups = [...self.groups];
+        let willCreateGroup = true;
+        while(groups.length > 0 && !self.group){
+          const gIndex = groups.length * Math.random() << 0
+          const group = groups[gIndex];
+          const url = group[group.length * Math.random() << 0];
+          groups.splice(gIndex, 1);
           try {
-            await self.loadAllGroups();
-            await self.joinGroup();
-          } catch(e){
-
+            self.group = await new Promise(async(res, rej) => {
+              try {
+                await self.connectToServer(url);
+                self.promises["Joined group from " + url] = {res, rej};
+                self.conns[url].send(JSON.stringify({
+                  event: "Join group",
+                }));
+              } catch(e){
+                // console.log(e)
+                return rej(e);
+              } 
+            });
+            willCreateGroup = false;
+            console.log(self.url + " has joined group " + self.group.index);
+            self.groups[self.group.index] = self.group.members;
+            self.conns[url].send(JSON.stringify({
+              event: "Joined group success"
+            }));
+            await self.syncTimeWithNearby();
+            // await self.setLocal("group.json", self.group);
+            // await self.setLocal("groups.json", self.groups);
+          } catch (e){
+            continue;
           }
         }
+        if(willCreateGroup){
+          try {
+            await self.requestNewGroup();
+            await self.createGroup();
+          } catch (e){
+            try {
+              await self.loadAllGroups();
+              await self.joinGroup();
+            } catch(e){
+  
+            }
+          }
+        }
+      } catch(e){
+
       }
       return res();
     });
@@ -1017,8 +1017,8 @@ class Server {
             const url = self.groups[valorGroupIndex][i];
             if(self.promises["Claimed valor for path " + path + " from " + url]) continue;
             await self.connectToServer(url);
-            await new Promise(async (res, rej) => {
-              self.promises["Claimed valor for path " + path + " from " + url] = {res, rej};
+            // await new Promise(async (res, rej) => {
+            //   self.promises["Claimed valor for path " + path + " from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
                 event: "Claim valor for path",
                 data: {
@@ -1028,12 +1028,12 @@ class Server {
                   sync
                 }
               }));
-            })
+            // })
           }
-          await self.addPathToLedger(path); 
+          // await self.addPathToLedger(path); 
         }
       } catch(e){
-        console.log(e);
+        // console.log(e);
       }
       return res();
     })
@@ -1065,24 +1065,25 @@ class Server {
     });
   }
 
-  addPathToLedger = async (path) => {
+  addPathToLedger = async (path, ownerId=null) => {
     const self = this;
+    const id = ownerId || self.ownerId;
     return new Promise(async (res, rej) => {
       try {
-        const ledgerGroupIndex = jumpConsistentHash("ledgers/" + self.ownerId + ".json", self.groups.length);
+        const ledgerGroupIndex = jumpConsistentHash("ledgers/" + id + ".json", self.groups.length);
         const ledgerGroup = [...self.groups[ledgerGroupIndex]];
         for(let i=0;i<ledgerGroup.length;i++){
           const url = ledgerGroup[i];
           if(url !== self.url){
             try {
-              if(self.promises[`Path ${path} added to ledger ${self.ownerId} from ${url}`]) continue;
+              if(self.promises[`Path ${path} added to ledger ${id} from ${url}`]) continue;
               await self.connectToServer(url);
               // await new Promise(async(res, rej) => {
               //   self.promises[`Path ${path} added to ledger ${self.ownerId} from ${url}`] = {res, rej};
                 self.conns[url].send(JSON.stringify({
                   event: "Add path to ledger",
                   data: {
-                    id: self.ownerId,
+                    id,
                     path
                   }
                 }))
@@ -1092,9 +1093,9 @@ class Server {
             }
           } else {
             try {
-              const valorGroupIndex = jumpConsistentHash(`valor/${self.ownerId}/${path}`, self.groups.length);
+              const valorGroupIndex = jumpConsistentHash(`valor/${id}/${path}`, self.groups.length);
               const valorGroup = self.groups[valorGroupIndex];
-              let valor = await self.get(`valor/${self.ownerId}/${path}`);
+              let valor = await self.get(`valor/${id}/${path}`);
               let isValid = true;
               // TODO VERIFY VALOR WITH THE SIGS
               // for(let j=0;j<valorGroup.length;j++){
@@ -1127,12 +1128,12 @@ class Server {
               //   }
               // }
               if(isValid){
-                let d = self.saving[self.sync]["all/ledgers/" + self.ownerId + ".json"] || await self.getLocal("all/ledgers/" + self.ownerId + ".json");
+                let d = self.saving[self.sync]["all/ledgers/" + id + ".json"] || await self.getLocal("all/ledgers/" + id + ".json");
                 if(!d || !d.data) {
                   d = {
                     data: {
                       paths: {},
-                      for: self.ownerId,
+                      for: id,
                     },
                     sigs: {}
                   }
@@ -1142,9 +1143,9 @@ class Server {
                   delete d.sigs;
                   d.sigs = {};
                   d.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
-                  self.saving[self.sync]["all/ledgers/" + self.ownerId + ".json"] = d;
-                  await self.setLocal("all/ledgers/" + self.ownerId + ".json", d);
-                  await self.shareGroupSig("ledgers/" + self.ownerId + ".json");
+                  self.saving[self.sync]["all/ledgers/" + id + ".json"] = d;
+                  await self.setLocal("all/ledgers/" + id + ".json", d);
+                  await self.shareGroupSig("ledgers/" + id + ".json");
                 }
               }
             } catch(e){
@@ -1204,12 +1205,16 @@ class Server {
   getDuration(timeArr){
     const self = this;
     let dur = 0;
-    for(let i=0;i<timeArr.length;i++){
-      if(timeArr[i].length == 2){
-        dur += Math.abs(timeArr[i][1] - timeArr[i][0]);
-      }else if(timeArr[i].length == 1){
-        dur += Math.abs(self.nextSync - timeArr[i][0]);
+    try {
+      for(let i=0;i<timeArr.length;i++){
+        if(timeArr[i].length == 2){
+          dur += Math.abs(timeArr[i][1] - timeArr[i][0]);
+        }else if(timeArr[i].length == 1){
+          dur += Math.abs(self.nextSync - timeArr[i][0]);
+        }
       }
+    } catch(e){
+
     }
     return dur;
   }
@@ -1462,8 +1467,9 @@ class Server {
       try {
         let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all");
         let groups = {};
+        const gLength = self.groups.length;
         for(let i=0;i<paths.length;i++){
-          const groupIndex = jumpConsistentHash(paths[i], self.groups.length);
+          const groupIndex = jumpConsistentHash(paths[i], gLength);
           if(groupIndex !== self.group.index){
             if(!groups[groupIndex]) groups[groupIndex] = [];
             groups[groupIndex].push(paths[i]);
@@ -1481,7 +1487,8 @@ class Server {
                 event: "Take over group data",
                 data: {
                   paths,
-                  group: self.group.index
+                  group: self.group.index,
+                  length: gLength
                 }
               }))
             });
@@ -1641,7 +1648,7 @@ class Server {
         if(isValid){
           res(isValid);
         } else {
-          rej({err: "Invalid"});
+          return rej({err: "Invalid"});
         }
       } catch(e){
         rej(e)
@@ -1914,14 +1921,7 @@ class Server {
   }
 
   now(){
-    return Math.round(Date.now() + this.timeOffset + this.testOffset);
-  }
-
-  heartbeat(ws){
-    clearTimeout(ws.pingTimeout);
-    ws.pingTimeout = setTimeout(() => {
-      ws.terminate();
-    }, 3500);
+    return Math.round(Date.now() + this.timeOffset);
   }
 
   handleSyncPing = async (ws, data) => {
@@ -1953,15 +1953,19 @@ class Server {
   handleConnectToPeerWs = async (ws, data) => {
     const self = this;
     return new Promise (async (res, rej) => {
-      if(!ws.Url || !data.id) return res();
-      let url = self.url + "valoria/peers/" + data.id + "/";
-      if(!self.conns[url]) return res();
-      self.conns[url].send(JSON.stringify({
-        event: "Connect to server request",
-        data: {
-          url: ws.Url
-        }
-      }));
+      try {
+        if(!ws.Url || !data.id) return res();
+        let url = self.url + "valoria/peers/" + data.id + "/";
+        if(!self.conns[url]) return res();
+        self.conns[url].send(JSON.stringify({
+          event: "Connect to server request",
+          data: {
+            url: ws.Url
+          }
+        }));
+      } catch(e){
+
+      }
       return res();
     })
   }
@@ -2288,20 +2292,24 @@ class Server {
   handleGroupNotFull = async (ws) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1) return err();
-      ws.send(JSON.stringify({
-        event: "Group not full response",
-        data: {
-          success: self.group.members.length < self.group.max
-        }
-      }))
-      function err(){
+      try {
+        if(!ws.Url || !self.group || self.group?.members?.indexOf(ws.Url) == -1) return err();
         ws.send(JSON.stringify({
           event: "Group not full response",
           data: {
-            err: true
+            success: self.group.members.length < self.group.max
           }
         }))
+        function err(){
+          ws.send(JSON.stringify({
+            event: "Group not full response",
+            data: {
+              err: true
+            }
+          }))
+        }
+      } catch(e){
+
       }
       return res()
     })
@@ -2351,7 +2359,7 @@ class Server {
   handleRequestNewGroup = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!data.index) return res();
+      if(!data.index || !self.group?.members) return res();
       if(data.index == self.groups.length){
         self.canCreate = data.index;
         try {
@@ -2412,15 +2420,19 @@ class Server {
   handleGroupCanBeCreated = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.index) return res();
-      ws.send(JSON.stringify({
-        event: "Group can be created response",
-        data: {
-          success: (data.index == self.groups.length && self.canCreate !== data.index),
-          index: data.index
-        }
-      }))
-      res();
+      try {
+        if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.index) return res();
+        ws.send(JSON.stringify({
+          event: "Group can be created response",
+          data: {
+            success: (data.index == self.groups.length && self.canCreate !== data.index),
+            index: data.index
+          }
+        }))
+        res();
+      } catch(e){
+        console.log(e)
+      }
     })
   }
 
@@ -2566,8 +2578,8 @@ class Server {
   handleNewMemberInGroup = async (ws, data) => {
     const self = this;  
     return new Promise(async (res, rej) => {
-      if(!ws.Url || data.index < 0 || !self.group) return res();
       try {
+        if(!ws.Url || data.index < 0 || !self.group) return res();
         if(data.index < 0) return;
         if(!self.groups[data.index]) self.groups[data.index] = [];
         if(self.group.index == data.index  && self.group.members.indexOf(ws.Url) !== -1){
@@ -2643,8 +2655,8 @@ class Server {
   handleMemberHasLeftGroup = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!self.group) return res();
       try {
+        if(!self.group) return res();
         if(self.group.index == data.index && self.group.members.indexOf(data.url) !== -1){
           // if(self.conns[data.url]) delete self.conns[data.url]
           self.group.members.splice(self.group.members.indexOf(data.url), 1);
@@ -2944,7 +2956,7 @@ class Server {
           const pastLength = data.group > self.group.index ? self.group.index + 1 : self.group.index;
           let dataPaths = [];
           for(let i=0;i<paths.length;i++){
-            if(jumpConsistentHash(paths[i], pastLength) !== data.group) continue;
+            if(jumpConsistentHash(paths[i], data.length) !== self.group.index) continue;
             try {
               if(paths[i].startsWith("data/")){
                 dataPaths.push(paths[i].substr(paths[i].indexOf("/") + 1));
@@ -2961,10 +2973,6 @@ class Server {
                   }
                 }))
               });
-              if(paths[i].startsWith("ledgers")){
-                // delete d.sigs;
-                // d.sigs = {};
-              }
               await self.setLocal("all/" + paths[i], d);
             } catch(e){
               continue;
@@ -2977,7 +2985,6 @@ class Server {
               success: true
             }
           }))
-          res();
           for(let j=0;j<dataPaths.length;j++){
             try {
               await self.claimValorForData(dataPaths[j]);
@@ -2985,6 +2992,7 @@ class Server {
               continue;
             }
           }
+          res();
         } else {
           return err()
         }
@@ -3076,8 +3084,8 @@ class Server {
   handleShareGroupSig = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.path || !data.sig) return err();
       try {
+        if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.path || !data.sig) return err();
         const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
         if(!d || !d.data || !d.sigs || !d.sigs[self.url]) {
           return err()
@@ -3193,6 +3201,7 @@ class Server {
             path: data.path
           }
         }))
+        await self.addPathToLedger(data.path, data.id);
         return res()
       } catch(e){
         err();
@@ -3512,23 +3521,27 @@ class Server {
 
   handleSendRtcDescription(ws, data){
     const self = this;
-    if(!self.conns[data.url]) {
-      return;
-    }
-    if(!self.conns[data.url].peers) self.conns[data.url].peers = {};
-    if(!self.conns[ws.Url].peers) self.conns[ws.Url].peers = {};
-    if(!self.conns[ws.Url].peers[data.url] || !self.conns[data.url].peers[ws.Url]){
-      self.conns[ws.Url].peers[data.url] = {polite: false};
-      self.conns[data.url].peers[ws.Url] = {polite: true};
-    }
-    self.conns[data.url].send(JSON.stringify({
-      event: "Got rtc description",
-      data: {
-        url: ws.Url,
-        desc: data.desc,
-        polite: self.conns[ws.Url].peers[data.url]?.polite,
+    try {
+      if(!self.conns[data.url]) {
+        return;
       }
-    }));
+      if(!self.conns[data.url].peers) self.conns[data.url].peers = {};
+      if(!self.conns[ws.Url].peers) self.conns[ws.Url].peers = {};
+      if(!self.conns[ws.Url].peers[data.url] || !self.conns[data.url].peers[ws.Url]){
+        self.conns[ws.Url].peers[data.url] = {polite: false};
+        self.conns[data.url].peers[ws.Url] = {polite: true};
+      }
+      self.conns[data.url].send(JSON.stringify({
+        event: "Got rtc description",
+        data: {
+          url: ws.Url,
+          desc: data.desc,
+          polite: self.conns[ws.Url].peers[data.url]?.polite,
+        }
+      }));
+    } catch(e){
+
+    }
   }
 
   handleSendRtcCandidate(ws, data){
@@ -3545,7 +3558,7 @@ class Server {
 
 }
 
-let localServerCount = 3;
+let localServerCount = 10;
 let localServers = [];
 if(isLocal){
   (async () => {
@@ -3554,7 +3567,7 @@ if(isLocal){
       //   setTimeout(async () => {
           try {
             const server = new Server(i + Port);
-            // await server.setup();
+            await server.setup();
             localServers.push(server);
           } catch(e){
           }

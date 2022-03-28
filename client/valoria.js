@@ -86,7 +86,6 @@ class Valoria {
       //       return;
       //     }
       //   }, 3000)
-     
       try {
         await self.reset();
         if(!self.id || !self.ecdsa.publicKey) return rej();
@@ -341,7 +340,7 @@ class Valoria {
           const members = self.groups[groupIndex];
           const url = members[members.length * Math.random() << 0];
           await self.connectToServer(url);
-          self.promises["Set data from " + url + " for " + path] = {res, rej};
+          // self.promises["Set data from " + url + " for " + path] = {res, rej};
           self.conns[url].send(JSON.stringify({
             event: "Set",
             data: {
@@ -351,6 +350,7 @@ class Valoria {
             }
           }))
         }
+        res();
       } catch(e){
         return rej(e);
       }
@@ -509,10 +509,12 @@ class Valoria {
     return new Promise(async(res, rej) => {
       try {
         self.stream = await navigator.mediaDevices.getUserMedia(opts);
-        const peers = self.dimension.peers;
-        for(let i=0;i<peers?.length;i++){
-          if(!self.peers[peers[i]].addTrack) continue;
-          self.stream.getTracks().forEach(track => self.peers[peers[i]].addTrack(track, self.stream));
+        if(self.dimension?.peers){
+          const peers = self.dimension.peers;
+          for(let i=0;i<peers?.length;i++){
+            if(!self.peers[peers[i]].addTrack) continue;
+            self.stream.getTracks().forEach(track => self.peers[peers[i]].addTrack(track, self.stream));
+          }
         }
       } catch(e){
 
@@ -895,10 +897,10 @@ class Valoria {
         } else {  
           for(let i=0;i<self.groups[valorGroupIndex].length;i++){
             const url = self.groups[valorGroupIndex][i];
-            if(self.promises["Claimed valor for path " + path + " from " + url]) continue;
+            // if(self.promises["Claimed valor for path " + path + " from " + url]) continue;
             await self.connectToServer(url);
-            await new Promise(async (res, rej) => {
-              self.promises["Claimed valor for path " + path + " from " + url] = {res, rej};
+            // await new Promise(async (res, rej) => {
+            //   self.promises["Claimed valor for path " + path + " from " + url] = {res, rej};
               self.conns[url].send(JSON.stringify({
                 event: "Claim valor for path",
                 data: {
@@ -908,12 +910,12 @@ class Valoria {
                   sync
                 }
               }));
-            })
+            // })
           }
-          await self.addPathToLedger(path); 
+          // await self.addPathToLedger(path); 
         }
       } catch(e){
-        console.log(e);
+        // console.log(e);
       }
       return res();
     })
@@ -948,25 +950,26 @@ class Valoria {
     });
   }
 
-  addPathToLedger = async (path) => {
+  addPathToLedger = async (path, ownerId=null) => {
     const self = this;
     return new Promise(async (res, rej) => {
       // console.log("adding path to ledger: " + path);
+      const id = ownerId || self.ownerId;
       try {
-        const ledgerGroupIndex = jumpConsistentHash("ledgers/" + self.ownerId + ".json", self.groups.length);
+        const ledgerGroupIndex = jumpConsistentHash("ledgers/" + id + ".json", self.groups.length);
         const ledgerGroup = [...self.groups[ledgerGroupIndex]];
         for(let i=0;i<ledgerGroup.length;i++){
           const url = ledgerGroup[i];
           if(url !== self.url){
             try {
-              if(self.promises[`Path ${path} added to ledger ${self.ownerId} from ${url}`]) continue;
+              if(self.promises[`Path ${path} added to ledger ${id} from ${url}`]) continue;
               await self.connectToServer(url);
               // await new Promise(async(res, rej) => {
               //   self.promises[`Path ${path} added to ledger ${self.ownerId} from ${url}`] = {res, rej};
                 self.conns[url].send(JSON.stringify({
                   event: "Add path to ledger",
                   data: {
-                    id: self.ownerId,
+                    id,
                     path
                   }
                 }))
@@ -976,9 +979,9 @@ class Valoria {
             }
           } else {
             try {
-              const valorGroupIndex = jumpConsistentHash(`valor/${self.ownerId}/${path}`, self.groups.length);
+              const valorGroupIndex = jumpConsistentHash(`valor/${id}/${path}`, self.groups.length);
               const valorGroup = self.groups[valorGroupIndex];
-              let valor = await self.get(`valor/${self.ownerId}/${path}`);
+              let valor = await self.get(`valor/${id}/${path}`);
               let isValid = true;
               // TODO VERIFY VALOR FROM SIGS
               // for(let j=0;j<valorGroup.length;j++){
@@ -1011,12 +1014,12 @@ class Valoria {
               //   }
               // }
               if(isValid){
-                let d = self.saving[self.sync]["all/ledgers/" + self.ownerId + ".json"] || await self.getLocal("all/ledgers/" + self.ownerId + ".json");
+                let d = self.saving[self.sync]["all/ledgers/" + id + ".json"] || await self.getLocal("all/ledgers/" + id + ".json");
                 if(!d || !d.data) {
                   d = {
                     data: {
                       paths: {},
-                      for: self.ownerId,
+                      for: id,
                     },
                     sigs: {}
                   }
@@ -1026,9 +1029,9 @@ class Valoria {
                   delete d.sigs;
                   d.sigs = {};
                   d.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(d.data)))
-                  self.saving[self.sync]["all/ledgers/" + self.ownerId + ".json"] = d;
-                  await self.setLocal("all/ledgers/" + self.ownerId + ".json", d);
-                  await self.shareGroupSig("ledgers/" + self.ownerId + ".json");
+                  self.saving[self.sync]["all/ledgers/" + id + ".json"] = d;
+                  await self.setLocal("all/ledgers/" + id + ".json", d);
+                  await self.shareGroupSig("ledgers/" + id + ".json");
                 }
               }
             } catch(e){
@@ -1379,7 +1382,8 @@ class Valoria {
                 event: "Take over group data",
                 data: {
                   paths,
-                  group: self.group.index
+                  group: self.group.index,
+                  length : self.groups.length
                 }
               }))
             });
@@ -1813,19 +1817,19 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       // setTimeout(() => {
-        if(!ws.Url || (
-          self.groups[self.group.index].indexOf(ws.Url) == -1 &&
-          self.groups[self.group.index - 1]?.indexOf(ws.Url) == -1 &&
-          self.groups[self.group.index + 1]?.indexOf(ws.Url) == -1
-        )){
-          ws.send({
-            event: "Sync pong",
-            data: {
-              err: "Not in sync time group"
-            }
-          });
-          return res();
-        }
+        // if(!ws.Url || (
+        //   self.groups[self.group.index].indexOf(ws.Url) == -1 &&
+        //   self.groups[self.group.index - 1]?.indexOf(ws.Url) == -1 &&
+        //   self.groups[self.group.index + 1]?.indexOf(ws.Url) == -1
+        // )){
+        //   ws.send({
+        //     event: "Sync pong",
+        //     data: {
+        //       err: "Not in sync time group"
+        //     }
+        //   });
+        //   return res();
+        // }
         data.pingReceived = self.now();
         ws.send(JSON.stringify({
           event: "Sync pong",
@@ -2827,7 +2831,8 @@ class Valoria {
           const pastLength = data.group > self.group.index ? self.group.index + 1 : self.group.index;
           let dataPaths = [];
           for(let i=0;i<paths.length;i++){
-            if(jumpConsistentHash(paths[i], pastLength) !== data.group) continue;
+            // if(jumpConsistentHash(paths[i], pastLength) !== data.group) continue;
+            if(jumpConsistentHash(paths[i], data.length) !== self.group.index) continue;
             try {
               if(paths[i].startsWith("data/")){
                 dataPaths.push(paths[i].substr(paths[i].indexOf("/") + 1));
@@ -3077,6 +3082,7 @@ class Valoria {
             path: data.path
           }
         }))
+        await self.addPathToLedger(data.path, data.id)
         return res()
       } catch(e){
         err();
