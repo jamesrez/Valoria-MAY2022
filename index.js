@@ -95,9 +95,9 @@ class Server {
       server: this.server,
       maxPayload: 512 * 1024 * 1024
     });
-    self.wss.on('connection', async (ws) => {
+    this.wss.on('connection', async (ws) => {
       try {
-        await self.setupWS(ws);
+        await this.setupWS(ws);
       } catch(e){}
     })
     this.conns = {};
