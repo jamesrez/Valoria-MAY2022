@@ -868,8 +868,12 @@ class Server {
           await self.requestNewGroup();
           await self.createGroup();
         } catch (e){
-          await self.loadAllGroups();
-          await self.joinGroup();
+          try {
+            await self.loadAllGroups();
+            await self.joinGroup();
+          } catch(e){
+
+          }
         }
       }
       return res();
@@ -1386,6 +1390,7 @@ class Server {
               }
             }).catch((e) => {
               // throw e;
+              throw e
             });
           } catch(e){
             continue;
@@ -1596,7 +1601,7 @@ class Server {
         )
         return res(publicD);
       } catch(e){
-        rej(e)
+        res(null)
       }
     });
   };
@@ -1987,16 +1992,20 @@ class Server {
   handleVerifyUrlKey = async (ws, data) => {
     const self = this;
     return new Promise(async( res, rej) => {
-      if(!self.promises["Url verified with " + ws.Url] || !data.key) return res();
-      let pathUrl = ws.Url.replace(/\//g, "");
-      pathUrl = pathUrl.replace(/\:/g, "");
-      self.verificationKeys["/valoria/verifying/" + pathUrl] = data.key;
-      self.app.get("/valoria/verifying/" + pathUrl, (req, res) => {
-        res.send(self.verificationKeys[req.path]);
-      })
-      ws.send(JSON.stringify({
-        event: "Verify url"
-      }))
+      try {
+        if(!self.promises["Url verified with " + ws.Url] || !data.key) return res();
+        let pathUrl = ws.Url.replace(/\//g, "");
+        pathUrl = pathUrl.replace(/\:/g, "");
+        self.verificationKeys["/valoria/verifying/" + pathUrl] = data.key;
+        self.app.get("/valoria/verifying/" + pathUrl, (req, res) => {
+          res.send(self.verificationKeys[req.path]);
+        })
+        ws.send(JSON.stringify({
+          event: "Verify url"
+        }))
+      } catch(e){
+
+      }
       return res();
     })
   }
@@ -2057,20 +2066,24 @@ class Server {
   handleVerifyPeerUrl= async (ws, data) => {
     const self = this;
     return new Promise(async(res, rej) => {
-      if(self.conns[ws.Url] && self.conns[ws.Url].originUrl == self.url){
-        let pathUrl = data.url.replace(/\//g, "");
-        pathUrl = pathUrl.replace(/\:/g, "");
-        self.verificationKeys["/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl] = data.key;
-        self.app.get("/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl, (req, res) => {
-          res.send(self.verificationKeys[req.path]);
-          delete self.verificationKeys[req.path];
-        })
-        ws.send(JSON.stringify({
-          event: "Verified peer url",
-          data: {
-            url: data.url
-          }
-        }))
+      try {
+        if(self.conns[ws.Url] && self.conns[ws.Url].originUrl == self.url){
+          let pathUrl = data.url.replace(/\//g, "");
+          pathUrl = pathUrl.replace(/\:/g, "");
+          self.verificationKeys["/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl] = data.key;
+          self.app.get("/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl, (req, res) => {
+            res.send(self.verificationKeys[req.path]);
+            delete self.verificationKeys[req.path];
+          })
+          ws.send(JSON.stringify({
+            event: "Verified peer url",
+            data: {
+              url: data.url
+            }
+          }))
+        }
+      } catch(e){
+
       }
       res()
     })
@@ -2079,19 +2092,23 @@ class Server {
   handleSetOriginUrl= async (ws, data) => {
     const self = this;
     return new Promise(async(res, rej) => {
-      if(!data.id) return res();
-      let url = self.url + "valoria/peers/" + data.id + "/";
-      ws.Url = url;
-      ws.peerId = data.id;
-      ws.originUrl = self.url;
-      self.conns[url] = ws;
-      ws.send(JSON.stringify({
-        event: "Origin url set",
-        data: {
-          url: data.url,
-          success: true
-        }
-      }))
+      try {
+        if(!data.id) return res();
+        let url = self.url + "valoria/peers/" + data.id + "/";
+        ws.Url = url;
+        ws.peerId = data.id;
+        ws.originUrl = self.url;
+        self.conns[url] = ws;
+        ws.send(JSON.stringify({
+          event: "Origin url set",
+          data: {
+            url: data.url,
+            success: true
+          }
+        }))
+      } catch(e){
+
+      }
       res()
     })
   }
@@ -2125,13 +2142,17 @@ class Server {
   handleGetGroupPaths(ws){
     const self = this;
     return new Promise(async( res, rej) => {
-      const paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all");
-      ws.send(JSON.stringify({
-        event: "Got group paths",
-        data: {
-          paths
-        }
-      }))
+      try {
+        const paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all");
+        ws.send(JSON.stringify({
+          event: "Got group paths",
+          data: {
+            paths
+          }
+        }))
+      } catch(e){
+
+      }
       return res();
     })
   }
@@ -3056,13 +3077,13 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.path || !data.sig) return err();
-      const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
-      if(!d || !d.data || !d.sigs || !d.sigs[self.url]) {
-        return err()
-      }
-      const publicD = await self.getPublicFromUrl(ws.Url);
-      if(!publicD || !publicD.ecdsaPub) return err();
       try {
+        const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
+        if(!d || !d.data || !d.sigs || !d.sigs[self.url]) {
+          return err()
+        }
+        const publicD = await self.getPublicFromUrl(ws.Url);
+        if(!publicD || !publicD.ecdsaPub) return err();
         await self.verify(JSON.stringify(d.data), Buffer.from(data.sig, "base64"), publicD.ecdsaPub);
         d.sigs[ws.Url] = data.sig;
         self.saving[self.sync]["all/" + data.path] = d;

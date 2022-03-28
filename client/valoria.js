@@ -2936,13 +2936,13 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       if(!ws.Url || !self.group || self.group.members.indexOf(ws.Url) == -1 || !data.path || !data.sig) return err();
-      const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
-      if(!d || !d.data || !d.sigs || !d.sigs[self.url]) {
-        return err()
-      }
-      const publicD = await self.getPublicFromUrl(ws.Url);
-      if(!publicD || !publicD.ecdsaPub) return err();
       try {
+        const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
+        if(!d || !d.data || !d.sigs || !d.sigs[self.url]) {
+          return err()
+        }
+        const publicD = await self.getPublicFromUrl(ws.Url);
+        if(!publicD || !publicD.ecdsaPub) return err();
         await self.verify(JSON.stringify(d.data), base64ToArrayBuffer(data.sig), publicD.ecdsaPub);
         d.sigs[ws.Url] = data.sig;
         self.saving[self.sync]["all/" + data.path] = d;
