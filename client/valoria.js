@@ -534,9 +534,9 @@ class Valoria {
   loadAllGroups = async () => {
     const self = this;
     return new Promise(async(res, rej) => {
-      if(!initialServers || initialServers.length == 0) rej("No initial servers found.");
+      if(!initialServers || initialServers.length == 0) return rej("No initial servers found.");
       try {
-        if(!initialServers || initialServers.length == 0) rej("No initial servers found.");
+        if(!initialServers || initialServers.length == 0) return rej("No initial servers found.");
         let servers = [...initialServers];
         let askAmount = 10;
         let askCount = 0
@@ -655,12 +655,12 @@ class Valoria {
                   self.conns[url].isP2P = false;
                   self.conns[url].Url = url;
                 } catch(e){
-                  rej(e);
+                  return rej(e);
                 }
               }
             } catch(e){
               console.log(e)
-              rej(e)
+              return rej(e)
             }
           } 
           if(self.conns[url].isWS){
@@ -698,13 +698,13 @@ class Valoria {
               }
             });
             this.conns[url].onerror = (error) => {
-              rej(error);
+              return rej(error);
             }
           }
         }
       } catch(e){
         // console.log("Could not connect to " + url)
-        rej();
+        return rej();
       }
     })
   }
@@ -1537,7 +1537,7 @@ class Valoria {
         if(isValid){
           res(isValid);
         } else {
-          rej({err: "Invalid"});
+          return rej({err: "Invalid"});
         }
       } catch(e){
         rej(e)

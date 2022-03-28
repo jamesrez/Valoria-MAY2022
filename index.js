@@ -116,9 +116,9 @@ class Server {
     this.syncIntervalMs = 1000;
     this.ownerId = process.env.VALORIA_USER_ID;
     const self = this;
-    if(isLocal){
-      this.url = 'http://localhost:' + port + "/";
-    } else {
+    // if(isLocal){
+    //   this.url = 'http://localhost:' + port + "/";
+    // } else {
       this.app.use(async (req, res, next) => {
         if(!self.url && !self.verifyingSelf && (isLocal || !req.get('host').startsWith('localhost'))){
           self.verifyingSelf = true;
@@ -138,7 +138,7 @@ class Server {
         }
         next();
       });
-    }
+    // }
     this.setupRoutes();
     this.server.listen(port, () => {
       console.log("Server started on port " + port);
@@ -235,6 +235,7 @@ class Server {
                 let originUrl = url.substring(0, url.indexOf("valoria/peers/"));
                 let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
                 await self.connectToServer(originUrl);
+                console.log(self.url + " Connected to origin url " + originUrl)
                 self.conns[url] = await new Promise(async (res, rej) => {
                   self.promises["Connected to peer ws for " + url] = {res, rej};
                   self.conns[originUrl].send(JSON.stringify({
@@ -245,6 +246,7 @@ class Server {
                   }))
                 })
                 connected = true;
+                return res();
               } else {
                 let wsUrl = "ws://" + new URL(url).host + "/"
                 if(url.startsWith('https')){
@@ -780,9 +782,11 @@ class Server {
         let startClaims = [];
         let syncClaims = [];
         // console.log("Loading all groups")
+        console.log(self.url + " will load groups");
         while(askCount < askAmount && servers.length > 0){
           const url = servers[servers.length * Math.random() << 0];
           try {
+            console.log("getting groups from " + url);
             await self.connectToServer(url);
             const data = await new Promise(async (res, rej) => {
               self.promises["Got groups from " + url] = {res, rej};
@@ -807,9 +811,11 @@ class Server {
               }
             }
             askCount += 1;
+            console.log("Got");
           } catch (e) {
             // used.push(url);
             servers.splice(servers.indexOf(url));
+            console.log("Did not get groups from " + url);
           }
         }
         self.start = mode(startClaims) || self.now();
@@ -3567,7 +3573,7 @@ if(isLocal){
       //   setTimeout(async () => {
           try {
             const server = new Server(i + Port);
-            await server.setup();
+            // await server.setup();
             localServers.push(server);
           } catch(e){
           }
