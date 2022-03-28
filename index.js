@@ -95,6 +95,11 @@ class Server {
       server: this.server,
       maxPayload: 512 * 1024 * 1024
     });
+    self.wss.on('connection', async (ws) => {
+      try {
+        await self.setupWS(ws);
+      } catch(e){}
+    })
     this.conns = {};
     this.promises = {};
     this.groups = [];
@@ -158,11 +163,6 @@ class Server {
       self.app.get('/valoria/public', async (req, res) => {
         res.send(self.public)
       });
-      self.wss.on('connection', async (ws) => {
-        try {
-          await self.setupWS(ws);
-        } catch(e){}
-      })
       self.heartbeatInterval = setInterval(() => {
         self.wss.clients.forEach(function each(ws) {
           if (ws.isAlive === false) {
