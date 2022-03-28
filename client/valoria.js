@@ -3379,23 +3379,27 @@ class Valoria {
   handleJoinedDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      const peers = data.peers;
-      self.dimension = {
-        id: data.dimension,
-        peers,
-        onPeerJoin: self.dimension.onPeerJoin || (() => {}),
-        onPeerLeave: self.dimension.onPeerLeave || (() => {}),
-      }
-      for(let i=0;i<peers.length;i++){
-        if(peers[i] == self.url) continue;
-        if(!self.conns[peers[i]]) {
-          self.connectToPeer(peers[i]);
+      try {
+        const peers = data.peers;
+        self.dimension = {
+          id: data.dimension,
+          peers,
+          onPeerJoin: self.dimension.onPeerJoin || (() => {}),
+          onPeerLeave: self.dimension.onPeerLeave || (() => {}),
         }
-        self.dimension.onPeerJoin(peers[i]);
-      }
-      if(self.promises["Joined " + data.dimension + " dimension"]){
-        self.promises["Joined " + data.dimension + " dimension"].res();
-        delete self.promises["Joined " + data.dimension + " dimension"];
+        for(let i=0;i<peers.length;i++){
+          if(peers[i] == self.url) continue;
+          if(!self.conns[peers[i]]) {
+            self.connectToPeer(peers[i]);
+          }
+          self.dimension.onPeerJoin(peers[i]);
+        }
+        if(self.promises["Joined " + data.dimension + " dimension"]){
+          self.promises["Joined " + data.dimension + " dimension"].res();
+          delete self.promises["Joined " + data.dimension + " dimension"];
+        }
+      } catch(e){
+
       }
       res();
     });
@@ -3404,10 +3408,14 @@ class Valoria {
   handleNewPeerInDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(data.dimension !== self.dimension.id || !data.url || data.url == self.url || self.dimension.peers.indexOf(data.url) !== -1) return res();
-      self.connectToPeer(data.url);
-      self.dimension.peers.push(data.url);
-      self.dimension.onPeerJoin(data.url);
+      try {
+        if(data.dimension !== self.dimension.id || !data.url || data.url == self.url || self.dimension.peers.indexOf(data.url) !== -1) return res();
+        self.connectToPeer(data.url);
+        self.dimension.peers.push(data.url);
+        self.dimension.onPeerJoin(data.url);
+      } catch(e){
+
+      }
       res();
     });
   }
@@ -3415,10 +3423,15 @@ class Valoria {
   handlePeerHasLeftDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(data.dimension !== self.dimension.id || !data.url) return res();
-      self.dimension.peers.splice(self.dimension.peers.indexOf(data.url), 1);
-      self.dimension.onPeerLeave(data.url);
-      delete self.peers[data.url];
+      try {
+        if(data.dimension !== self.dimension.id || !data.url) return res();
+        self.dimension.peers.splice(self.dimension.peers.indexOf(data.url), 1);
+        self.dimension.onPeerLeave(data.url);
+        delete self.peers[data.url];
+      } catch(e){
+
+      }
+     
       res();
     });
   }
@@ -3426,21 +3439,25 @@ class Valoria {
   handleNewPeerInGroupDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!data.dimension || jumpConsistentHash(data.dimension, self.groups.length) !== self.group.index) return res();
-      const id = data.dimension;
-      if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
-      const peers = Object.keys(self.dimensions[id].conns);
-      self.dimensions[id].conns[data.url] = 1;
-      if(self.conns[data.url]) self.conns[data.url].dimension = id;
-      for(let i=0;i<peers.length;i++){
-        if(peers[i] == self.url || !self.conns[peers[i]]) continue;
-        self.conns[peers[i]]?.send(JSON.stringify({
-          event: "New peer in dimension",
-          data: {
-            url: data.url,
-            dimension: id
-          }
-        }));
+      try {
+        if(!data.dimension || jumpConsistentHash(data.dimension, self.groups.length) !== self.group.index) return res();
+        const id = data.dimension;
+        if(!self.dimensions[id]) self.dimensions[id] = {conns: {}};
+        const peers = Object.keys(self.dimensions[id].conns);
+        self.dimensions[id].conns[data.url] = 1;
+        if(self.conns[data.url]) self.conns[data.url].dimension = id;
+        for(let i=0;i<peers.length;i++){
+          if(peers[i] == self.url || !self.conns[peers[i]]) continue;
+          self.conns[peers[i]]?.send(JSON.stringify({
+            event: "New peer in dimension",
+            data: {
+              url: data.url,
+              dimension: id
+            }
+          }));
+        }
+      } catch(e){
+
       }
       res();
     });
@@ -3449,18 +3466,22 @@ class Valoria {
   handlePeerHasLeftGroupDimension(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(jumpConsistentHash(data.dimension, self.groups.length) !== self.group.index || !data.dimension) return res();
-      delete self.dimensions[data.dimension]?.conns[data.url];
-      const peers = Object.keys(self.dimensions[data.dimension].conns);
-      for(let i=0;i<peers.length;i++){
-        if(peers[i] == self.url || !self.conns[peers[i]]) continue;
-        self.conns[peers[i]]?.send(JSON.stringify({
-          event: "Peer has left dimension",
-          data: {
-            dimension: data.dimension,
-            url: data.url
-          }
-        }))
+      try {
+        if(jumpConsistentHash(data.dimension, self.groups.length) !== self.group.index || !data.dimension) return res();
+        delete self.dimensions[data.dimension]?.conns[data.url];
+        const peers = Object.keys(self.dimensions[data.dimension].conns);
+        for(let i=0;i<peers.length;i++){
+          if(peers[i] == self.url || !self.conns[peers[i]]) continue;
+          self.conns[peers[i]]?.send(JSON.stringify({
+            event: "Peer has left dimension",
+            data: {
+              dimension: data.dimension,
+              url: data.url
+            }
+          }))
+        }
+      } catch(e){
+
       }
       res();
     });
@@ -3496,15 +3517,20 @@ class Valoria {
     return new Promise(async (res, rej) => {
       // console.log(self.conns[data.url]?.peerServer);
       // if(self.conns[data.url] && self.conns[data.url].peerServer == ws.Url){
-      if(ws.Url && ws.verified){
-        self.conns[data.url]?.onclose();
-        // console.log("Peer disconnect from " + ws.Url);
-        delete self.peers[data.url];
-        if(self.dimension?.peers?.indexOf(data.url) !== -1){
-          self.dimension.peers.splice(self.dimension.peers.indexOf(data.url), 1);
-          self.dimension.onPeerLeave(data.url);
+      try{
+        if(ws.Url && ws.verified){
+          self.conns[data.url]?.onclose();
+          // console.log("Peer disconnect from " + ws.Url);
+          delete self.peers[data.url];
+          if(self.dimension?.peers?.indexOf(data.url) !== -1){
+            self.dimension.peers.splice(self.dimension.peers.indexOf(data.url), 1);
+            self.dimension.onPeerLeave(data.url);
+          }
         }
+      } catch(e){
+        
       }
+     
       res();
     })
   }

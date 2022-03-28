@@ -192,10 +192,10 @@ class Server {
           await self.syncInterval();
         }, self.sync == self.start ? 0 : stall > 0 ? stall : 0)
         self.isSetup = true;
-        res();
+        return res();
       } catch(e){
         // console.log(e)
-        rej()
+        return rej()
       }
     })
   }
@@ -2188,8 +2188,7 @@ class Server {
             event: "Joined group",
             data: {err: "Already joined group"}
           }));
-          res();
-          return
+          return res();
         }
         if(g.members.length < g.max){
           try {
@@ -2998,7 +2997,7 @@ class Server {
               continue;
             }
           }
-          res();
+          return res();
         } else {
           return err()
         }
@@ -3015,7 +3014,6 @@ class Server {
         }))
         return res();
       }
-      return res()
     })
   }
 
