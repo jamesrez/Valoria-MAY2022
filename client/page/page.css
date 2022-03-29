@@ -187,7 +187,7 @@
   align-items: center;
   overflow-x: hidden;
   overflow-y: scroll;
-  background: rgb(35 0 43 / 51%);
+  background: rgb(35 0 43 / 30%);
   -ms-overflow-style: none;
   scrollbar-width: none;
   padding-bottom: 32px;

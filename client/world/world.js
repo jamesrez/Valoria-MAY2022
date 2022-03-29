@@ -110,19 +110,18 @@ let rightController;
   avatar.attach(leftController);
   avatar.attach(rightController);
   avatarIK = new IKVR(avatar, leftController, rightController);
-  test = await loadModel('assets/default.glb');
-  test.position.x = 1;
-  test.position.y = 0.1;
-  test.position.z = -2.5;
-  test.rotation.y = 1.7;
+  // test = await loadModel('assets/default.glb');
+  // test.position.x = 1;
+  // test.position.y = 0.1;
+  // test.position.z = -2.5;
+  // test.rotation.y = 1.7;
   // testIK = new IKVR(test, lMovingTarget, rMovingTarget);
-  setModelAction(test, test.mixer.clipAction(test.animations[1]));
-  room = await loadModel('assets/room-fix.glb')
-  room.scale.x = 2
-  room.scale.y = 2
-  room.scale.z = 2
-  room.position.z = -2.5;
-
+  // setModelAction(test, test.mixer.clipAction(test.animations[1]));
+  // room = await loadModel('assets/room-fix.glb')
+  // room.scale.x = 2
+  // room.scale.y = 2
+  // room.scale.z = 2
+  // room.position.z = -2.5;
 })();
 camera.position.z = -0.35;
 camera.position.y = 1.6;
@@ -156,7 +155,8 @@ renderer.setAnimationLoop(async () => {
   updatePeerAvatarVolume();
   sendPeerUpdates();
   handleObjectsMoving();
-  updateGridWave();
+  gridLoop();
+  palmTrees();
   if(testIK){
     testIK.update();
   }
@@ -450,7 +450,7 @@ world.onmousedown = () => {
 }
 
 const light = new THREE.AmbientLight();
-light.intensity = 1;
+light.intensity = 1.7;
 light.position.y = 5;
 scene.add(light)
 
@@ -469,43 +469,104 @@ const skyBox = new THREE.Mesh( skySphere, skyMat );
 skyBox.rotation.y = 90 * Math.PI / 180;
 scene.add( skyBox );
 
-const gridPlane = new THREE.PlaneBufferGeometry(100, 100, 150, 150);
+const gridPlane = new THREE.PlaneBufferGeometry(200, 200, 350, 350);
 const gridTexture = TextureLoader.load("assets/grid.png");
 gridTexture.wrapS = THREE.RepeatWrapping;
 gridTexture.wrapT = THREE.RepeatWrapping;
-gridTexture.repeat.set(200, 200)
+gridTexture.repeat.set(400, 400)
 const gridMat = new THREE.MeshPhongMaterial({ color: 0xffffff, map: gridTexture, opacity: 0.77, transparent: true, })
 const grid = new THREE.Mesh(gridPlane, gridMat);
 grid.rotation.x = -90 * Math.PI / 180;
-grid.rotation.z = 2.4;
+// grid.rotation.z = 2.4;
 grid.scale.x = 2;
 grid.scale.y = 2;
 grid.scale.z = 2;
-grid.position.y = -0.5;
+grid.position.y = 0;
 scene.add(grid)
-let gridWaveHeight = 0.2;
-const gridVertices = gridPlane.attributes.position;
-const myZs = []
-for (let i=0;i<gridVertices.count;i++) {
-  gridVertices.setZ(i, gridVertices.getZ(i) + Math.random() * gridWaveHeight - gridWaveHeight)
-  myZs.push(gridVertices.getZ(i))
-}
-let gridWaveCount = 0;
-function updateGridWave(){
-  for (let i=0;i<gridVertices.count;i++) {
-    const z = +gridVertices.getZ(i);
-    gridVertices.setZ(i, Math.sin( i + gridWaveCount * 0.000003) * (myZs[i] - (myZs[i] * 0.000001)));
-    gridVertices.needsUpdate = true;
-    gridWaveCount += 0.1
+function gridLoop(){
+  grid.position.z += 0.04;
+  if(grid.position.z >= 1){
+    grid.position.z = 0;
   }
 }
 
+// let gridWaveHeight = 0.2;
+// const gridVertices = gridPlane.attributes.position;
+// const myZs = []
+// for (let i=0;i<gridVertices.count;i++) {
+//   gridVertices.setZ(i, gridVertices.getZ(i) + Math.random() * gridWaveHeight - gridWaveHeight)
+//   myZs.push(gridVertices.getZ(i))
+// }
+// let gridWaveCount = 0;
+// function updateGridWave(){
+//   for (let i=0;i<gridVertices.count;i++) {
+//     const z = +gridVertices.getZ(i);
+//     gridVertices.setZ(i, Math.sin( i + gridWaveCount * 0.000003) * (myZs[i] - (myZs[i] * 0.000001)));
+//     gridVertices.needsUpdate = true;
+//     gridWaveCount += 0.1
+//   }
+// }
 
-video = document.createElement('video');
-video.setAttribute('autoplay', '');
-video.setAttribute('playsinline', '');
-video.setAttribute('loop', '');
-video.volume = 0.25;
-// video.setAttribute('crossorigin', 'anonymous');
-video.style.display = "none";
-world.append(video);
+let palms = []
+let spawningPalms = true;
+async function palmTreeSpawn(){
+  console.log(spawningPalms);
+  while(palms.length < 500){
+    const palm = await loadModel("assets/palm/QueenPalmTree.gltf");
+    palm.scale.x = 0.6;
+    palm.scale.y = 0.6;
+    palm.scale.z = 0.6;
+    palm.position.x = Math.random() * ((avatar.position.x + 80) - (avatar.position.x - 80) + 1) + (avatar.position.x - 80);
+    if(Math.abs(palm.position.x - avatar.position.x) < 2.5){
+      palm.position.x <= avatar.position.x ? palm.position.x -= 2.5 : palm.position.x += 2.5;
+    }
+    palm.position.y = -0.2;
+    palm.position.z = Math.random() * ((avatar.position.z + 20) - (avatar.position.z - 140) + 1) + (avatar.position.z - 140);
+    palms.push(palm)
+  }
+  spawningPalms = false;
+  console.log(spawningPalms);
+}
+
+palmTreeSpawn();
+
+async function palmTrees(){
+  if(palms.length < 500 && !spawningPalms){
+    const palm = await loadModel("assets/palm/QueenPalmTree.gltf");
+    palm.scale.x = 0.6;
+    palm.scale.y = 0.6;
+    palm.scale.z = 0.6;
+    palm.position.x = Math.random() * ((avatar.position.x + 80) - (avatar.position.x - 80) + 1) + (avatar.position.x - 80);
+    if(Math.abs(palm.position.x - avatar.position.x) < 2.5){
+      palm.position.x <= avatar.position.x ? palm.position.x -= 2.5 : palm.position.x += 2.5;
+    }
+    palm.position.y = -0.2;
+    palm.position.z = Math.random() * ((avatar.position.z - 70) - (avatar.position.z - 180) + 1) + (avatar.position.z - 180);
+    palms.push(palm)
+
+  }
+
+  for(let i=0;i<palms.length;i++){
+    palms[i].position.z += 0.04;
+  }
+
+  palms = palms.filter((p) => {
+    if(p.position.z - avatar.position.z <= 50){
+      return p
+    } else {
+      p.clear();
+    }
+  });
+  
+
+}
+
+
+// video = document.createElement('video');
+// video.setAttribute('autoplay', '');
+// video.setAttribute('playsinline', '');
+// video.setAttribute('loop', '');
+// video.volume = 0.25;
+// // video.setAttribute('crossorigin', 'anonymous');
+// video.style.display = "none";
+// world.append(video);
