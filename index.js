@@ -2460,7 +2460,7 @@ class Server {
     return new Promise(async (res, rej) => {
       try {
         if(!ws.Url && data.url){
-          await this.connectToServer(data.url);
+          await self.connectToServer(data.url);
         }
         if(!data.group || data.group.index < 0 || !ws.Url) return res();
         if(data.group.index !== self.groups.length) {

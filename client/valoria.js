@@ -2322,16 +2322,9 @@ class Valoria {
     return new Promise(async (res, rej) => {
       try {
         if(!ws.Url && data.url){
-          await this.connectToServer(data.url);
+          await self.connectToServer(data.url);
         }
         if(!data.group || data.group.index < 0 || !ws.Url) return
-        if(data.group.index !== self.groups.length) {
-          ws.send(JSON.stringify({
-            event: "New group found",
-            data: {success: false}
-          }))
-          return res();
-        }
         if(self.group.members.indexOf(ws.Url) !== -1){
           self.groups.push(data.group.members);
           if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
@@ -2370,11 +2363,16 @@ class Valoria {
             data: {success: true}
           }))
         }
+        if(data.group.index !== self.groups.length) {
+          ws.send(JSON.stringify({
+            event: "New group found",
+            data: {success: false}
+          }))
+          return res();
+        }
       } catch(e){
         console.log(e)
       }
-      await self.setLocal("group.json", self.group);
-      await self.setLocal("groups.json", self.groups);
       res();
     })
   }
