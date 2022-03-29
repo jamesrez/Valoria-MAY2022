@@ -113,6 +113,12 @@
 		var orient = scope.screenOrientation ? THREE.Math.degToRad( scope.screenOrientation ) : 0; // O
 
 		setObjectQuaternion( scope.object, alpha, beta, gamma, orient );
+
+    if(scope.object.rotation.x == -1.2217304763960306 || scope.object.rotation.x == -1.5707963267948966){
+      scope.object.rotation.x = -0.3;
+    }
+    //
+
 		this.alpha = alpha;
 
 	};
