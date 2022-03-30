@@ -263,6 +263,9 @@ class Valoria {
     downloadLink.download = `Valoria-Account-${self.id}.png`;
     downloadLink.innerHTML = "Download File";
     downloadLink.href = qr.toDataURL();
+    downloadLink.style.position = "absolute";
+    downloadLink.style.top = "-1250000px";
+    document.body.append(downloadLink);
     downloadLink.click();
   }
 

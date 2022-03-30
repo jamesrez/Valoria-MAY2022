@@ -512,18 +512,18 @@ let spawningPalms = true;
 let ogPalm;
 async function palmTreeSpawn(){
   console.log(spawningPalms);
-  while(palms.length < 500){
+  while(palms.length < 250){
     const palm = palms[0]?.clone() || await loadModel("assets/palm/QueenPalmTree.gltf");
     if(!palm.parent) scene.add(palm);
     palm.scale.x = 0.6;
     palm.scale.y = 0.6;
     palm.scale.z = 0.6;
-    palm.position.x = Math.random() * ((avatar.position.x + 80) - (avatar.position.x - 80) + 1) + (avatar.position.x - 80);
+    palm.position.x = Math.random() * ((avatar.position.x + 60) - (avatar.position.x - 60) + 1) + (avatar.position.x - 60);
     if(Math.abs(palm.position.x - avatar.position.x) < 2.5){
       palm.position.x <= avatar.position.x ? palm.position.x -= 2.5 : palm.position.x += 2.5;
     }
     palm.position.y = -0.2;
-    palm.position.z = Math.random() * ((avatar.position.z + 20) - (avatar.position.z - 140) + 1) + (avatar.position.z - 140);
+    palm.position.z = Math.random() * ((avatar.position.z + 40) - (avatar.position.z - 90) + 1) + (avatar.position.z - 90);
     palms.push(palm)
   }
   spawningPalms = false;
@@ -533,18 +533,18 @@ async function palmTreeSpawn(){
 palmTreeSpawn();
 
 async function palmTrees(){
-  if(palms.length < 500 && !spawningPalms){
+  if(palms.length < 250 && !spawningPalms){
     const palm = palms[0]?.clone() || await loadModel("assets/palm/QueenPalmTree.gltf");
     if(!palm.parent) scene.add(palm);
     palm.scale.x = 0.6;
     palm.scale.y = 0.6;
     palm.scale.z = 0.6;
-    palm.position.x = Math.random() * ((avatar.position.x + 80) - (avatar.position.x - 80) + 1) + (avatar.position.x - 80);
+    palm.position.x = Math.random() * ((avatar.position.x + 60) - (avatar.position.x - 60) + 1) + (avatar.position.x - 60);
     if(Math.abs(palm.position.x - avatar.position.x) < 2.5){
       palm.position.x <= avatar.position.x ? palm.position.x -= 2.5 : palm.position.x += 2.5;
     }
     palm.position.y = -0.2;
-    palm.position.z = Math.random() * ((avatar.position.z - 70) - (avatar.position.z - 180) + 1) + (avatar.position.z - 180);
+    palm.position.z = Math.random() * ((avatar.position.z - 70) - (avatar.position.z - 90) + 1) + (avatar.position.z - 90);
     palms.push(palm)
 
   }
