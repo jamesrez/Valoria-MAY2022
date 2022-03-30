@@ -509,10 +509,12 @@ function gridLoop(){
 
 let palms = []
 let spawningPalms = true;
+let ogPalm;
 async function palmTreeSpawn(){
   console.log(spawningPalms);
   while(palms.length < 500){
-    const palm = await loadModel("assets/palm/QueenPalmTree.gltf");
+    const palm = palms[0]?.clone() || await loadModel("assets/palm/QueenPalmTree.gltf");
+    if(!palm.parent) scene.add(palm);
     palm.scale.x = 0.6;
     palm.scale.y = 0.6;
     palm.scale.z = 0.6;
@@ -532,7 +534,8 @@ palmTreeSpawn();
 
 async function palmTrees(){
   if(palms.length < 500 && !spawningPalms){
-    const palm = await loadModel("assets/palm/QueenPalmTree.gltf");
+    const palm = palms[0]?.clone() || await loadModel("assets/palm/QueenPalmTree.gltf");
+    if(!palm.parent) scene.add(palm);
     palm.scale.x = 0.6;
     palm.scale.y = 0.6;
     palm.scale.z = 0.6;
