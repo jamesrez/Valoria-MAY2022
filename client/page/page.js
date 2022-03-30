@@ -153,29 +153,46 @@ async function createAccount(){
     newPassError.style.display = "block";
     newPassError.textContent = "Error: Passwords do not match";
   } else {
+   
+    // newQRForm.style.display = "flex";
+    const account = await valoria.generateCredentials(newPass);
+    valoria.saveCredentialsQR();
     newPassError.style.display = "none";
     newPasswordForm.style.display = "none";
-    newQRForm.style.display = "flex";
-    const account = await valoria.generateCredentials(newPass);
-    let qr = new QRious({
-      value: JSON.stringify({
-        id: account.id,
-        secret: account.secret
-      }),
-      size: 1000,
-    });
-    let canvas = document.querySelector('.valUINewQRCanvas');
-    canvas.width = 500;
-    canvas.height = 500;
-    let ctx = canvas.getContext('2d');
-    newQRCodePhoto.setAttribute('src', qr.toDataURL('image/png'));
-    newQRCodePhoto.onload = () => {
-      // ctx.drawImage(QRtemplatePhoto, 0, 0, 720, 1280)
-      ctx.drawImage(newQRCodePhoto, 0, 0, 500, 500)
-      const qrSrc = canvas.toDataURL();
-      QRrecoveryPhoto.setAttribute('src', qrSrc);
-      QRrecoverySave.style.display = "block";
+    // mainModal.style.display = "none";
+    page.style.display = "none";
+    if(!isMobile){
+      controls.lock();
     }
+    try {
+      await valoria.startMediaStream({audio: true, video: false});
+    } catch(e){
+      
+    }
+
+    // await valoria.setup();
+    // newPassError.style.display = "none";
+    // newPasswordForm.style.display = "none";
+
+    // let qr = new QRious({
+    //   value: JSON.stringify({
+    //     id: account.id,
+    //     secret: account.secret
+    //   }),
+    //   size: 1000,
+    // });
+    // let canvas = document.querySelector('.valUINewQRCanvas');
+    // canvas.width = 500;
+    // canvas.height = 500;
+    // let ctx = canvas.getContext('2d');
+    // newQRCodePhoto.setAttribute('src', qr.toDataURL('image/png'));
+    // newQRCodePhoto.onload = () => {
+    //   // ctx.drawImage(QRtemplatePhoto, 0, 0, 720, 1280)
+    //   ctx.drawImage(newQRCodePhoto, 0, 0, 500, 500)
+    //   const qrSrc = canvas.toDataURL();
+    //   QRrecoveryPhoto.setAttribute('src', qrSrc);
+    //   QRrecoverySave.style.display = "block";
+    // }
   }
 }
 
@@ -211,8 +228,8 @@ async function showSignIn(){
   join.style.display = "none";
   auth.style.display = "flex";
   signInEl.style.display = "flex";
-  signInQrSelect.style.display = "block";
-  signInPassword.style.display = "none";
+  signInQrSelect.style.display = "none";
+  signInPassword.style.display = "flex";
 }
 
 async function selectRecoveryPhoto(){
@@ -223,6 +240,7 @@ let qrcode;
 async function loadRecoveryPhoto(){
   try {
     console.log(signInQRInput.files);
+    
     qrcode = await QrScanner.scanImage(signInQRInput.files[0]);
     signInQrSelect.style.display = "none";
     signInQrMsg.style.display = "block";
@@ -234,12 +252,21 @@ async function loadRecoveryPhoto(){
 
 async function signIn(){
   const pass = signInPasswordInput.value;
-  if(pass.length < 1 || !qrcode) return;
-  const qr = JSON.parse(qrcode);
-  const user = await valoria.signIn(qr.id, pass + qr.secret);
-  console.log("GOT USER");
-  console.log(user);
-  auth.style.display = "none";
+  if(pass.length < 1) return;
+  try {
+    await valoria.loadCredentialsFromQR(pass)
+    page.style.display = "none";
+    if(!isMobile){
+      controls.lock();
+    }
+    try {
+      await valoria.startMediaStream({audio: true, video: false});
+    } catch(e){
+      
+    }
+  } catch(e){
+
+  }
 }
 
 
