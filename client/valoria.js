@@ -45,7 +45,6 @@ const iceServers = [
   }
 ];
 
-
 class Valoria {
  
   constructor(){ 
@@ -70,6 +69,19 @@ class Valoria {
     this.saving = {}
     this.syncIntervalMs = 1000;
     this.timeOffset = 0;
+
+    this.isMobile = false;
+    if( window.DeviceOrientationEvent && navigator.userAgent.match(/iPhone/i)
+      || navigator.userAgent.match(/webOS/i)
+      || navigator.userAgent.match(/Android/i)
+      || navigator.userAgent.match(/iPad/i)
+      || navigator.userAgent.match(/iPod/i)
+      || navigator.userAgent.match(/BlackBerry/i)
+      || navigator.userAgent.match(/Windows Phone/i)
+    ){
+      this.isMobile = true;
+    }
+
     this.onJoin = () => {};
     (async () => {
       try {
@@ -259,14 +271,56 @@ class Valoria {
     });
     let img = document.createElement('img');
     img.src = qr.toDataURL('image/png');
+    img.className = "valoriaQRImg";
+    let imgContainer = document.createElement('div');
+    imgContainer.className = "valoriaQRImgContainer";
+    let imgLabel = document.createElement('div');
+    imgLabel.className = "valoriaQRImgLabel";
+    imgLabel.textContent = "Save this image to sign back into this account."
     const downloadLink = document.createElement("a");
     downloadLink.download = `Valoria-Account-${self.id}.png`;
     downloadLink.innerHTML = "Download File";
     downloadLink.href = qr.toDataURL();
-    downloadLink.style.position = "absolute";
-    downloadLink.style.top = "-1250000px";
-    document.body.append(downloadLink);
-    downloadLink.click();
+    let style = document.createElement('style');
+    style.innerHTML = `
+      .valoriaQRImgContainer{
+        position: absolute;
+        display: flex;
+        width: 100%;
+        height: 100%;
+        z-index: 1000000;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .valoriaQRImg{
+        max-width: 90%;
+        max-height: 60%;
+        border: 4px solid black;
+        border-radius: 6px;
+        margin-top: -127px;
+      }
+      .valoriaQRImgLabel{
+        font-weight: bold;
+        background: black;
+        text-align: center;
+        color: white;
+        margin-top: 12px;
+        font-size: 20px;
+        border-radius: 6px;
+        padding: 6px 8px;
+      }
+    `
+    document.body.append(style);
+    imgContainer.append(img);
+    imgContainer.append(imgLabel);
+    document.body.append(imgContainer);
+    if(!self.isMobile){
+      downloadLink.click();
+    }
+    imgContainer.onclick = () => {
+      imgContainer.style.display = "none";
+    }
   }
 
   loadCredentialsFromQR = async (pass) => {

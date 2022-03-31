@@ -819,14 +819,14 @@
 
 @media (max-width: 450px){
   .valUIMainNavBtn{
-    width: 130px;
+    width: 100%;
   }
 }
-@media (max-width: 350px){
+/* @media (max-width: 350px){
   .valUIMainNavBtn{
     width: 110px;
   }
-}
+} */
 
 .mobileControls{
   width: 100%;
