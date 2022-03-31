@@ -817,6 +817,10 @@
   background: rgba(255, 255, 255, 0.103);
 }
 
+.valUIAccount{
+  display: none;
+}
+
 @media (max-width: 450px){
   .valUIMainNavBtn{
     width: 100%;
