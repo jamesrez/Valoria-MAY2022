@@ -473,22 +473,27 @@ class Valoria {
         const dataHashSig = await self.sign(JSON.stringify(data));
         const dataHash64 = await arrayBufferToBase64(dataHashSig)
         const request = {
-          from: self.id,
-          url: self.url,
-          path,
-          data: dataHash64,
-          group: self.group.index,
-          sync: self.sync
+          data: {
+            from: self.id,
+            url: self.url,
+            path,
+            data: dataHash64,
+            group: self.group.index,
+            sync: self.sync,
+            time: [[self.now()]],
+          },
+          sigs: {}
         }
         if(groupIndex == self.group.index){
-          const d = await self.getLocal("all/requests/" + path);
-          if(d && d.from == request.from) {
+          const r = await self.getLocal("all/requests/" + path);
+          if(r && r.data?.from == request.data?.from) {
             try {
-              await self.verify(JSON.stringify(data), base64ToArrayBuffer(d.data), self.ecdsa.publicKey);
+              await self.verify(JSON.stringify(data), base64ToArrayBuffer(r.data.data), self.ecdsa.publicKey);
               return rej()
             } catch(e){
             }
           };
+          request.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(request.data)))
           await self.setLocal("all/requests/" + path, request);
           for(let i=0;i<self.group.members.length;i++){
             try {
@@ -966,7 +971,7 @@ class Valoria {
           const data = await self.getLocal("all/data/" + path);
           const size = new TextEncoder().encode(JSON.stringify(data)).length;
           try {
-            await self.verify(JSON.stringify(data), base64ToArrayBuffer(request.data), publicD.ecdsaPub);
+            await self.verify(JSON.stringify(data), base64ToArrayBuffer(request.data.data), publicD.ecdsaPub);
           } catch(e){
             // console.log(data);
             throw e;
@@ -996,7 +1001,7 @@ class Valoria {
               sigs : {}
             }
           }
-          valor.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(valor)))
+          valor.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(valor.data)))
           self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] = valor;
           await self.setLocal(`all/valor/${self.ownerId}/${path}`, valor);
           await self.shareGroupSig(`valor/${self.ownerId}/${path}`);
@@ -1091,35 +1096,6 @@ class Valoria {
               let valor = await self.get(`valor/${id}/${path}`);
               let isValid = true;
               // TODO VERIFY VALOR FROM SIGS
-              // for(let j=0;j<valorGroup.length;j++){
-              //   const url = valorGroup[j];
-              //   let v;
-              //   if(url == self.url) {
-              //     v = await self.getLocal(`all/valor/${self.ownerId}/${path}`);
-              //   } else {
-              //     try {
-              //       v = await new Promise(async(res, rej) => {
-              //         await self.connectToServer(url);
-              //         self.promises["Got valor path " + path + " from " + url + " for " + self.ownerId] = {res, rej};
-              //         self.conns[url].send(JSON.stringify({
-              //           event: "Get valor path",
-              //           data: {
-              //             path,
-              //             id: self.ownerId,
-              //             group: self.group.index
-              //           }
-              //         }))
-              //       })
-              //     } catch(e){
-              //     }
-              //   }
-              //   if(!valor && v) {
-              //     valor = JSON.stringify(v.data);
-              //   } else if(v && valor !== JSON.stringify(v.data)){
-              //     isValid = false;
-              //     break;
-              //   }
-              // }
               if(isValid){
                 let d = self.saving[self.sync]["all/ledgers/" + id + ".json"] || await self.getLocal("all/ledgers/" + id + ".json");
                 if(!d || !d.data) {
@@ -2716,12 +2692,12 @@ class Valoria {
         if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
           let request = await self.get("requests/" + data.path);
           if(!request) return err();
-          if(request.url){
-            if(request.url !== ws.Url) return err();
+          if(request.data?.url){
+            if(request.data?.url !== ws.Url) return err();
             try {
-              let publicD = await self.getPublicFromUrl(request.url);
+              let publicD = await self.getPublicFromUrl(request.data?.url);
               if(!publicD) return err();
-              await self.verify(JSON.stringify(data.data), base64ToArrayBuffer(request.data), publicD.ecdsaPub);
+              await self.verify(JSON.stringify(request.data?.data), base64ToArrayBuffer(request.data?.data), publicD.ecdsaPub);
             } catch(e){
               return err()
             }
@@ -2778,15 +2754,15 @@ class Valoria {
     return new Promise(async (res, rej) => {
       try {
         if(!data.request) return res();
-        if(ws.Url && self.groups[data.request.group]?.indexOf(ws.Url) !== -1){
-          const d = await self.getLocal("all/requests/" + data.request.path);
-          if(d && d.from == data.request.from) {
+        if(ws.Url && self.groups[data.request.data?.group]?.indexOf(ws.Url) !== -1){
+          const d = await self.getLocal("all/requests/" + data.request.data?.path);
+          if(d && d.data?.from == data.request.data?.from) {
             try {
-              await self.verify(JSON.stringify(data), base64ToArrayBuffer(d.data), self.ecdsa.publicKey);
+              await self.verify(JSON.stringify(data.data), base64ToArrayBuffer(d.data.data), self.ecdsa.publicKey);
               ws.send(JSON.stringify({
                 event: "Set request saved",
                 data: {
-                  path: data.request.path,
+                  path: data.request.data?.path,
                   err: true
                 }
               }))
@@ -2795,11 +2771,11 @@ class Valoria {
 
             }
           }
-          await self.setLocal("all/requests/" + data.request.path, data.request);
+          await self.setLocal("all/requests/" + data.request.data?.path, data.request);
           ws.send(JSON.stringify({
             event: "Set request saved",
             data: {
-              path: data.request.path,
+              path: data.request.data.path,
               success: true
             }
           }))
@@ -2808,12 +2784,12 @@ class Valoria {
             try {
               await self.connectToServer(self.group.members[i]);
               await new Promise(async (res, rej) => {
-                self.promises["Group sot for requests/" + data.request.path + " from " + self.group.members[i]] = {res, rej};
+                self.promises["Group sot for requests/" + data.request.data.path + " from " + self.group.members[i]] = {res, rej};
                 self.conns[self.group.members[i]].send(JSON.stringify({
                   event: "Group set",
                   data: {
                     data: data.request,
-                    path: "requests/" + data.request.path
+                    path: "requests/" + data.request.data.path
                   }
                 }));
               })
@@ -2825,7 +2801,7 @@ class Valoria {
           ws.send(JSON.stringify({
             event: "Set request saved",
             data: {
-              path: data.request.path,
+              path: data.request.data.path,
               err: true
             }
           }))
@@ -2835,7 +2811,7 @@ class Valoria {
         ws.send(JSON.stringify({
           event: "Set request saved",
           data: {
-            path: data.request.path,
+            path: data.request.data.path,
             err: true
           }
         }))
@@ -3176,7 +3152,7 @@ class Valoria {
             sigs: {}
           }
         }
-        valor.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(valor)));
+        valor.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(valor.data)));
         self.saving[self.sync][`all/valor/${data.id}/${data.path}`] = valor;
         await self.setLocal(`all/valor/${data.id}/${data.path}`, valor);
         await self.shareGroupSig(`valor/${data.id}/${data.path}`);
