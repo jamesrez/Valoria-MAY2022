@@ -116,9 +116,9 @@ class Server {
     this.syncIntervalMs = 1000;
     this.ownerId = process.env.VALORIA_USER_ID;
     const self = this;
-    if(isLocal){
-      this.url = 'http://localhost:' + port + "/";
-    } else {
+    // if(isLocal){
+    //   this.url = 'http://localhost:' + port + "/";
+    // } else {
       this.app.use(async (req, res, next) => {
         if(!self.url && !self.verifyingSelf && (isLocal || !req.get('host').startsWith('localhost'))){
           self.verifyingSelf = true;
@@ -138,7 +138,7 @@ class Server {
         }
         next();
       });
-    }
+    // }
     this.setupRoutes();
     this.server.listen(port, () => {
       console.log("Server started on port " + port);
@@ -541,6 +541,7 @@ class Server {
         const url = members[members.length * Math.random() << 0];
         await self.connectToServer(url);
         const now = self.now();
+        if(self.promises["Got data from " + url + " for " + path + " at " + now]) return res();
         self.promises["Got data from " + url + " for " + path + " at " + now] = {res, rej};
         self.conns[url].send(JSON.stringify({
           event: "Get",
@@ -1110,7 +1111,7 @@ class Server {
               let isValid = true;
               // TODO VERIFY VALOR WITH THE SIGS
               if(isValid){
-                let d = self.saving[self.sync]["all/ledgers/" + id + ".json"] || await self.getLocal("all/ledgers/" + id + ".json") || await self.get("ledgers/" + id + ".json", {notLocal: true});;
+                let d = self.saving[self.sync]["all/ledgers/" + id + ".json"] || await self.getLocal("all/ledgers/" + id + ".json") || await self.get("ledgers/" + id + ".json", {notLocal: true});
                 if(!d || !d.data) {
                   d = {
                     data: {
@@ -2739,7 +2740,10 @@ class Server {
     const self = this;
     return new Promise(async (res, rej) => {
       try {
-        if(!data.path || !data.now) return res();
+        if(!data.path || !data.now) {
+          console.log("Bad data");
+          return res();
+        }
         if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
           const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
           ws.send(JSON.stringify({
@@ -2748,9 +2752,10 @@ class Server {
               path: data.path,
               data: d,
               now: data.now,
-              public: data.public
             }
           }))
+        } else {
+          console.log("Not in group");
         }
       } catch(e){
 
@@ -3060,10 +3065,9 @@ class Server {
   handleGot = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!data.public) data.public = "";
-      if(!self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now + data.public]) return res();
-      self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now + data.public].res(data.data);
-      delete self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now + data.public]
+      if(!self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]) return res();
+      self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now].res(data.data);
+      delete self.promises["Got data from " + ws.Url + " for " + data.path + " at " + data.now]
       return res()
     })
   }
@@ -3671,7 +3675,7 @@ class Server {
 
 }
 
-let localServerCount = 27;
+let localServerCount = 3;
 let localServers = [];
 if(isLocal){
   (async () => {
@@ -3680,7 +3684,7 @@ if(isLocal){
       //   setTimeout(async () => {
           try {
             const server = new Server(i + Port);
-            await server.setup();
+            // await server.setup();
             localServers.push(server);
           } catch(e){
           }
