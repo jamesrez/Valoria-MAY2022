@@ -2714,8 +2714,8 @@ class Valoria {
             if(self.group.members[i] == self.url) continue;
             try {
               await self.connectToServer(self.group.members[i]);
-              await new Promise(async (res, rej) => {
-                self.promises["Group sot for data/" + data.path + " from " + self.group.members[i]] = {res, rej};
+              // await new Promise(async (res, rej) => {
+              //   self.promises["Group sot for data/" + data.path + " from " + self.group.members[i]] = {res, rej};
                 self.conns[self.group.members[i]].send(JSON.stringify({
                   event: "Group set",
                   data: {
@@ -2723,7 +2723,7 @@ class Valoria {
                     path: "data/" + data.path
                   }
                 }));
-              })
+              // })
             } catch(e){
 
             }
