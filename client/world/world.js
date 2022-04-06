@@ -511,7 +511,6 @@ let palms = []
 let spawningPalms = true;
 let ogPalm;
 async function palmTreeSpawn(){
-  console.log(spawningPalms);
   while(palms.length < 125){
     const palm = palms[0]?.clone() || await loadModel("assets/palm/QueenPalmTree.gltf");
     if(!palm.parent) scene.add(palm);
@@ -527,7 +526,6 @@ async function palmTreeSpawn(){
     palms.push(palm)
   }
   spawningPalms = false;
-  console.log(spawningPalms);
 }
 
 palmTreeSpawn();
