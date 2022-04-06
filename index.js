@@ -651,15 +651,15 @@ try {
         try {
           const groupIndex = jumpConsistentHash(`requests/${self.id}/${path}`, self.groups.length);
           const dataHashSig = await self.sign(JSON.stringify(data));
+          const size = Buffer.byteLength(JSON.stringify(data), 'utf8');
           const request = {
             data: {
               for: self.id,
               url: self.url,
               path,
               data: Buffer.from(dataHashSig).toString('base64'),
-              size: Buffer.byteLength(JSON.stringify(data), 'utf8'),
               sync: self.sync,
-              time: [[self.sync]],
+              spaceTime: [[size, self.sync]],
             },
             sigs: {}
           }
@@ -1021,14 +1021,13 @@ try {
               return res();
             }
             let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.get(`valor/${self.ownerId}/${path}`);
-            if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.time?.length > 0){
-              if(valor.data.size !== size){
-                valor.data.size = size;
-                delete valor.sigs;
-                valor.sigs = {};
+            if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.spaceTime?.length > 0){
+              const st = valor.data.spaceTime;
+              if(st[st.length][0] !== size && st[st.length - 1].length == 2){
+                st[st.length - 1].push(self.nextSync);
               }
-              if(valor.data.time[valor.data.time.length - 1].length == 2){
-                valor.data.time.push([sync]);
+              if(st[st.length - 1].length == 3){
+                valor.data.spaceTime.push([size, sync]);
                 delete valor.sigs;
                 valor.sigs = {};
               }
@@ -1038,9 +1037,8 @@ try {
                   for: self.ownerId,
                   url: self.url,
                   path: path,
-                  size,
                   sync,
-                  time: [[sync]]
+                  spaceTime: [[size, sync]]
                 },
                 sigs : {}
               }
@@ -1097,12 +1095,12 @@ try {
         try {
           let paths = getDirContents(__dirname + "/data/servers/" + self.pathUrl + "/all/valor");
           for(let i=0;i<paths.length;i++){
-            const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.get(`${paths[i]}`);
-            if(!valor || !valor.data) continue;
-            if(valor.data.time[valor.data.time.length - 1].length == 1){
-              const dataGroupIndex = jumpConsistentHash("data/" + valor.data.path, self.groups.length);
+            const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.getLocal(`all/${paths[i]}`);
+            const st = valor.data.spaceTime;
+            if(st[st.length - 1].length == 2){
+              const dataGroupIndex = jumpConsistentHash(valor.data.path, self.groups.length);
               if(self.groups[dataGroupIndex].indexOf(valor.data.url) == -1){
-                valor.data.time[valor.data.time.length - 1].push(self.nextSync);
+                st[st.length - 1].push(self.nextSync);
                 self.saving[self.sync][`all/${paths[i]}`] = valor;
                 await self.setLocal(`all/${paths[i]}`, valor);
                 // console.log("Valor duration ended for " + valor.data.url + " on path " + valor.data.path)
@@ -1219,18 +1217,22 @@ try {
             try {
               if(paths[i].startsWith("data/") || paths[i].startsWith("public/")){
                 const v = self.saving[self.sync][`all/valor/${id}/${paths[i]}`] || await self.get(`valor/${id}/${paths[i]}`);
-                if(!v || !v.data) continue;
-                const duration = self.getDuration(v.data.time);
-                const amount = 0.001 * (((v.data.size / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
-                addSize += amount;
-                valor += amount;
+                if(!v || !v.data || !v.data.spaceTime) continue;
+                for(let j=0;j<v.data.spaceTime.length;j++){
+                  const duration = Math.abs(v.data.spaceTime[j][2] ? (v.data.spaceTime[j][2] - v.data.spaceTime[j][1]) : (self.nextSync - v.data.spaceTime[j][1]));
+                  const amount = 0.001 * (((v.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                  addSize += amount;
+                  valor += amount;
+                }
               } else if(paths[i].startsWith("requests/")){
                 const r = self.saving[self.sync][`all/${paths[i]}`] || await self.get(paths[i]);
-                if(!r || !r.data || !r.data.size || !r.data.sync) continue;
-                const duration = self.nextSync - r.data.sync;
-                const amount = -.00320 * (((r.data.size / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
-                minusSize += amount;
-                valor += amount;
+                if(!r || !r.data || !r.data.spaceTime) continue;
+                for(let j=0;j<r.data.spaceTime.length;j++){
+                  const duration = Math.abs(r.data.spaceTime[j][2] ? (r.data.spaceTime[j][2] - r.data.spaceTime[j][1]) : (self.nextSync - r.data.spaceTime[j][1]));
+                  const amount = 0.00320 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                  minusSize += amount;
+                  valor += amount;
+                }
               }
             } catch(e){
               console.log(e);
@@ -2859,7 +2861,8 @@ try {
                 if(!publicD) return err();
                 await self.verify(JSON.stringify(data.data), Buffer.from(request.data?.data, "base64"), publicD.ecdsaPub);
                 let size = Buffer.byteLength(JSON.stringify(data.data), 'utf8');
-                if(size !== request.data.size) return err();
+                const requestSize = request.data.spaceTime[request.data.spaceTime.length - 1][0];
+                if(size !== requestSize) return err();
               } catch(e){
                 return err()
               }
@@ -3366,14 +3369,13 @@ try {
             return err();
           }
           let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
-          if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.time?.length > 0){
-            if(valor.data.size !== size){
-              valor.data.size = size;
-              delete valor.sigs;
-              valor.sigs = {};
+          if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.spaceTime?.length > 0){
+            const st = valor.data.spaceTime;
+            if(st[st.length][0] !== size && st[st.length - 1].length == 2){
+              st[st.length - 1].push(self.nextSync);
             }
-            if(valor.data.time[valor.data.time.length - 1].length == 2){
-              valor.data.time.push([data.sync]);
+            if(st[st.length - 1].length == 3){
+              valor.data.spaceTime.push([size, sync]);
               delete valor.sigs;
               valor.sigs = {};
             }
@@ -3383,9 +3385,8 @@ try {
                 for: data.id,
                 url: data.url,
                 path: data.path,
-                size,
                 sync: data.sync,
-                time: [[data.sync]]
+                spaceTime: [[size, data.sync]] 
               },
               sigs: {}
             }

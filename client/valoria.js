@@ -474,15 +474,15 @@ class Valoria {
         const groupIndex = jumpConsistentHash(`requests/${self.id}/${path}`, self.groups.length);
         const dataHashSig = await self.sign(JSON.stringify(data));
         const dataHash64 = await arrayBufferToBase64(dataHashSig)
+        const size = new TextEncoder().encode(JSON.stringify(data)).length;
         const request = {
           data: {
             for: self.id,
             url: self.url,
             path,
             data: dataHash64,
-            size: new TextEncoder().encode(JSON.stringify(data)).length,
             sync: self.sync,
-            time: [[self.sync]],
+            spaceTime: [[size, self.sync]],
           },
           sigs: {}
         }
@@ -956,7 +956,6 @@ class Valoria {
         const sync = self.sync;
         let size;
         if(valorGroupIndex == self.group.index){ 
-
           if(path.startsWith("data/")){
             const request = await self.get("requests/" + path);
             if(!request) throw "No request";
@@ -995,16 +994,14 @@ class Valoria {
               }));
             // })
           }
-         
           let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.get(`valor/${self.ownerId}/${path}`);
-          if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.time?.length > 0){
-            if(valor.data.size !== size){
-              valor.data.size = size;
-              delete valor.sigs;
-              valor.sigs = {};
+          if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.spaceTime?.length > 0){
+            const st = valor.data.spaceTime;
+            if(st[st.length][0] !== size && st[st.length - 1].length == 2){
+              st[st.length - 1].push(self.nextSync);
             }
-            if(valor.data.time[valor.data.time.length - 1].length == 2){
-              valor.data.time.push([sync]);
+            if(st[st.length - 1].length == 3){
+              valor.data.spaceTime.push([size, sync]);
               delete valor.sigs;
               valor.sigs = {};
             }
@@ -1014,9 +1011,8 @@ class Valoria {
                 for: self.ownerId,
                 url: self.url,
                 path: path,
-                size,
-                sync,
-                time: [[sync]]
+                sync: sync,
+                spaceTime: [[size, sync]]
               },
               sigs : {}
             }
@@ -1062,12 +1058,13 @@ class Valoria {
           paths.push(keys[i].substr(`${self.path}all/`.length))
         }
         for(let i=0;i<paths.length;i++){
-          const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.get(`${paths[i]}`);
+          const valor = self.saving[self.sync][`all/${paths[i]}`] || await self.getLocal(`all/${paths[i]}`);
           if(!valor || !valor.data) continue;
-          if(valor.data.time[valor.data.time.length - 1].length == 1){
-            const valorGroupIndex = jumpConsistentHash("data/" + valor.data.path, self.groups.length);
+          const st = valor.data.spaceTime;
+          if(st[st.length - 1].length == 2){
+            const valorGroupIndex = jumpConsistentHash(valor.data.path, self.groups.length);
             if(self.groups[valorGroupIndex].indexOf(valor.data.url) == -1){
-              valor.data.time[valor.data.time.length - 1].push(self.nextSync);
+              st[st.length - 1].push(self.nextSync);
               self.saving[self.sync][`all/${paths[i]}`] = valor;
               await self.setLocal(`all/${paths[i]}`, valor);
               // console.log(valor.data);
@@ -1184,18 +1181,22 @@ class Valoria {
           try {
             if(paths[i].startsWith("data/") || paths[i].startsWith("public/")){
               const v = self.saving[self.sync][`all/valor/${id}/${paths[i]}`] || await self.get(`valor/${id}/${paths[i]}`);
-              if(!v || !v.data) continue;
-              const duration = self.getDuration(v.data.time);
-              const amount = 0.001 * (((v.data.size / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
-              addSize += amount;
-              valor += amount;
+              if(!v || !v.data || !v.data.spaceTime) continue;
+              for(let j=0;j<v.data.spaceTime.length;j++){
+                const duration = Math.abs(v.data.spaceTime[j][2] ? (v.data.spaceTime[j][2] - v.data.spaceTime[j][1]) : (self.nextSync - v.data.spaceTime[j][1]));
+                const amount = 0.001 * (((v.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                addSize += amount;
+                valor += amount;
+              }
             } else if(paths[i].startsWith("requests/")){
               const r = self.saving[self.sync][`all/${paths[i]}`] || await self.get(paths[i]);
-              if(!r || !r.data || !r.data.size || !r.data.sync) continue;
-              const duration = self.nextSync - r.data.sync;
-              const amount = -.00320 * (((r.data.size / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
-              minusSize += amount;
-              valor += amount;
+              if(!r || !r.data || !r.data.spaceTime) continue;
+              for(let j=0;j<r.data.spaceTime.length;j++){
+                const duration = Math.abs(r.data.spaceTime[j][2] ? (r.data.spaceTime[j][2] - r.data.spaceTime[j][1]) : (self.nextSync - r.data.spaceTime[j][1]));
+                const amount = 0.00320 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                minusSize += amount;
+                valor += amount;
+              }
             }
           } catch(e){
             continue;
@@ -2782,7 +2783,8 @@ class Valoria {
               if(!publicD) return err();
               await self.verify(JSON.stringify(request.data?.data), base64ToArrayBuffer(request.data?.data), publicD.ecdsaPub);
               let size = new TextEncoder().encode(JSON.stringify(data.data)).length;
-              if(size !== request.data.size) throw "Request has incorrect data size";
+              const requestSize = request.data.spaceTime[request.data.spaceTime.length - 1][0];
+              if(size !== requestSize) throw "Request has incorrect data size";
             } catch(e){
               return err()
             }
@@ -3299,14 +3301,13 @@ class Valoria {
           return err();
         }
         let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
-        if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.time?.length > 0){
-          if(valor.data.size !== size){
-            valor.data.size = size;
-            delete valor.sigs;
-            valor.sigs = {};
+        if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.spaceTime?.length > 0){
+          const st = valor.data.spaceTime;
+          if(st[st.length][0] !== size && st[st.length - 1].length == 2){
+            st[st.length - 1].push(self.nextSync);
           }
-          if(valor.data.time[valor.data.time.length - 1].length == 2){
-            valor.data.time.push([data.sync]);
+          if(st[st.length - 1].length == 3){
+            valor.data.spaceTime.push([size, sync]);
             delete valor.sigs;
             valor.sigs = {};
           }
@@ -3316,9 +3317,8 @@ class Valoria {
               for: data.id,
               url: data.url,
               path: data.path,
-              size,
               sync: data.sync,
-              time: [[data.sync]]
+              spaceTime: [[size, data.sync]] 
             },
             sigs: {}
           }
