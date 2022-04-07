@@ -837,7 +837,7 @@ try {
             const url = rGroup[rGroup.length * Math.random << 0]
             await self.connectToServer(url);
             await new Promise(async (res, rej) => {
-              self.promises[`Request ${id}/${path} ended at ${ended} from ${url}`] = {res, rej};
+              self.promises[`Request ${self.id}/${path} ended at ${ended} from ${url}`] = {res, rej};
               self.conns[url].send(JSON.stringify({
                 event: "End request",
                 data: {
@@ -4018,34 +4018,35 @@ try {
         //   }, 300)
         // })
       }
-      setTimeout(async () => {
-        await localServers[0].set("test.json", [
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        ])
 
-        setTimeout(async () => {
-          await localServers[0].delete("test.json")
-        }, 5000)
+      // setTimeout(async () => {
+        // await localServers[0].set("test.json", [
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        // ])
 
-      }, 5000)
+      //   setTimeout(async () => {
+      //     await localServers[0].delete("test.json")
+      //   }, 5000)
+
+      // }, 5000)
 
       
 

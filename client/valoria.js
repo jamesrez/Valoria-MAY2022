@@ -115,10 +115,10 @@ class Valoria {
         self.originUrl = originUrl;
         self.public.url = self.url;
         await self.joinGroup();
+        await self.syncGroupData();
         await self.shareSelfPublic();
         // setup = true;
         self.onJoin();
-        await self.syncGroupData();
         const stall = Math.abs((self.sync + self.syncIntervalMs) - self.now());
         setTimeout(async () => {
           await self.syncInterval();
@@ -385,10 +385,6 @@ class Valoria {
             return res(data);
           }
         // }
-        if(path.startsWith("requests/")){
-          console.log("Getting " + path);
-          console.log(groupIndex)
-        }
         const members = new Array(...self.groups[groupIndex])
         if(members.indexOf(self.url) !== -1) members.splice(members.indexOf(self.url), 1);
         if(members.length == 0) return res();
@@ -621,6 +617,127 @@ class Valoria {
       } catch(e){
         return res();
       }
+    })
+  }
+
+  endSetRequest = async (path) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try{
+        const rGroupIndex = jumpConsistentHash(`requests/${self.id}/${path}`, self.groups.length);
+        const ended = self.nextSync;
+        const sig = await arrayBufferToBase64(await self.sign(`End requests/${self.id}/${path} at ${ended}`))
+        if(rGroupIndex == self.group.index){
+          const r = await self.getLocal(`all/requests/${self.id}/${path}`);
+          if(!r || !r.data || !r.data?.spaceTime) return res();
+          const st = r.data?.spaceTime;
+          if(st[st.length - 1].length !== 2) return res();
+          st[st.length - 1].push(ended);
+          await self.setLocal(`all/requests/${self.id}/${path}`, r);
+          for(let i=0;i<self.group.members.length;i++){
+            const url = self.group.members[i];
+            if(url == self.url) continue;
+            await self.connectToServer(url);
+            await new Promise(async (res, rej) => {
+              self.promises[`Request ${self.id}/${path} ended at ${ended} from ${url}`] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "End request",
+                data: {
+                  ended,
+                  path,
+                  id: self.id,
+                  sig
+                }
+              }))
+            })
+          }
+        } else {
+          const rGroup = self.groups[rGroupIndex];
+          const url = rGroup[rGroup.length * Math.random << 0]
+          await self.connectToServer(url);
+          await new Promise(async (res, rej) => {
+            self.promises[`Request ${self.id}/${path} ended at ${ended} from ${url}`] = {res, rej};
+            self.conns[url].send(JSON.stringify({
+              event: "End request",
+              data: {
+                ended,
+                path,
+                id: self.id,
+                sig
+              }
+            }))
+          })
+        }
+      } catch(e){
+        
+      }
+      res();
+    });
+  }
+
+  delete = async (path) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        await self.endSetRequest(path);
+        console.log("Request ended for " + path);
+        const dGroupIndex = jumpConsistentHash(`data/${self.id}/${path}`, self.groups.length);
+        const dGroup = self.groups[dGroupIndex]
+        const ended = self.nextSync;
+        for(let i=0;i<dGroup.length;i++){
+          if(dGroup[i] == self.url){
+            await self.deleteLocal(`all/data/${self.id}/${path}`);
+          } else {
+            await self.connectToServer(dGroup[i]);
+            self.conns[dGroup[i]].send(JSON.stringify({
+              event: "Delete data",
+              data: {
+                path,
+                id: self.id
+              }
+            }))
+          }
+          const publicD = dGroup[i] == self.url ? self.public : await self.getPublicFromUrl(dGroup[i]);
+          const id = publicD.ownerId || publicD.id;
+          const vGroupIndex = jumpConsistentHash(`valor/${id}/data/${self.id}/${path}`, self.groups.length);
+          if(self.group.index == vGroupIndex){
+            const valor = await self.getLocal(`all/valor/${id}/data/${self.id}/${path}`);
+            if(!valor || !valor.data || !valor.data?.spaceTime) continue;
+            const st = valor.data?.spaceTime;
+            if(st[st.length - 1].length !== 2) continue;
+            st[st.length - 1].push(ended);
+            await self.setLocal(`all/valor/${id}/data/${self.id}/${path}`, valor);
+            for(let j=0;j<self.group.members.length;j++){
+              const url = self.group.members[j];
+              if(url == self.url) continue;
+              await self.connectToServer(url);
+              self.conns[url].send(JSON.stringify({
+                event: "End valor claim",
+                data: {
+                  ended,
+                  path: `${self.id}/${path}`,
+                  id
+                }
+              }))
+            }
+          } else {
+            const vGroup = self.groups[vGroupIndex]
+            const url = vGroup[vGroup.length * Math.random() << 0];
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "End valor claim",
+              data: {
+                ended,
+                path: `${self.id}/${path}`,
+                id
+              }
+            }))
+          }
+        }
+      } catch(e){
+
+      }
+      res()
     })
   }
 
@@ -1883,6 +2000,12 @@ class Valoria {
           case "Got set request":
             await self.handleGotSetRequest(ws, d.data);
             break;
+          case "End request":
+            await self.handleEndRequest(ws, d.data);
+            break;
+          case "Request ended":
+            await self.handleRequestEnded(ws, d.data);
+            break;
           case "Group set":
             await self.handleGroupSet(ws, d.data);
             break;
@@ -1901,11 +2024,17 @@ class Valoria {
           case "Sot":
             await self.handleSot(ws, d.data);
             break; 
+          case "Delete data":
+            await self.handleDeleteData(ws, d.data);
+            break;
           case "Claim valor for path":
             await self.handleClaimValorForPath(ws, d.data);
             break;
           case "Claimed valor for path":
             await self.handleClaimedValorPath(ws, d.data);
+            break;
+          case "End valor claim":
+            await self.handleEndValorClaim(ws, d.data);
             break;
           case "Get valor path":
             await self.handleGetValorPath(ws, d.data);
@@ -2951,6 +3080,64 @@ class Valoria {
     })
   }
 
+  handleEndRequest = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!ws.Url || !data.ended || !data.id || !data.path || !data.sig) throw "Error";
+        const r = await self.getLocal(`all/requests/${data.id}/${data.path}`);
+        if(!r || !r.data || !r.data?.spaceTime) throw "Error";
+        const st = r.data?.spaceTime;
+        if(st[st.length - 1].length !== 2) throw "Error";
+        const publicD = await self.getPublicFromId(data.id);
+        await self.verify(`End requests/${data.id}/${data.path} at ${data.ended}`, base64ToArrayBuffer(data.sig), publicD.ecdsaPub)
+        st[st.length - 1].push(data.ended);
+        await self.setLocal(`all/requests/${data.id}/${data.path}`, r);
+        if(self.group.members.indexOf(ws.Url) == -1){
+          for(let i=0;i<self.group.members.length;i++){
+            const url = self.group.members[i];
+            if(url == self.url) continue;
+            await self.connectToServer(url);
+            await new Promise(async (res, rej) => {
+              self.promises[`Request ${data.id}/${data.path} ended at ${ended} from ${url}`] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "End request",
+                data
+              }))
+            })
+          }
+        }
+        await self.shareGroupSig(`requests/${data.id}/${data.path}`);
+        data.success = true;
+        ws.send(JSON.stringify({
+          event: "Request ended",
+          data
+        }))
+      } catch(e){
+        data.error = true;
+        ws.send(JSON.stringify({
+          event: "Request ended",
+          data
+        }))
+      }
+      res()
+    })
+  }
+
+  handleRequestEnded = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      if(!self.promises[`Request ${data.id}/${data.path} ended at ${data.ended} from ${ws.Url}`]) return res();
+      if(data.success){
+        self.promises[`Request ${data.id}/${data.path} ended at ${data.ended} from ${ws.Url}`].res();
+      } else {
+        self.promises[`Request ${data.id}/${data.path} ended at ${data.ended} from ${ws.Url}`].rej();
+      }
+      delete self.promises[`Request ${data.id}/${data.path} ended at ${data.ended} from ${ws.Url}`].res();
+      return res()
+    })
+  }
+
   handleGroupSet = async (ws, data) => {
     const self = this;
     return new Promise(async (res, rej) => {
@@ -3101,6 +3288,24 @@ class Valoria {
       if(!self.promises["Group sot for " + data.path + " from " + ws.Url]) return res();
       self.promises["Group sot for " + data.path + " from " + ws.Url].res();
       delete self.promises["Group sot for " + data.path + " from " + ws.Url];
+      return res()
+    })
+  }
+
+  handleDeleteData = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.path || !data.id) return res();
+        const r = await self.get(`requests/${data.id}/${data.path}`);
+        if(r && r.data && r.data.spaceTime){
+          const st = r.data.spaceTime;
+          if(st[st.length - 1].length == 2) return res();
+        }
+        await self.deleteLocal(`all/data/${data.id}/${data.path}`);
+      } catch(e){
+
+      }
       return res()
     })
   }
@@ -3364,6 +3569,41 @@ class Valoria {
     })
   }
 
+  handleEndValorClaim = async (ws, data) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        if(!data.path || !data.id || !data.ended) return res();
+        console.log(self.url + ` will end valor claim for all/valor/${data.id}/data/${data.path}`);
+        const r = await self.get(`requests/${data.path}`);
+        if(r && r.data && r.data.spaceTime){
+          const st = r.data.spaceTime;
+          if(st[st.length - 1].length == 2) return res();
+        }
+        const v = await self.getLocal(`all/valor/${data.id}/data/${data.path}`);
+        if(!v || !v.data || !v.data.spaceTime) return res();
+        const st = v.data.spaceTime;
+        if(st[st.length - 1].length !== 2) return res();
+        st[st.length - 1].push(data.ended)
+        await self.setLocal(`all/valor/${data.id}/data/${data.path}`, v);
+        if(self.group.members.indexOf(ws.Url) == -1){
+          for(let i=0;i<self.group.members.length;i++){
+            const url = self.group.members[i];
+            if(url == self.url) continue;
+            await self.connectToServer(url);
+            self.conns[url].send(JSON.stringify({
+              event: "End valor claim",
+              data
+            }))
+          }
+        }
+      } catch(e){
+
+      }
+      return res()
+    })
+  }
+
   handleGetValorPath(ws, data){
     const self = this;
     return new Promise(async (res, rej) => {
@@ -3527,6 +3767,19 @@ class Valoria {
       setTimeout(() => {
         res();
       }, 500)
+    })
+  }
+
+  deleteLocal = async (path) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      console.log(self.url + " is deleting " + path)
+      try {
+        await localforage.removeItem(`${self.path}${path}`);
+      } catch(e){
+
+      }
+      res()
     })
   }
 
