@@ -482,15 +482,23 @@ class Valoria {
           },
           sigs: {}
         }
-        console.log("request created");
         if(groupIndex == self.group.index){
-          console.log("Setting own request")
           const r = await self.getLocal(`all/requests/${self.id}/${path}`);
-          if(r && r.data?.for == request.data?.for) {
-            try {
-              await self.verify(JSON.stringify(data), base64ToArrayBuffer(r.data?.data), self.ecdsa.publicKey);
-              return rej()
-            } catch(e){
+          if(r && r.data){
+            if(r.data?.for == request.data.for) {
+              try {
+                await self.verify(JSON.stringify(data), base64ToArrayBuffer(r.data?.data), self.ecdsa.publicKey);
+                return rej() //REQUEST ALREADY CREATED
+              } catch(e){
+                r.data.data = request.data.data;
+                if(r.data.spaceTime[r.data.spaceTime.length - 1].length == 2){
+                  r.data.spaceTime[r.data.spaceTime.length - 1].push(self.sync);
+                }
+                if(r.data.spaceTime[r.data.spaceTime.length - 1].length == 3){
+                  r.data.spaceTime.push(request.data.spaceTime[0]);
+                }
+                request.data.spaceTime = r.data.spaceTime;
+              }
             }
           };
           request.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(request.data)));
@@ -1095,7 +1103,33 @@ class Valoria {
           } else {
             return res();
           }
-
+          let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.get(`valor/${self.ownerId}/${path}`);
+          if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.spaceTime?.length > 0){
+            const st = valor.data.spaceTime;
+            if(st[st.length - 1][0] !== size && st[st.length - 1].length == 2){
+              st[st.length - 1].push(sync);
+            }
+            if(st[st.length - 1].length == 3){
+              valor.data.spaceTime.push([size, sync]);
+              delete valor.sigs;
+              valor.sigs = {};
+            }
+          } else {
+            valor = {
+              data: {
+                for: self.ownerId,
+                path: path,
+                sync: sync,
+                spaceTime: [[size, sync]]
+              },
+              sigs : {}
+            }
+          }
+          valor.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(valor.data)))
+          self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] = valor;
+          await self.setLocal(`all/valor/${self.ownerId}/${path}`, valor);
+          await self.shareGroupSig(`valor/${self.ownerId}/${path}`);
+          await self.addPathToLedger(path);
           for(let i=0;i<self.group.members.length;i++){
             if(self.group.members[i] == self.url) continue;
             await self.connectToServer(self.group.members[i]);
@@ -1111,34 +1145,6 @@ class Valoria {
               }));
             // })
           }
-          let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.get(`valor/${self.ownerId}/${path}`);
-          if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.spaceTime?.length > 0){
-            const st = valor.data.spaceTime;
-            if(st[st.length][0] !== size && st[st.length - 1].length == 2){
-              st[st.length - 1].push(self.nextSync);
-            }
-            if(st[st.length - 1].length == 3){
-              valor.data.spaceTime.push([size, sync]);
-              delete valor.sigs;
-              valor.sigs = {};
-            }
-          } else {
-            valor = {
-              data: {
-                for: self.ownerId,
-                url: self.url,
-                path: path,
-                sync: sync,
-                spaceTime: [[size, sync]]
-              },
-              sigs : {}
-            }
-          }
-          valor.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(valor.data)))
-          self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] = valor;
-          await self.setLocal(`all/valor/${self.ownerId}/${path}`, valor);
-          await self.shareGroupSig(`valor/${self.ownerId}/${path}`);
-          await self.addPathToLedger(path);
         } else {  
           for(let i=0;i<self.groups[valorGroupIndex].length;i++){
             const url = self.groups[valorGroupIndex][i];
@@ -2971,17 +2977,29 @@ class Valoria {
       try {
         if(!data.request || !data.request?.data || !data.request?.data?.for || !data.request?.data?.url) return res();
         if(ws.Url && self.groups[data.request.data?.group]?.indexOf(ws.Url) !== -1){
-          const d = await self.getLocal(`all/requests/${data.request.data?.for}/${data.request.data?.path}`);
-          if(d && d.data?.from == data.request.data?.from) {
-            ws.send(JSON.stringify({
-              event: "Set request saved",
-              data: {
-                path: data.request.data?.path,
-                err: true
+          const r = await self.getLocal(`all/requests/${data.request.data?.for}/${data.request.data?.path}`);
+          if(r && r.data){
+            if(r.data?.for == data.request.data.for) {
+              if(r.data?.data == data.request.data.data){
+                ws.send(JSON.stringify({
+                  event: "Set request saved",
+                  data: {
+                    path: data.request.data?.path,
+                    err: true
+                  }
+                }))
+                return res()
               }
-            }))
-            return res()
-          }
+              r.data.data = data.request.data?.data;
+              if(r.data.spaceTime[r.data.spaceTime.length - 1].length == 2){
+                r.data.spaceTime[r.data.spaceTime.length - 1].push(data.request.spaceTime[data.request.spaceTime.length - 1][1]);
+              }
+              if(r.data.spaceTime[r.data.spaceTime.length - 1].length == 3){
+                r.data.spaceTime.push(data.request.data.spaceTime[data.request.spaceTime.length - 1]);
+              }
+              data.request.data.spaceTime = r.data.spaceTime;
+            }
+          };
           data.request.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(data.request.data)));
           await self.setLocal(`all/requests/${data.request.data?.for}/${data.request.data?.path}`, data.request);
           self.saving[self.sync][`all/requests/${data.request.data?.for}/${data.request.data?.path}`] = data.request;
@@ -3509,10 +3527,10 @@ class Valoria {
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.spaceTime?.length > 0){
           const st = valor.data.spaceTime;
           if(st[st.length - 1][0] !== size && st[st.length - 1].length == 2){
-            st[st.length - 1].push(self.nextSync);
+            st[st.length - 1].push(data.sync);
           }
           if(st[st.length - 1].length == 3){
-            valor.data.spaceTime.push([size, sync]);
+            valor.data.spaceTime.push([size, data.sync]);
             delete valor.sigs;
             valor.sigs = {};
           }
@@ -3520,7 +3538,6 @@ class Valoria {
           valor = {
             data: {
               for: data.id,
-              url: data.url,
               path: data.path,
               sync: data.sync,
               spaceTime: [[size, data.sync]] 

@@ -100,7 +100,6 @@ try {
         maxPayload: 512 * 1024 * 1024
       });
       this.wss.on('connection', async (ws) => {
-        console.log("GOT NEW CONNECTION")
         try {
           await this.setupWS(ws);
         } catch(e){
@@ -306,7 +305,7 @@ try {
                     }
                   });
                   self.conns[url].onerror = (error) => {
-                    console.log("COULD NOT CONNECT TO " + url);
+                    // console.log("COULD NOT CONNECT TO " + url);
                     return rej(error);
                   }
                 } catch(e){
@@ -668,13 +667,11 @@ try {
           if(groupIndex == self.group.index){
             const r = await self.getLocal(`all/requests/${self.id}/${path}`);
             if(r && r.data){
-              console.log("Request found")
               if(r.data?.for == request.data.for) {
                 try {
                   await self.verify(JSON.stringify(data), Buffer.from(r.data?.data, "base64"), self.ECDSA.publicKey);
                   return rej() //REQUEST ALREADY CREATED
                 } catch(e){
-                  console.log("Updating request")
                   r.data.data = request.data.data;
                   if(r.data.spaceTime[r.data.spaceTime.length - 1].length == 2){
                     r.data.spaceTime[r.data.spaceTime.length - 1].push(self.sync);
@@ -682,9 +679,7 @@ try {
                   if(r.data.spaceTime[r.data.spaceTime.length - 1].length == 3){
                     r.data.spaceTime.push(request.data.spaceTime[0]);
                   }
-                  console.log(r.data.spaceTime);
                   request.data.spaceTime = r.data.spaceTime;
-                  console.log(request)
                 }
               }
             };
@@ -1627,7 +1622,6 @@ try {
           console.log("Line 1490")
           return res();
         }
-        console.log("PUBLIC SHARED!")
         return res();
       })
     }
@@ -3762,6 +3756,7 @@ try {
             // TODO: VERIFY REQUEST WITH THE SIGS
             isValid = true;
           }
+          console.log(self.url + " is adding path to ledger " + data.id);
           if(isValid){
             let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json") || await self.get("ledgers/" + data.id + ".json", {notLocal: true});
             if(!d || !d.data) d = {
@@ -4044,34 +4039,34 @@ try {
         // })
       }
 
-      setTimeout(async () => {
-        await localServers[0].set("test.json", [
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        ])
+      // setTimeout(async () => {
+      //   await localServers[0].set("test.json", [
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //     `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+      //   ])
 
-        setTimeout(async () => {
-          await localServers[0].set("test.json", "LOL");
-        }, 5000)
+      //   setTimeout(async () => {
+      //     await localServers[0].set("test.json", "LOL");
+      //   }, 5000)
 
-      }, 5000)
+      // }, 5000)
 
       
 
