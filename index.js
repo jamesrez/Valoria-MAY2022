@@ -641,7 +641,6 @@ try {
             return res();
           }
         } catch(e){
-          console.log("line 623")
           return res();
         }
       })
@@ -650,7 +649,7 @@ try {
     createSetRequest = async (path, data) => {
       const self = this;
       return new Promise(async(res, rej) => {
-        if(!self.group) return res();
+        if(!self.group) return rej();
         try {
           const groupIndex = jumpConsistentHash(`requests/${self.id}/${path}`, self.groups.length);
           const dataHashSig = await self.sign(JSON.stringify(data));
@@ -668,11 +667,25 @@ try {
           }
           if(groupIndex == self.group.index){
             const r = await self.getLocal(`all/requests/${self.id}/${path}`);
-            if(r && r.data?.for == request.data.for) {
-              try {
-                await self.verify(JSON.stringify(data), Buffer.from(r.data?.data, "base64"), self.ECDSA.publicKey);
-                return res() //REQUEST ALREADY CREATED
-              } catch(e){
+            if(r && r.data){
+              console.log("Request found")
+              if(r.data?.for == request.data.for) {
+                try {
+                  await self.verify(JSON.stringify(data), Buffer.from(r.data?.data, "base64"), self.ECDSA.publicKey);
+                  return rej() //REQUEST ALREADY CREATED
+                } catch(e){
+                  console.log("Updating request")
+                  r.data.data = request.data.data;
+                  if(r.data.spaceTime[r.data.spaceTime.length - 1].length == 2){
+                    r.data.spaceTime[r.data.spaceTime.length - 1].push(self.sync);
+                  }
+                  if(r.data.spaceTime[r.data.spaceTime.length - 1].length == 3){
+                    r.data.spaceTime.push(request.data.spaceTime[0]);
+                  }
+                  console.log(r.data.spaceTime);
+                  request.data.spaceTime = r.data.spaceTime;
+                  console.log(request)
+                }
               }
             };
             request.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(request.data))).toString("base64");
@@ -1100,7 +1113,7 @@ try {
         try {
           if(!self.group || self.groups.length <= 0) return res();
           const valorGroupIndex = jumpConsistentHash(`valor/${self.ownerId}/${path}`, self.groups.length);
-          const sync = self.sync;
+          const sync = self.nextSync;
           let size;
           if(valorGroupIndex == self.group.index){     
             if(path.startsWith("data/")){
@@ -1127,8 +1140,8 @@ try {
             let valor = self.saving[self.sync][`all/valor/${self.ownerId}/${path}`] || await self.get(`valor/${self.ownerId}/${path}`);
             if(valor && valor.data && valor.sigs && valor.data.for == self.ownerId && valor.data.path == path && valor.data.spaceTime?.length > 0){
               const st = valor.data.spaceTime;
-              if(st[st.length][0] !== size && st[st.length - 1].length == 2){
-                st[st.length - 1].push(self.nextSync);
+              if(st[st.length - 1][0] !== size && st[st.length - 1].length == 2){
+                st[st.length - 1].push(sync);
               }
               if(st[st.length - 1].length == 3){
                 valor.data.spaceTime.push([size, sync]);
@@ -3034,17 +3047,29 @@ try {
         try {
           if(!data.request || !data.request?.data || !data.request?.data?.for || !data.request?.data?.url) return res();
           if(ws.Url && self.groups[data.request.group]?.indexOf(ws.Url) !== -1){
-            const d = await self.getLocal(`all/requests/${data.request.data?.for}/${data.request.data?.path}`);
-            if(d && d.data?.for == data.request.data?.for && d.data?.data == data.request.data?.data) {
-              ws.send(JSON.stringify({
-                event: "Set request saved",
-                data: {
-                  path: data.request.data?.path,
-                  err: true
+            const r = await self.getLocal(`all/requests/${data.request.data?.for}/${data.request.data?.path}`);
+            if(r && r.data){
+              if(r.data?.for == data.request.data.for) {
+                if(r.data?.data == data.request.data.data){
+                  ws.send(JSON.stringify({
+                    event: "Set request saved",
+                    data: {
+                      path: data.request.data?.path,
+                      err: true
+                    }
+                  }))
+                  return res()
                 }
-              }))
-              return res()
-            }
+                r.data.data = data.request.data?.data;
+                if(r.data.spaceTime[r.data.spaceTime.length - 1].length == 2){
+                  r.data.spaceTime[r.data.spaceTime.length - 1].push(data.request.spaceTime[data.request.spaceTime.length - 1][1]);
+                }
+                if(r.data.spaceTime[r.data.spaceTime.length - 1].length == 3){
+                  r.data.spaceTime.push(data.request.data.spaceTime[data.request.spaceTime.length - 1]);
+                }
+                data.request.data.spaceTime = r.data.spaceTime;
+              }
+            };
             data.request.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(data.request.data))).toString("base64");
             await self.setLocal(`all/requests/${data.request.data?.for}/${data.request.data?.path}`, data.request);
             self.saving[self.sync][`all/requests/${data.request.data?.for}/${data.request.data?.path}`] = data.request;
@@ -3557,14 +3582,14 @@ try {
           } else {
             return err();
           }
-          let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`valor/${data.id}/${data.path}`);
+          let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
           if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.spaceTime?.length > 0){
             const st = valor.data.spaceTime;
-            if(st[st.length][0] !== size && st[st.length - 1].length == 2){
-              st[st.length - 1].push(self.nextSync);
+            if(st[st.length - 1][0] !== size && st[st.length - 1].length == 2){
+              st[st.length - 1].push(data.sync);
             }
             if(st[st.length - 1].length == 3){
-              valor.data.spaceTime.push([size, sync]);
+              valor.data.spaceTime.push([size, data.sync]);
               delete valor.sigs;
               valor.sigs = {};
             }
@@ -4019,34 +4044,34 @@ try {
         // })
       }
 
-      // setTimeout(async () => {
-        // await localServers[0].set("test.json", [
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        //   `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
-        // ])
+      setTimeout(async () => {
+        await localServers[0].set("test.json", [
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        ])
 
-      //   setTimeout(async () => {
-      //     await localServers[0].delete("test.json")
-      //   }, 5000)
+        setTimeout(async () => {
+          await localServers[0].set("test.json", "LOL");
+        }, 5000)
 
-      // }, 5000)
+      }, 5000)
 
       
 

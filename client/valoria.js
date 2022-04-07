@@ -3505,10 +3505,10 @@ class Valoria {
         } else {
           return err();
         }
-        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`valor/${data.id}/${data.path}`);
+        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.spaceTime?.length > 0){
           const st = valor.data.spaceTime;
-          if(st[st.length][0] !== size && st[st.length - 1].length == 2){
+          if(st[st.length - 1][0] !== size && st[st.length - 1].length == 2){
             st[st.length - 1].push(self.nextSync);
           }
           if(st[st.length - 1].length == 3){
