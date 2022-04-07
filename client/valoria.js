@@ -471,6 +471,7 @@ class Valoria {
         const dataHashSig = await self.sign(JSON.stringify(data));
         const dataHash64 = await arrayBufferToBase64(dataHashSig)
         const size = new TextEncoder().encode(JSON.stringify(data)).length;
+        await self.canISet(size)
         const request = {
           data: {
             for: self.id,
@@ -1328,6 +1329,65 @@ class Valoria {
         res(+valor.toFixed(12));
       } catch(e){
         res(0);
+      }
+    })
+  }
+
+  canISet = async (size) => {
+    const self = this;
+    return new Promise(async (res, rej) => {
+      try {
+        const ledger = await self.get(`ledgers/${self.id}.json`);
+        if(!ledger || !ledger.sigs) {
+          return rej()
+        };
+        const sigUrls = Object.keys(ledger.sigs);
+        for(let i=0;i<sigUrls.length;i++){
+          try {
+            const ledgerPublic = await self.getPublicFromUrl(sigUrls[i]);
+            await self.verify(JSON.stringify(ledger.data), base64ToArrayBuffer(ledger.sigs[sigUrls[i]]), ledgerPublic.ecdsaPub);
+          } catch(e){
+            throw e;
+          }
+        }
+        let valor = 0;
+        let addSize = 0;
+        let minusSize = 0;
+        const paths = Object.keys(ledger.data.paths);
+        for(let i=0;i<paths.length;i++){
+          try {
+            if(paths[i].startsWith("data/") || paths[i].startsWith("public/")){
+              const v = self.saving[self.sync][`all/valor/${self.id}/${paths[i]}`] || await self.get(`valor/${self.id}/${paths[i]}`);
+              if(!v || !v.data || !v.data.spaceTime) continue;
+              for(let j=0;j<v.data.spaceTime.length;j++){
+                const duration = Math.abs(v.data.spaceTime[j][2] ? (v.data.spaceTime[j][2] - v.data.spaceTime[j][1]) : (self.nextSync - v.data.spaceTime[j][1]));
+                const amount = 0.001 * (((v.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                addSize += amount;
+                valor += amount;
+              }
+            } else if(paths[i].startsWith("requests/")){
+              const r = self.saving[self.sync][`all/${paths[i]}`] || await self.get(paths[i]);
+              if(!r || !r.data || !r.data.spaceTime) continue;
+              for(let j=0;j<r.data.spaceTime.length;j++){
+                const duration = Math.abs(r.data.spaceTime[j][2] ? (r.data.spaceTime[j][2] - r.data.spaceTime[j][1]) : (self.nextSync - r.data.spaceTime[j][1]));
+                const amount = -0.00320 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                minusSize += amount;
+                valor += amount;
+              }
+            }
+          } catch(e){
+            continue;
+          }
+        }
+        minusSize += -0.00320 * (((size / 10000) * (100000 / 1000 )) + (100000 * 0.0000000005));
+        if(Math.abs(addSize) >= Math.abs(minusSize)){
+          res()
+        } else {
+          console.log("CANT SET DATA. NOT ENOUGH VALOR");
+          rej();
+        }
+      } catch(e){
+        rej()
       }
     })
   }
