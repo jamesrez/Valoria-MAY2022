@@ -1193,7 +1193,7 @@ class Valoria {
               if(!r || !r.data || !r.data.spaceTime) continue;
               for(let j=0;j<r.data.spaceTime.length;j++){
                 const duration = Math.abs(r.data.spaceTime[j][2] ? (r.data.spaceTime[j][2] - r.data.spaceTime[j][1]) : (self.nextSync - r.data.spaceTime[j][1]));
-                const amount = 0.00320 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                const amount = -0.00320 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
                 minusSize += amount;
                 valor += amount;
               }

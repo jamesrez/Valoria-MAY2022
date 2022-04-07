@@ -807,7 +807,7 @@ try {
         try{
           const rGroupIndex = jumpConsistentHash(`requests/${self.id}/${path}`, self.groups.length);
           const ended = self.nextSync;
-          const sig = Buffer.from(await self.sign(`Delete requests/${self.id}/${path} at ${ended}`)).toString("base64");
+          const sig = Buffer.from(await self.sign(`End requests/${self.id}/${path} at ${ended}`)).toString("base64");
           if(rGroupIndex == self.group.index){
             const r = await self.getLocal(`all/requests/${self.id}/${path}`);
             if(!r || !r.data || !r.data?.spaceTime) return res();
@@ -820,7 +820,7 @@ try {
               if(url == self.url) continue;
               await self.connectToServer(url);
               await new Promise(async (res, rej) => {
-                self.promises[`Request ${id}/${path} ended at ${ended} from ${url}`] = {res, rej};
+                self.promises[`Request ${self.id}/${path} ended at ${ended} from ${url}`] = {res, rej};
                 self.conns[url].send(JSON.stringify({
                   event: "End request",
                   data: {
@@ -861,7 +861,8 @@ try {
       return new Promise(async (res, rej) => {
         try {
           await self.endSetRequest(path);
-          const dGroupIndex = jumpConsistentHash(`data/${self.id}/${path}`);
+          console.log("Request ended for " + path);
+          const dGroupIndex = jumpConsistentHash(`data/${self.id}/${path}`, self.groups.length);
           const dGroup = self.groups[dGroupIndex]
           const ended = self.nextSync;
           for(let i=0;i<dGroup.length;i++){
@@ -879,7 +880,7 @@ try {
             }
             const publicD = dGroup[i] == self.url ? self.public : await self.getPublicFromUrl(dGroup[i]);
             const id = publicD.ownerId || publicD.id;
-            const vGroupIndex = jumpConsistentHash(`valor/${id}/data/${self.id}/${path}`);
+            const vGroupIndex = jumpConsistentHash(`valor/${id}/data/${self.id}/${path}`, self.groups.length);
             if(self.group.index == vGroupIndex){
               const valor = await self.getLocal(`all/valor/${id}/data/${self.id}/${path}`);
               if(!valor || !valor.data || !valor.data?.spaceTime) continue;
@@ -1138,7 +1139,6 @@ try {
               valor = {
                 data: {
                   for: self.ownerId,
-                  url: self.url,
                   path: path,
                   sync,
                   spaceTime: [[size, sync]]
@@ -1333,7 +1333,7 @@ try {
                 if(!r || !r.data || !r.data.spaceTime) continue;
                 for(let j=0;j<r.data.spaceTime.length;j++){
                   const duration = Math.abs(r.data.spaceTime[j][2] ? (r.data.spaceTime[j][2] - r.data.spaceTime[j][1]) : (self.nextSync - r.data.spaceTime[j][1]));
-                  const amount = 0.00320 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                  const amount = -0.00320 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
                   minusSize += amount;
                   valor += amount;
                 }
@@ -1343,8 +1343,6 @@ try {
               continue;
             }
           }
-          // console.log(addSize);
-          // console.log(minusSize);
           res(+valor.toFixed(12));
         } catch(e){
           res(0);
@@ -3149,22 +3147,22 @@ try {
       const self = this;
       return new Promise(async (res, rej) => {
         try {
-          if(!ws.Url || !data.ended || !data.id || !data.path || !data.sig) throw "Error"
+          if(!ws.Url || !data.ended || !data.id || !data.path || !data.sig) throw "Error";
           const r = await self.getLocal(`all/requests/${data.id}/${data.path}`);
           if(!r || !r.data || !r.data?.spaceTime) throw "Error";
           const st = r.data?.spaceTime;
           if(st[st.length - 1].length !== 2) throw "Error";
           const publicD = await self.getPublicFromId(data.id);
-          await self.verify(`Delete requests/${data.id}/${data.path} at ${data.ended}`, Buffer.from(data.sig, "base64"), publicD.ecdsaPub)
+          await self.verify(`End requests/${data.id}/${data.path} at ${data.ended}`, Buffer.from(data.sig, "base64"), publicD.ecdsaPub)
           st[st.length - 1].push(data.ended);
-          await self.setLocal(`all/requests/${data.id}/${path}`, r);
+          await self.setLocal(`all/requests/${data.id}/${data.path}`, r);
           if(self.group.members.indexOf(ws.Url) == -1){
             for(let i=0;i<self.group.members.length;i++){
               const url = self.group.members[i];
               if(url == self.url) continue;
               await self.connectToServer(url);
               await new Promise(async (res, rej) => {
-                self.promises[`Request ${id}/${path} ended at ${ended} from ${url}`] = {res, rej};
+                self.promises[`Request ${data.id}/${data.path} ended at ${ended} from ${url}`] = {res, rej};
                 self.conns[url].send(JSON.stringify({
                   event: "End request",
                   data
@@ -3574,7 +3572,6 @@ try {
             valor = {
               data: {
                 for: data.id,
-                url: data.url,
                 path: data.path,
                 sync: data.sync,
                 spaceTime: [[size, data.sync]] 
@@ -3627,6 +3624,7 @@ try {
       return new Promise(async (res, rej) => {
         try {
           if(!data.path || !data.id || !data.ended) return res();
+          console.log(self.url + ` will end valor claim for all/valor/${data.id}/data/${data.path}`);
           const r = await self.get(`requests/${data.path}`);
           if(r && r.data && r.data.spaceTime){
             const st = r.data.spaceTime;
@@ -3805,6 +3803,7 @@ try {
     deleteLocal = async (path) => {
       const self = this;
       return new Promise(async (res, rej) => {
+        console.log(self.url + " is deleting " + path)
         try {
           await fs.unlinkSync(__dirname + "/data/servers/" + self.pathUrl + "/" + path);
         } catch(e){
@@ -4019,6 +4018,37 @@ try {
         //   }, 300)
         // })
       }
+      setTimeout(async () => {
+        await localServers[0].set("test.json", [
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+          `veshtoiveshntvose4thvnseo4tnhvseofie4fnef4mvs4hesfefsenfv4hesmfahnvronwhrnvwhv3nrwocwh3cwa3ormchwa3rchwervhnvr`,
+        ])
+
+        setTimeout(async () => {
+          await localServers[0].delete("test.json")
+        }, 5000)
+
+      }, 5000)
+
+      
+
       // calculateValorInterval();
     })();
   } else {
