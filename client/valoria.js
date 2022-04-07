@@ -3245,8 +3245,8 @@ class Valoria {
         if(data.path.startsWith("data/")){
           const request = await self.getSetRequest(data.path);
           if(!request) return err("No set request found");
-          let reqPublicD = await self.getPublicFromUrl(request.url);
-          if(!reqPublicD) return err("no public found for " + request.url);
+          let reqPublicD = await self.getPublicFromUrl(request.data.url);
+          if(!reqPublicD) return err("no public found for " + request.data.url);
           const dataGroupIndex = jumpConsistentHash("data/" + data.path, self.groups.length);
           if(self.groups[dataGroupIndex].indexOf(ws.Url) == -1) return err("data saver is not in the right group");
           const now = self.now();
@@ -3265,7 +3265,7 @@ class Valoria {
           if(!d) return err();
           size = new TextEncoder().encode(JSON.stringify(d)).length;
           try {
-            await self.verify(JSON.stringify(d), base64ToArrayBuffer(request.data), reqPublicD.ecdsaPub);
+            await self.verify(JSON.stringify(d), base64ToArrayBuffer(request.data.data), reqPublicD.ecdsaPub);
           } catch(e){
             console.log(e);
             // console.log(d);
@@ -3300,7 +3300,7 @@ class Valoria {
         } else {
           return err();
         }
-        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
+        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`valor/${data.id}/${data.path}`);
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.spaceTime?.length > 0){
           const st = valor.data.spaceTime;
           if(st[st.length][0] !== size && st[st.length - 1].length == 2){
@@ -3448,7 +3448,7 @@ class Valoria {
           isValid = true;
         }
         if(isValid){
-          let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json") || await self.get("ledgers/" + data.id + ".json", {notLocal: true});;
+          let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json") || await self.get("ledgers/" + data.id + ".json");
           if(!d || !d.data) d = {
             data: {
               paths: {},

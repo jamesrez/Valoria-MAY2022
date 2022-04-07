@@ -11,6 +11,7 @@ const subtle = crypto.webcrypto.subtle;
 const WebSocket = require('ws');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
+const res = require('express/lib/response');
 
 
 try {
@@ -204,8 +205,8 @@ try {
           // }, 6000)
           await self.loadAllGroups();
           await self.joinGroup();
-          await self.shareSelfPublic();
           await self.syncGroupData();
+          await self.shareSelfPublic();
           const stall = (self.sync + self.syncIntervalMs) - self.now();
           setTimeout(async () => {
             try {
@@ -417,6 +418,7 @@ try {
               ecdsaPub: credentials.ecdsaPub,
               ecdhPub: credentials.ecdhPub,
               id,
+              ownerId: self.ownerId || id,
               url: self.url
             }
             return res();
@@ -512,6 +514,7 @@ try {
             ecdsaPub: Buffer.from(ecdsaPub).toString('base64'),
             ecdhPub: Buffer.from(ecdhPub).toString('base64'),
             id,
+            ownerId: self.ownerId || id,
             url: self.url
           }
           await self.setLocal("public.json", self.public);
@@ -797,6 +800,126 @@ try {
         }
       })
     }
+
+    endSetRequest = async (path) => {
+      const self = this;
+      return new Promise(async (res, rej) => {
+        try{
+          const rGroupIndex = jumpConsistentHash(`requests/${self.id}/${path}`, self.groups.length);
+          const ended = self.nextSync;
+          const sig = Buffer.from(await self.sign(`Delete requests/${self.id}/${path} at ${ended}`)).toString("base64");
+          if(rGroupIndex == self.group.index){
+            const r = await self.getLocal(`all/requests/${self.id}/${path}`);
+            if(!r || !r.data || !r.data?.spaceTime) return res();
+            const st = r.data?.spaceTime;
+            if(st[st.length - 1].length !== 2) return res();
+            st[st.length - 1].push(ended);
+            await self.setLocal(`all/requests/${self.id}/${path}`, r);
+            for(let i=0;i<self.group.members.length;i++){
+              const url = self.group.members[i];
+              if(url == self.url) continue;
+              await self.connectToServer(url);
+              await new Promise(async (res, rej) => {
+                self.promises[`Request ${id}/${path} ended at ${ended} from ${url}`] = {res, rej};
+                self.conns[url].send(JSON.stringify({
+                  event: "End request",
+                  data: {
+                    ended,
+                    path,
+                    id: self.id,
+                    sig
+                  }
+                }))
+              })
+            }
+          } else {
+            const rGroup = self.groups[rGroupIndex];
+            const url = rGroup[rGroup.length * Math.random << 0]
+            await self.connectToServer(url);
+            await new Promise(async (res, rej) => {
+              self.promises[`Request ${id}/${path} ended at ${ended} from ${url}`] = {res, rej};
+              self.conns[url].send(JSON.stringify({
+                event: "End request",
+                data: {
+                  ended,
+                  path,
+                  id: self.id,
+                  sig
+                }
+              }))
+            })
+          }
+        } catch(e){
+          
+        }
+        res();
+      });
+    }
+
+    delete = async (path) => {
+      const self = this;
+      return new Promise(async (res, rej) => {
+        try {
+          await self.endSetRequest(path);
+          const dGroupIndex = jumpConsistentHash(`data/${self.id}/${path}`);
+          const dGroup = self.groups[dGroupIndex]
+          const ended = self.nextSync;
+          for(let i=0;i<dGroup.length;i++){
+            if(dGroup[i] == self.url){
+              await self.deleteLocal(`all/data/${self.id}/${path}`);
+            } else {
+              await self.connectToServer(dGroup[i]);
+              self.conns[dGroup[i]].send(JSON.stringify({
+                event: "Delete data",
+                data: {
+                  path,
+                  id: self.id
+                }
+              }))
+            }
+            const publicD = dGroup[i] == self.url ? self.public : await self.getPublicFromUrl(dGroup[i]);
+            const id = publicD.ownerId || publicD.id;
+            const vGroupIndex = jumpConsistentHash(`valor/${id}/data/${self.id}/${path}`);
+            if(self.group.index == vGroupIndex){
+              const valor = await self.getLocal(`all/valor/${id}/data/${self.id}/${path}`);
+              if(!valor || !valor.data || !valor.data?.spaceTime) continue;
+              const st = valor.data?.spaceTime;
+              if(st[st.length - 1].length !== 2) continue;
+              st[st.length - 1].push(ended);
+              await self.setLocal(`all/valor/${id}/data/${self.id}/${path}`, valor);
+              for(let j=0;j<self.group.members.length;j++){
+                const url = self.group.members[j];
+                if(url == self.url) continue;
+                await self.connectToServer(url);
+                self.conns[url].send(JSON.stringify({
+                  event: "End valor claim",
+                  data: {
+                    ended,
+                    path: `${self.id}/${path}`,
+                    id
+                  }
+                }))
+              }
+            } else {
+              const vGroup = self.groups[vGroupIndex]
+              const url = vGroup[vGroup.length * Math.random() << 0];
+              await self.connectToServer(url);
+              self.conns[url].send(JSON.stringify({
+                event: "End valor claim",
+                data: {
+                  ended,
+                  path: `${self.id}/${path}`,
+                  id
+                }
+              }))
+            }
+          }
+        } catch(e){
+
+        }
+        res()
+      })
+    }
   
     loadAllGroups = async () => {
       const self = this;
@@ -807,22 +930,9 @@ try {
           let servers = new Array(...initialServers);
           let askAmount = 10;
           let askCount = 0
-          // if(servers.length == 1 && servers[0] == self.url){
-          //   //FIRST SERVER IN NETWORK
-          //   self.start = self.now();
-          //   self.sync = self.start;
-          //   self.nextSync = self.sync + self.syncIntervalMs;
-          //   self.saving[self.sync] = {};
-          //   return res();
-          // }
-          // if(servers.indexOf(self.url) !== -1){
-          //   servers.splice(servers.indexOf(this.url), 1);
-          //   if(servers.length < 1) rej("No initial servers found.")
-          // }
           let used = [];
           let startClaims = [];
           let syncClaims = [];
-          // console.log("Loading all groups")
           while(askCount < askAmount && servers.length > 0){
             const url = servers[servers.length * Math.random() << 0];
             try {
@@ -836,8 +946,6 @@ try {
               const groups = data.groups;
               startClaims.push(data.start);
               syncClaims.push(data.sync);
-              // self.groups = [...new Set([...groups, ...self.groups])]
-              // self.syncGroups = self.groups;
               if(groups.flat().length >= self.groups.flat().length){
                 self.groups = new Array(...groups);
                 self.syncGroups = new Array(...groups);
@@ -851,7 +959,6 @@ try {
               }
               askCount += 1;
             } catch (e) {
-              // used.push(url);
               servers.splice(servers.indexOf(url));
             }
           }
@@ -886,8 +993,6 @@ try {
                     event: "Join group",
                   }));
                 } catch(e){
-                  // console.log(e)
-                  console.log("line 872")
                   return res();
                 } 
               });
@@ -898,8 +1003,6 @@ try {
                 event: "Joined group success"
               }));
               await self.syncTimeWithNearby();
-              // await self.setLocal("group.json", self.group);
-              // await self.setLocal("groups.json", self.groups);
             } catch (e){
               continue;
             }
@@ -1103,6 +1206,7 @@ try {
                 st[st.length - 1].push(self.nextSync);
                 self.saving[self.sync][`all/${paths[i]}`] = valor;
                 await self.setLocal(`all/${paths[i]}`, valor);
+                await self.shareGroupSig(paths[i]);
                 // console.log("Valor duration ended for " + valor.data.url + " on path " + valor.data.path)
                 // console.log(valor.data);
               }
@@ -1955,6 +2059,12 @@ try {
               case "Got set request":
                 await self.handleGotSetRequest(ws, d.data);
                 break;
+              case "End request":
+                await self.handleEndRequest(ws, d.data);
+                break;
+              case "Request ended":
+                await self.handleRequestEnded(ws, d.data);
+                break;
               case "Group set":
                 await self.handleGroupSet(ws, d.data);
                 break;
@@ -1973,11 +2083,17 @@ try {
               case "Sot":
                 await self.handleSot(ws, d.data);
                 break; 
+              case "Delete data":
+                await self.handleDeleteData(ws, d.data);
+                break;
               case "Claim valor for path":
                 await self.handleClaimValorForPath(ws, d.data);
                 break;
               case "Claimed valor for path":
                 await self.handleClaimedValorPath(ws, d.data);
+                break;
+              case "End valor claim":
+                await self.handleEndValorClaim(ws, d.data);
                 break;
               case "Get valor path":
                 await self.handleGetValorPath(ws, d.data);
@@ -3029,6 +3145,64 @@ try {
       })
     }
   
+    handleEndRequest = async (ws, data) => {
+      const self = this;
+      return new Promise(async (res, rej) => {
+        try {
+          if(!ws.Url || !data.ended || !data.id || !data.path || !data.sig) throw "Error"
+          const r = await self.getLocal(`all/requests/${data.id}/${data.path}`);
+          if(!r || !r.data || !r.data?.spaceTime) throw "Error";
+          const st = r.data?.spaceTime;
+          if(st[st.length - 1].length !== 2) throw "Error";
+          const publicD = await self.getPublicFromId(data.id);
+          await self.verify(`Delete requests/${data.id}/${data.path} at ${data.ended}`, Buffer.from(data.sig, "base64"), publicD.ecdsaPub)
+          st[st.length - 1].push(data.ended);
+          await self.setLocal(`all/requests/${data.id}/${path}`, r);
+          if(self.group.members.indexOf(ws.Url) == -1){
+            for(let i=0;i<self.group.members.length;i++){
+              const url = self.group.members[i];
+              if(url == self.url) continue;
+              await self.connectToServer(url);
+              await new Promise(async (res, rej) => {
+                self.promises[`Request ${id}/${path} ended at ${ended} from ${url}`] = {res, rej};
+                self.conns[url].send(JSON.stringify({
+                  event: "End request",
+                  data
+                }))
+              })
+            }
+          }
+          await self.shareGroupSig(`requests/${data.id}/${data.path}`);
+          data.success = true;
+          ws.send(JSON.stringify({
+            event: "Request ended",
+            data
+          }))
+        } catch(e){
+          data.error = true;
+          ws.send(JSON.stringify({
+            event: "Request ended",
+            data
+          }))
+        }
+        res()
+      })
+    }
+
+    handleRequestEnded = async (ws, data) => {
+      const self = this;
+      return new Promise(async (res, rej) => {
+        if(!self.promises[`Request ${data.id}/${data.path} ended at ${data.ended} from ${ws.Url}`]) return res();
+        if(data.success){
+          self.promises[`Request ${data.id}/${data.path} ended at ${data.ended} from ${ws.Url}`].res();
+        } else {
+          self.promises[`Request ${data.id}/${data.path} ended at ${data.ended} from ${ws.Url}`].rej();
+        }
+        delete self.promises[`Request ${data.id}/${data.path} ended at ${data.ended} from ${ws.Url}`].res();
+        return res()
+      })
+    }
+
     handleGroupSet = async (ws, data) => {
       const self = this;
       return new Promise(async (res, rej) => {
@@ -3173,6 +3347,24 @@ try {
         if(!self.promises["Group sot for " + data.path + " from " + ws.Url]) return res();
         self.promises["Group sot for " + data.path + " from " + ws.Url].res();
         delete self.promises["Group sot for " + data.path + " from " + ws.Url];
+        return res()
+      })
+    }
+
+    handleDeleteData = async (ws, data) => {
+      const self = this;
+      return new Promise(async (res, rej) => {
+        try {
+          if(!data.path || !data.id) return res();
+          const r = await self.get(`requests/${data.id}/${data.path}`);
+          if(r && r.data && r.data.spaceTime){
+            const st = r.data.spaceTime;
+            if(st[st.length - 1].length == 2) return res();
+          }
+          await self.deleteLocal(`all/data/${data.id}/${data.path}`);
+        } catch(e){
+
+        }
         return res()
       })
     }
@@ -3361,14 +3553,13 @@ try {
             let pathUrl = d.url.replace(/\//g, "");
             pathUrl = pathUrl.replace(/\:/g, "");
             if(data.path !== `public/${pathUrl}.json` && data.path !== `public/${d.id}.json`) {
-              console.log("bad public path");
               return err();
             }
             size = Buffer.byteLength(JSON.stringify(d), 'utf8')
           } else {
             return err();
           }
-          let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
+          let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`valor/${data.id}/${data.path}`);
           if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.spaceTime?.length > 0){
             const st = valor.data.spaceTime;
             if(st[st.length][0] !== size && st[st.length - 1].length == 2){
@@ -3428,6 +3619,40 @@ try {
           delete self.promises["Claimed valor for path " + data.path + " from " + ws.Url]
         }
         return res();
+      })
+    }
+
+    handleEndValorClaim = async (ws, data) => {
+      const self = this;
+      return new Promise(async (res, rej) => {
+        try {
+          if(!data.path || !data.id || !data.ended) return res();
+          const r = await self.get(`requests/${data.path}`);
+          if(r && r.data && r.data.spaceTime){
+            const st = r.data.spaceTime;
+            if(st[st.length - 1].length == 2) return res();
+          }
+          const v = await self.getLocal(`all/valor/${data.id}/data/${data.path}`);
+          if(!v || !v.data || !v.data.spaceTime) return res();
+          const st = v.data.spaceTime;
+          if(st[st.length - 1].length !== 2) return res();
+          st[st.length - 1].push(data.ended)
+          await self.setLocal(`all/valor/${data.id}/data/${data.path}`, v);
+          if(self.group.members.indexOf(ws.Url) == -1){
+            for(let i=0;i<self.group.members.length;i++){
+              const url = self.group.members[i];
+              if(url == self.url) continue;
+              await self.connectToServer(url);
+              self.conns[url].send(JSON.stringify({
+                event: "End valor claim",
+                data
+              }))
+            }
+          }
+        } catch(e){
+
+        }
+        return res()
       })
     }
   
@@ -3574,6 +3799,18 @@ try {
   
         }
         res();
+      })
+    }
+
+    deleteLocal = async (path) => {
+      const self = this;
+      return new Promise(async (res, rej) => {
+        try {
+          await fs.unlinkSync(__dirname + "/data/servers/" + self.pathUrl + "/" + path);
+        } catch(e){
+  
+        }
+        res()
       })
     }
   
