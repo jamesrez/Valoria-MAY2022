@@ -1286,11 +1286,11 @@ class Valoria {
   calculateValor = async (id) => {
     const self = this;
     return new Promise(async (res, rej) => {
-      if(id.startsWith('http')){
-        const publicD = await self.getPublicFromUrl(id);
-        id = publicD.id;
-      }
       try {
+        if(id.startsWith('http')){
+          const publicD = await self.getPublicFromUrl(id);
+          id = publicD.id;
+        }
         const ledger = await self.get(`ledgers/${id}.json`);
         if(!ledger || !ledger.sigs) {
           return res(0)
@@ -1792,7 +1792,8 @@ class Valoria {
           if(publicD.id !== id) return rej({err: "Invalid public data"});
         } catch(e){
           console.log(e);
-          return res(null)
+          console.log("Could not get public of " + url);
+          return rej(null)
         }
       }
       publicD.ecdsaPub = await subtle.importKey(
