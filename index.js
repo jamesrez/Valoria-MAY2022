@@ -277,14 +277,15 @@ try {
                         return res();
                       } catch (e){
                         console.log(e)
-                        return rej(e);
+                        return res();
+                        // return rej(e);
                       }
                     })
                     const engine = self.conns[url].io.engine;
-                    engine.on("close", async (error) => {
-                      // console.log("COULD NOT CONNECT TO " + url);
-                      return rej(error);
-                    });
+                    // engine.on("close", async (error) => {
+                    //   // console.log("COULD NOT CONNECT TO " + url);
+                    //   return rej(error);
+                    // });
                   } catch(e){
   
                   }
@@ -4058,7 +4059,7 @@ try {
   
   }
   
-  let localServerCount = 1;
+  let localServerCount = 2;
   let localServers = [];
   if(isLocal){
     (async () => {

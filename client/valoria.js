@@ -935,9 +935,9 @@ class Valoria {
                     }
                   })
                   const engine = self.conns[url].io.engine;
-                  engine.on("close", async (error) => {
-                    return rej(error);
-                  });
+                  // engine.on("close", async (error) => {
+                  //   return rej(error);
+                  // });
                 } catch(e){
                   return rej(e);
                 }
@@ -949,7 +949,7 @@ class Valoria {
           } 
         }
         setTimeout(() => {
-          if(!connected && !self.conns[url]?.connected) {
+          if(!self.conns[url]?.connected) {
             // if(self.conns[url]) self.conns[url].disconnect();
             // delete self.conns[url];
             return rej();
