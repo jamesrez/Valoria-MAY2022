@@ -1215,9 +1215,6 @@ class Valoria {
     const self = this;
     return new Promise(async (res, rej) => {
       let id = ownerId || self.ownerId;
-      if(id == self.ownerId){
-        console.log("Adding " + path + " to my ledger");
-      }
       try {
         const ledgerGroupIndex = jumpConsistentHash("ledgers/" + id + ".json", self.groups.length);
         const ledgerGroup = new Array(...self.groups[ledgerGroupIndex]);
@@ -1278,9 +1275,6 @@ class Valoria {
               console.log(e)
             }
           }
-        }
-        if(id == self.ownerId){
-          console.log("Added " + path + " to my ledger");
         }
         return res()   
       } catch(e){
@@ -3791,7 +3785,7 @@ class Valoria {
           isValid = true;
         }
         if(isValid){
-          let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json") || await self.get("ledgers/" + data.id + ".json");
+          let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json") || await self.get("ledgers/" + data.id + ".json", , {notLocal: true});
           if(!d || !d.data) d = {
             data: {
               paths: {},
