@@ -8,14 +8,14 @@ const express = require('express');
 const Port = process.env.PORT || 3000;
 const crypto = require('crypto');
 const subtle = crypto.webcrypto.subtle;
-const WebSocket = require('ws');
+// const WebSocket = require('ws');
+const SocketServer = require("socket.io").Server;
+const SocketClient = require("socket.io-client").io;
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const res = require('express/lib/response');
 
-
 try {
-
   function getDirContents(dir, results=[]){
     try {
       if(!fs.existsSync(dir + "/")) return [];
@@ -95,17 +95,22 @@ try {
       this.app.enable('trust proxy');
       this.server = http.Server(this.app);
       this.port = port;
-      this.wss = new WebSocket.Server({ 
-        server: this.server,
-        maxPayload: 512 * 1024 * 1024
+      this.io = new SocketServer(this.server, {
+        cors: {
+          origin: "*"
+        }
       });
-      this.wss.on('connection', async (ws) => {
+      this.io.on('connection', async (socket) => {
         try {
-          await this.setupWS(ws);
+          await this.setupWS(socket);
         } catch(e){
   
         }
-      })
+      });
+      // this.wss = new WebSocket.Server({ 
+      //   server: this.server,
+      //   maxPayload: 512 * 1024 * 1024
+      // });
       this.conns = {};
       this.promises = {};
       this.groups = [];
@@ -169,31 +174,6 @@ try {
         self.app.get('/valoria/public', async (req, res) => {
           res.send(self.public)
         });
-        self.heartbeatInterval = setInterval(() => {
-          try {
-            for(let i=0;i<self.wss.clients.length;i++){
-              try {
-                const ws = self.wss.clients[i];
-                if (ws.isAlive === false) {
-                  return ws.terminate();
-                }
-                ws.isAlive = false;
-                ws.ping();
-              } catch(e){
-  
-              }
-            }
-          } catch(e){
-  
-          }
-        }, 2500);
-        self.wss.on('close', function close() {
-          try {
-            clearInterval(self.heartbeatInterval);
-          } catch(e){
-  
-          }
-        });
         try {
           self.isSetup = false;
           // setTimeout(async () => {
@@ -244,14 +224,14 @@ try {
           if(!url || url == self.url) return rej();
           let connected = false;
           setTimeout(() => {
-            if(!connected && self.conns[url]?.readyState !== WebSocket.OPEN) {
-              if(self.conns[url]) self.conns[url].close();
+            if(!connected && !self.conns[url]?.connected) {
+              // if(self.conns[url]) self.conns[url].disconnect();
               delete self.conns[url];
               return rej();
             }
           }, 5000)
           try {
-            if(self.conns[url] && self.conns[url].readyState === WebSocket.OPEN){
+            if(self.conns[url] && self.conns[url].connected){
               connected = true;
               return res();
             } else {
@@ -278,39 +258,36 @@ try {
                     wsUrl = "wss://" + new URL(url).host + "/"
                   }
                   try {
-                    self.conns[url] = new WebSocket(wsUrl);
+                    self.conns[url] = SocketClient(wsUrl);
+                    self.conns[url].Url = url;
+                    self.conns[url].on("connect", async () => {
+                      try {
+                        await self.setupWS(self.conns[url]);
+                        await new Promise(async(res, rej) => {
+                          self.promises["Url verified with " + url] = {res, rej};
+                          self.conns[url].send(JSON.stringify({
+                            event: "Verify url request",
+                            data: {
+                              url: self.url
+                            }
+                          }))
+                        })
+                        self.conns[url].connected = true;
+                        connected = true;
+                        return res();
+                      } catch (e){
+                        console.log(e)
+                        return rej(e);
+                      }
+                    })
+                    const engine = self.conns[url].io.engine;
+                    engine.on("close", async (error) => {
+                      // console.log("COULD NOT CONNECT TO " + url);
+                      return rej(error);
+                    });
                   } catch(e){
   
                   }
-                }
-                try {
-                  self.conns[url].Url = url;
-                  self.conns[url].onopen = ( async () => {
-                    try {
-                      await self.setupWS(self.conns[url]);
-                      await new Promise(async(res, rej) => {
-                        self.promises["Url verified with " + url] = {res, rej};
-                        self.conns[url].send(JSON.stringify({
-                          event: "Verify url request",
-                          data: {
-                            url: self.url
-                          }
-                        }))
-                      })
-                      connected = true;
-                      return res();
-                    } catch (e){
-                      console.log(e)
-                      return rej(e);
-                    }
-                  });
-                  self.conns[url].onerror = (error) => {
-                    // console.log("COULD NOT CONNECT TO " + url);
-                    return rej(error);
-                  }
-                } catch(e){
-                  console.log("line 295")
-                  return rej(e);
                 }
               } 
             }
@@ -1681,7 +1658,6 @@ try {
                   group: self.group.index
                 }
               }))
-              return res();
             }
           }
         } catch(e){
@@ -1764,7 +1740,6 @@ try {
                   }
                 }))
               });
-  
               const groupIndices = Object.keys(self.pastPaths);
               for(let k=0;k<groupIndices.length;k++){
                 if(Math.abs(groupIndices[k] - self.groups.length) >= 2){
@@ -1933,11 +1908,10 @@ try {
     setupWS = async (ws) => {
       const self = this;
       return new Promise(async(res, rej) => {
-        // ws.isAlive = true;
-        ws.on('pong', () => {
-          ws.isAlive = true;
-        })
-        ws.on('close', async () => {
+        ws.send = async (msg) => {
+          ws.emit("message", msg);
+        }
+        ws.on('disconnect', async () => {
           console.log(ws.Url + " Has disconnected"); 
           try {
             if(self.conns[ws.Url]?.dimension && self.dimensions[ws.dimension]){
@@ -3003,10 +2977,6 @@ try {
     handleGet = async (ws, data) => {
       const self = this;
       return new Promise(async (res, rej) => {
-        if(ws.Url?.length > 22 && data.path.startsWith("requests")){
-          console.log("Handle get for " + ws.Url)
-          console.log(data);
-        }
         try {
           if(!data.path || !data.now) {
             console.log("Bad data");
@@ -4087,7 +4057,7 @@ try {
   
   }
   
-  let localServerCount = 1;
+  let localServerCount = 9;
   let localServers = [];
   if(isLocal){
     (async () => {
@@ -4144,3 +4114,4 @@ try {
 } catch(e){
   console.log(e);
 }
+
