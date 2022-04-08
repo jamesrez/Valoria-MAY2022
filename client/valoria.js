@@ -1119,6 +1119,7 @@ class Valoria {
             valor = {
               data: {
                 for: self.ownerId,
+                url: self.url,
                 path: path,
                 sync: sync,
                 spaceTime: [[size, sync]]
@@ -1141,7 +1142,8 @@ class Valoria {
                 data: {
                   path,
                   id: self.ownerId,
-                  sync
+                  sync,
+                  url: self.url
                 }
               }));
             // })
@@ -1158,7 +1160,8 @@ class Valoria {
                 data: {
                   path,
                   id: self.ownerId,
-                  sync
+                  sync,
+                  url: self.url
                 }
               }));
             // })
@@ -1186,8 +1189,8 @@ class Valoria {
           if(!valor || !valor.data) continue;
           const st = valor.data.spaceTime;
           if(st[st.length - 1].length == 2){
-            const valorGroupIndex = jumpConsistentHash(valor.data.path, self.groups.length);
-            if(self.groups[valorGroupIndex].indexOf(valor.data.url) == -1){
+            const dataGroupIndex = jumpConsistentHash(valor.data.path, self.groups.length);
+            if(self.groups[dataGroupIndex].indexOf(valor.data.url) == -1){
               st[st.length - 1].push(self.nextSync);
               self.saving[self.sync][`all/${paths[i]}`] = valor;
               await self.setLocal(`all/${paths[i]}`, valor);
@@ -3598,6 +3601,7 @@ class Valoria {
           valor = {
             data: {
               for: data.id,
+              url: data.url,
               path: data.path,
               sync: data.sync,
               spaceTime: [[size, data.sync]] 
