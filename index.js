@@ -127,9 +127,9 @@ try {
       this.syncIntervalMs = 1000;
       this.ownerId = process.env.VALORIA_USER_ID;
       const self = this;
-      if(isLocal){
-        this.url = 'http://localhost:' + port + "/";
-      } else {
+      // if(isLocal){
+      //   this.url = 'http://localhost:' + port + "/";
+      // } else {
         this.app.use(async (req, res, next) => {
           if(!self.url && !self.verifyingSelf && (isLocal || !req.get('host').startsWith('localhost'))){
             self.verifyingSelf = true;
@@ -149,7 +149,7 @@ try {
           }
           next();
         });
-      }
+      // }
       this.setupRoutes();
       this.server.listen(port, () => {
         console.log("Server started on port " + port);
@@ -1908,6 +1908,7 @@ try {
     setupWS = async (ws) => {
       const self = this;
       return new Promise(async(res, rej) => {
+        if(!ws) return rej();
         ws.send = async (msg) => {
           ws.emit("message", msg);
         }
@@ -4057,7 +4058,7 @@ try {
   
   }
   
-  let localServerCount = 9;
+  let localServerCount = 1;
   let localServers = [];
   if(isLocal){
     (async () => {
@@ -4066,7 +4067,7 @@ try {
         //   setTimeout(async () => {
             try {
               const server = new Server(i + Port);
-              await server.setup();
+              // await server.setup();
               localServers.push(server);
             } catch(e){
             }

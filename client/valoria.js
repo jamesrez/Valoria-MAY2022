@@ -1903,7 +1903,7 @@ class Valoria {
 
   setupWS = async (ws) => {
     const self = this;
-    if(!ws) return res();
+    if(!ws) return rej();
     return new Promise(async(res, rej) => {
       if(ws.isWS){
         ws.send = async (msg) => {
@@ -4146,89 +4146,93 @@ class Valoria {
   async connectToPeer(url){
     const self = this;
     return new Promise(async (res, rej) => {
-      if(!url || !url.includes("valoria/peers/") || url == self.url) return rej({err: "Bad peer url"});
-      const originUrl = url.substring(0, url.indexOf("valoria/peers/"));
-      // let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
-      if(!self.peers[url]){
-        await self.connectToServer(originUrl);
-        self.peers[url] = new RTCPeerConnection({iceServers});
-        self.peers[url].onStream = self.peers[url].onStream || (() => {});
-        self.peers[url].datachannel = self.peers[url].createDataChannel("Data");
-        self.peers[url].datachannel.onopen = async () => {
-          self.peers[url].datachannel.open = true;
-          self.peers[url].datachannel.verified = true;
-          self.peers[url].datachannel.Url = url;
-          self.peers[url].datachannel.on = (event, cb) => {
-            if(!self.peers[url].datachannel.callbacks) self.peers[url].datachannel.callbacks = {}
-            self.peers[url].datachannel.callbacks[event] = cb;
-          }
-          self.peers[url].datachannel.peerServer = originUrl;
-          self.peers[url].onconnectionstatechange = () => {
-            if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
-              self.peers[url].datachannel?.onclose();
-              delete self.peers[url];
+      try {
+        if(!url || !url.includes("valoria/peers/") || url == self.url) return rej({err: "Bad peer url"});
+        const originUrl = url.substring(0, url.indexOf("valoria/peers/"));
+        // let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
+        if(!self.peers[url]){
+          await self.connectToServer(originUrl);
+          self.peers[url] = new RTCPeerConnection({iceServers});
+          self.peers[url].onStream = self.peers[url].onStream || (() => {});
+          self.peers[url].datachannel = self.peers[url].createDataChannel("Data");
+          self.peers[url].datachannel.onopen = async () => {
+            self.peers[url].datachannel.open = true;
+            self.peers[url].datachannel.verified = true;
+            self.peers[url].datachannel.Url = url;
+            self.peers[url].datachannel.on = (event, cb) => {
+              if(!self.peers[url].datachannel.callbacks) self.peers[url].datachannel.callbacks = {}
+              self.peers[url].datachannel.callbacks[event] = cb;
             }
+            self.peers[url].datachannel.peerServer = originUrl;
+            self.peers[url].onconnectionstatechange = () => {
+              if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
+                self.peers[url].datachannel?.onclose();
+                delete self.peers[url];
+              }
+            };
+            self.conns[url] = self.peers[url].datachannel;
+            await self.setupWS(self.peers[url].datachannel);
+            await new Promise(async (res, rej) => {
+              self.promises["Webrtc connection with " + url + " is setup"] = {res, rej};
+            })
+            self.peers[url].datachannel.setup = true;
+            res(self.peers[url].datachannel);
           };
-          self.conns[url] = self.peers[url].datachannel;
-          await self.setupWS(self.peers[url].datachannel);
-          await new Promise(async (res, rej) => {
-            self.promises["Webrtc connection with " + url + " is setup"] = {res, rej};
-          })
-          self.peers[url].datachannel.setup = true;
-          res(self.peers[url].datachannel);
-        };
-        if(self.stream && self.stream.getTracks){
-          self.stream.getTracks().forEach(track => self.peers[url].addTrack(track, self.stream));
-        }
-        self.peers[url].onicecandidate = ({candidate}) =>  {
-          if(!candidate) return;
-          self.conns[originUrl].send(JSON.stringify({
-            event: "Send rtc candidate",
-            data: {
-              candidate,
-              url
-            }
-          }));
-        }
-        self.peers[url].onnegotiationneeded = async options => {
-          if(!self.peers[url]) return;
-          try {
-            self.peers[url].makingOffer = true;
-            await self.peers[url].setLocalDescription();
+          if(self.stream && self.stream.getTracks){
+            self.stream.getTracks().forEach(track => self.peers[url].addTrack(track, self.stream));
+          }
+          self.peers[url].onicecandidate = ({candidate}) =>  {
+            if(!candidate) return;
             self.conns[originUrl].send(JSON.stringify({
-              event: "Send rtc description",
+              event: "Send rtc candidate",
               data: {
-                desc: self.peers[url].localDescription,
+                candidate,
                 url
               }
             }));
-          } catch (err) {
-            console.error(err);
-          } finally {
-            self.peers[url].makingOffer = false;
           }
-        };
-        self.peers[url].ontrack = (e) => {
-          self.peers[url].stream = e.streams[0];
-          self.peers[url].onStream(e.streams[0]);
-        }
-        self.peers[url].oniceconnectionstatechange = () => {
-          if (self.peers[url] && self.peers[url].iceConnectionState === "failed") {
-            self.peers[url].restartIce();
+          self.peers[url].onnegotiationneeded = async options => {
+            if(!self.peers[url]) return;
+            try {
+              self.peers[url].makingOffer = true;
+              await self.peers[url].setLocalDescription();
+              self.conns[originUrl].send(JSON.stringify({
+                event: "Send rtc description",
+                data: {
+                  desc: self.peers[url].localDescription,
+                  url
+                }
+              }));
+            } catch (err) {
+              console.error(err);
+            } finally {
+              self.peers[url].makingOffer = false;
+            }
+          };
+          self.peers[url].ontrack = (e) => {
+            self.peers[url].stream = e.streams[0];
+            self.peers[url].onStream(e.streams[0]);
           }
-        };
-      } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open" && self.peers[url]?.datachannel?.setup){
-        return res(self.peers[url].datachannel);
-      } 
-      // else if(self.peers[url].localDescription){
-      //   self.conns[originUrl].send(JSON.stringify({
-      //     event: "Send rtc description",
-      //     data: {
-      //       desc: self.peers[url].localDescription,
-      //       url
-      //     }
-      //   }));
-      // }
+          self.peers[url].oniceconnectionstatechange = () => {
+            if (self.peers[url] && self.peers[url].iceConnectionState === "failed") {
+              self.peers[url].restartIce();
+            }
+          };
+        } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open" && self.peers[url]?.datachannel?.setup){
+          return res(self.peers[url].datachannel);
+        } 
+        // else if(self.peers[url].localDescription){
+        //   self.conns[originUrl].send(JSON.stringify({
+        //     event: "Send rtc description",
+        //     data: {
+        //       desc: self.peers[url].localDescription,
+        //       url
+        //     }
+        //   }));
+        // }
+      } catch(e){
+        rej();
+      }
     })
   }
 
@@ -4282,10 +4286,14 @@ class Valoria {
               delete self.peers[url];
             }
           }
-          await self.setupWS(self.peers[url].datachannel);
-          self.peers[url].datachannel.send(JSON.stringify({
-            event: "Webrtc setup"
-          }));
+          try {
+            await self.setupWS(self.peers[url].datachannel);
+            self.peers[url].datachannel.send(JSON.stringify({
+              event: "Webrtc setup"
+            }));
+          } catch(e){
+            return;
+          }
         };
       };
     }
