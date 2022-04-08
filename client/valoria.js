@@ -3849,7 +3849,7 @@ class Valoria {
         }
       }
       try {
-        const keys = await localforage.keysStartingWith(`${self.path}all`)
+        const keys = await localforage.keysStartingWith(`valoria/`)
         for(let i=0;i<keys.length;i++){
           await localforage.removeItem(keys[i]);
         }
