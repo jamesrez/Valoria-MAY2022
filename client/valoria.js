@@ -3785,7 +3785,7 @@ class Valoria {
           isValid = true;
         }
         if(isValid){
-          let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json") || await self.get("ledgers/" + data.id + ".json", , {notLocal: true});
+          let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json") || await self.get("ledgers/" + data.id + ".json", {notLocal: true});
           if(!d || !d.data) d = {
             data: {
               paths: {},
