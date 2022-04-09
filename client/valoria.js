@@ -117,14 +117,14 @@ class Valoria {
         self.originUrl = originUrl;
         self.public.url = self.url;
         await self.joinGroup();
-        await self.syncGroupData();
-        await self.shareSelfPublic();
-        // setup = true;
-        self.onJoin();
         const stall = Math.abs((self.sync + self.syncIntervalMs) - self.now());
         setTimeout(async () => {
           await self.syncInterval();
         }, self.sync == self.start ? 0 : stall > 0 ? stall : 0)
+        await self.syncGroupData();
+        await self.shareSelfPublic();
+        // setup = true;
+        self.onJoin();
         res();
       } catch(e){
         console.log(e)
@@ -403,6 +403,9 @@ class Valoria {
             now,
           }
         }))
+        if(path.startsWith("valor")){
+          console.log("Got valor from " + url);
+        }
       } catch(e){
         return res();
       }
@@ -1085,7 +1088,7 @@ class Valoria {
       try {
         if(!self.group || self.groups.length <= 0) return res();
         const valorGroupIndex = jumpConsistentHash(`valor/${self.ownerId}/${path}`, self.groups.length);
-        const sync = self.sync;
+        const sync = self.nextSync;
         let size;
         if(valorGroupIndex == self.group.index){ 
           if(path.startsWith("data/")){
@@ -1317,7 +1320,7 @@ class Valoria {
               if(!v || !v.data || !v.data.spaceTime) continue;
               for(let j=0;j<v.data.spaceTime.length;j++){
                 const duration = Math.abs(v.data.spaceTime[j][2] ? (v.data.spaceTime[j][2] - v.data.spaceTime[j][1]) : (self.nextSync - v.data.spaceTime[j][1]));
-                const amount = 0.001 * (((v.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                const amount = 1 * (((v.data.spaceTime[j][0] / 10000) * (duration / 1000000000 )) + (duration * 0.0000000005));
                 addSize += amount;
                 valor += amount;
               }
@@ -1326,7 +1329,7 @@ class Valoria {
               if(!r || !r.data || !r.data.spaceTime) continue;
               for(let j=0;j<r.data.spaceTime.length;j++){
                 const duration = Math.abs(r.data.spaceTime[j][2] ? (r.data.spaceTime[j][2] - r.data.spaceTime[j][1]) : (self.nextSync - r.data.spaceTime[j][1]));
-                const amount = -0.00320 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                const amount = -3.20 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000000000 )) + (duration * 0.0000000005));
                 minusSize += amount;
                 valor += amount;
               }
@@ -1508,7 +1511,7 @@ class Valoria {
         self.syncGroup = Object.assign({}, self.group);
         self.syncGroups = new Array(...self.groups);
         try {
-          await self.syncTimeWithNearby();
+          // await self.syncTimeWithNearby();
           // await self.saveGroups();
           // await self.sharePublic();
           // await self.syncGroupData();
@@ -3603,7 +3606,7 @@ class Valoria {
         } else {
           return err();
         }
-        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.getLocal(`all/valor/${data.id}/${data.path}`);
+        let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`all/valor/${data.id}/${data.path}`);
         if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.spaceTime?.length > 0){
           const st = valor.data.spaceTime;
           if(st[st.length - 1][0] !== size && st[st.length - 1].length == 2){
