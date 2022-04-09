@@ -1,3 +1,5 @@
+const { is } = require("express/lib/request");
+
 let auth = document.querySelector('.valUIAuth');
 let mainModal = document.querySelector('.valUIMainModal');
 let join = document.querySelector('.valUIJoin');
@@ -22,14 +24,14 @@ async function showHome(){
 async function showJoin(){
   if(valoria.id && valoria.ecdsa.privateKey){
     page.style.display = "none";
-    if(!isMobile){
-      controls.lock();
-    }
-    // try {
-    //   await valoria.startMediaStream({audio: true, video: false});
-    // } catch(e){
+    try {
+      if(!isMobile){
+        controls.lock();
+        await valoria.startMediaStream({audio: true, video: false});
+      }
+    } catch(e){
       
-    // }
+    }
     // await valoria.startMediaStream({audio: {
     //   echoCancellation: true,
     //   noiseSuppression: true,
