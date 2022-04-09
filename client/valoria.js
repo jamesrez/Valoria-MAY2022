@@ -1281,14 +1281,15 @@ class Valoria {
                 if(!d || !d.data) {
                   d = {
                     data: {
-                      paths: {},
+                      paths: [],
                       for: id,
                     },
                     sigs: {}
                   }
                 }
-                if(!d.data.paths[path]){
-                  d.data.paths[path] = 1;
+                if(d.data.paths.indexOf(path) == -1){
+                  d.data.paths.push(path);
+                  d.data.paths.sort();
                   delete d.sigs;
                   d.sigs = {};
                   d.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(d.data)))
@@ -1336,7 +1337,7 @@ class Valoria {
         let addSize = 0;
         let minusSize = 0;
         const sync = self.sync || self.start;
-        const paths = Object.keys(ledger.data.paths);
+        const paths = ledger.data.paths;
         for(let i=0;i<paths.length;i++){
           try {
             if(paths[i].startsWith("data/") || paths[i].startsWith("public/")){
@@ -3850,7 +3851,7 @@ class Valoria {
             },
             sigs: {}
           }
-          if(d.data.paths[data.path]) {
+          if(d.data.paths.indexOf(data.path) !== -1){
             ws.send(JSON.stringify({
               event: "Path added to ledger",
               data: {
@@ -3861,7 +3862,8 @@ class Valoria {
             }));
             return res();
           }
-          d.data.paths[data.path] = 1
+          d.data.paths.push(data.path);
+          d.data.paths.sort();
           delete d.sigs;
           d.sigs = {};
           d.sigs[self.url] = await arrayBufferToBase64(await self.sign(JSON.stringify(d.data)))

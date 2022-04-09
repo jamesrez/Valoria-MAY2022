@@ -1282,14 +1282,15 @@ try {
                   if(!d || !d.data) {
                     d = {
                       data: {
-                        paths: {},
+                        paths: [],
                         for: id,
                       },
                       sigs: {}
                     }
                   }
-                  if(!d.data.paths[path]){
-                    d.data.paths[path] = 1;
+                  if(d.data.paths.indexOf(path) == -1){
+                    d.data.paths.push(path);
+                    d.data.paths.sort();
                     delete d.sigs;
                     d.sigs = {};
                     d.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
@@ -1333,7 +1334,7 @@ try {
             }
           }
           let valor = 0;
-          const paths = Object.keys(ledger.data.paths);
+          const paths = ledger.data.paths;
           let addSize = 0;
           let minusSize = 0;
           for(let i=0;i<paths.length;i++){
@@ -3852,12 +3853,12 @@ try {
             let d = await self.get("ledgers/" + data.id + ".json");
             if(!d || !d.data) d = {
               data: {
-                paths: {},
+                paths: [],
                 for: data.id,
               },
               sigs: {}
             }
-            if(d.data.paths[data.path]) {
+            if(d.data.paths.indexOf(data.path) !== - 1) {
               ws.send(JSON.stringify({
                 event: "Path added to ledger",
                 data: {
@@ -3868,7 +3869,8 @@ try {
               }));
               return res();
             }
-            d.data.paths[data.path] = 1
+            d.data.paths.push(data.path);
+            d.data.paths.sort();
             delete d.sigs;
             d.sigs = {};
             d.sigs[self.url] = Buffer.from(await self.sign(JSON.stringify(d.data))).toString("base64");
