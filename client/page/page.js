@@ -1,5 +1,3 @@
-const { is } = require("express/lib/request");
-
 let auth = document.querySelector('.valUIAuth');
 let mainModal = document.querySelector('.valUIMainModal');
 let join = document.querySelector('.valUIJoin');
