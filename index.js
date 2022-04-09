@@ -146,8 +146,12 @@ try {
             } catch(e){
               // console.log(e)
             }
+            setTimeout(() => {
+              next();
+            }, 1000)
+          } else {
+            next();
           }
-          next();
         });
       // }
       this.setupRoutes();
@@ -227,7 +231,7 @@ try {
             if(!connected && !self.conns[url]?.connected) {
               // if(self.conns[url]) self.conns[url].disconnect();
               delete self.conns[url];
-              return rej();
+              // return rej();
             }
           }, 5000)
           try {
@@ -547,22 +551,32 @@ try {
               return res(data);
             }
           // }
-          const members = new Array(...self.groups[groupIndex])
+          const members = JSON.parse(JSON.stringify(self.groups[groupIndex]))
           if(members.indexOf(self.url) !== -1) members.splice(members.indexOf(self.url), 1);
           if(members.length == 0) return res();
-          const url = members[members.length * Math.random() << 0];
-          await self.connectToServer(url);
-          const now = self.now();
-          if(self.promises["Got data from " + url + " for " + path + " at " + now]) return res();
-          self.promises["Got data from " + url + " for " + path + " at " + now] = {res, rej};
-          self.conns[url].send(JSON.stringify({
-            event: "Get",
-            data: {
-              path,
-              group: self.group.index,
-              now,
+          let d;
+          for(let i=0;i<members.length;i++){
+            try {
+              d = await new Promise(async (res, rej) => {
+                await self.connectToServer(members[i]);
+                const now = self.now();
+                if(self.promises["Got data from " + members[i] + " for " + path + " at " + now]) return res();
+                self.promises["Got data from " + members[i] + " for " + path + " at " + now] = {res, rej};
+                self.conns[members[i]].send(JSON.stringify({
+                  event: "Get",
+                  data: {
+                    path,
+                    group: self.group.index,
+                    now,
+                  }
+                }))
+              })
+              if(d) return res(d);
+            } catch(e){
+
             }
-          }))
+          }     
+          return res();  
         } catch(e){
           return res();
         }
@@ -712,7 +726,7 @@ try {
           const groupIndex = jumpConsistentHash("requests/" + path, self.groups.length);
           const data = await self.getLocal("all/requests/" + path);
           if(data) return res(data);
-          const group = new Array(...self.groups[groupIndex]);
+          const group = JSON.parse(JSON.stringify(self.groups[groupIndex]));
           if(group.indexOf(self.url) !== -1) group.splice(group.indexOf(self.url), 1);
           if(group.length == 0) {
             return res();
@@ -742,7 +756,7 @@ try {
             const data = await self.getLocal(`all/valor/${id}/${path}`);
             if(data) return res(data);
           // }
-          const group = new Array(...self.groups[groupIndex]);
+          const group = JSON.parse(JSON.stringify(self.groups[groupIndex]));
           if(group.indexOf(self.url) !== -1) group.splice(group.indexOf(self.url), 1);
           const url = group[group.length * Math.random() << 0];
           await self.connectToServer(url);
@@ -916,7 +930,7 @@ try {
         try {
           let initialServers = isLocal ? ['http://localhost:3000/', 'http://localhost:3001/'] : require('./servers.json');
           if(!initialServers || initialServers.length == 0) return rej("No initial servers found.");
-          let servers = new Array(...initialServers);
+          let servers = JSON.parse(JSON.stringify(initialServers));
           let askAmount = 10;
           let askCount = 0
           let used = [];
@@ -1195,12 +1209,25 @@ try {
             if(st[st.length - 1].length == 2){
               const dataGroupIndex = jumpConsistentHash(valor.data.path, self.groups.length);
               if(self.groups[dataGroupIndex].indexOf(valor.data.url) == -1){
-                st[st.length - 1].push(self.nextSync);
-                self.saving[self.sync][`all/${paths[i]}`] = valor;
-                await self.setLocal(`all/${paths[i]}`, valor);
-                await self.shareGroupSig(paths[i]);
-                // console.log("Valor duration ended for " + valor.data.url + " on path " + valor.data.path)
-                // console.log(valor.data);
+                if(self.group.members[jumpConsistentHash(valor.data.path, self.group.members)] == self.url){
+                  const ended = self.nextSync;
+                  st[st.length - 1].push(ended);
+                  self.saving[self.sync][`all/${paths[i]}`] = valor;
+                  await self.setLocal(`all/${paths[i]}`, valor);
+                  await self.shareGroupSig(paths[i])
+                  for(let i=0;i<self.group.members.length;i++){
+                    const url = self.group.members[i];
+                    if(url == self.url) continue;
+                    await self.connectToServer(url);
+                    self.conns[url].send(JSON.stringify({
+                      event: "Update group valor",
+                      data: {
+                        path: paths[i],
+                        ended
+                      }
+                    }))
+                  }
+                }
               }
             }
           }
@@ -1217,10 +1244,10 @@ try {
       return new Promise(async (res, rej) => {
         try {
           const ledgerGroupIndex = jumpConsistentHash("ledgers/" + id + ".json", self.groups.length);
-          const ledgerGroup = new Array(...self.groups[ledgerGroupIndex]);
+          const ledgerGroup = JSON.parse(JSON.stringify(self.groups[ledgerGroupIndex]));
           for(let i=0;i<ledgerGroup.length;i++){
             const url = ledgerGroup[i];
-            if(url !== self.url){
+            if(url !== self.url && !ownerId){
               try {
                 if(self.promises[`Path ${path} added to ledger ${id} from ${url}`]) continue;
                 await self.connectToServer(url);
@@ -1251,7 +1278,7 @@ try {
                   isValid = true;
                 }
                 if(isValid){
-                  let d = self.saving[self.sync]["all/ledgers/" + id + ".json"] || await self.getLocal("all/ledgers/" + id + ".json") || await self.get("ledgers/" + id + ".json", {notLocal: true});
+                  let d = await self.get("ledgers/" + id + ".json");
                   if(!d || !d.data) {
                     d = {
                       data: {
@@ -1673,7 +1700,7 @@ try {
       const self = this;
       return new Promise(async(res, rej) => {
         try {
-          const group = new Array(...self.group.members);
+          const group = JSON.parse(JSON.stringify(self.group.members));
           group.splice(group.indexOf(self.url), 1);
           if(group.length == 0) return res();
           const url = group[group.length * Math.random << 0];
@@ -2138,6 +2165,9 @@ try {
                 break;
               case "Claimed valor for path":
                 await self.handleClaimedValorPath(ws, d.data);
+                break;
+              case "Update group valor":
+                await self.handleUpdateGroupValor(ws, d.data);
                 break;
               case "End valor claim":
                 await self.handleEndValorClaim(ws, d.data);
@@ -2984,7 +3014,6 @@ try {
             console.log("Bad data");
             return res();
           }
-          
           if(ws.Url && self.groups[data.group]?.indexOf(ws.Url) !== -1){
             const d = self.saving[self.sync]["all/" + data.path] || await self.getLocal("all/" + data.path);
             ws.send(JSON.stringify({
@@ -3212,6 +3241,7 @@ try {
           const publicD = await self.getPublicFromId(data.id);
           await self.verify(`End requests/${data.id}/${data.path} at ${data.ended}`, Buffer.from(data.sig, "base64"), publicD.ecdsaPub)
           st[st.length - 1].push(data.ended);
+          self.saving[`all/requests/${data.id}/${data.path}`] = r;
           await self.setLocal(`all/requests/${data.id}/${data.path}`, r);
           if(self.group.members.indexOf(ws.Url) == -1){
             for(let i=0;i<self.group.members.length;i++){
@@ -3614,7 +3644,7 @@ try {
           } else {
             return err();
           }
-          let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`all/valor/${data.id}/${data.path}`);
+          let valor = self.saving[self.sync][`all/valor/${data.id}/${data.path}`] || await self.get(`valor/${data.id}/${data.path}`);
           if(valor && valor.data && valor.sigs && valor.data.for == data.id && valor.data.path == data.path && valor.data.spaceTime?.length > 0){
             const st = valor.data.spaceTime;
             if(st[st.length - 1][0] !== size && st[st.length - 1].length == 2){
@@ -3674,6 +3704,29 @@ try {
           delete self.promises["Claimed valor for path " + data.path + " from " + ws.Url]
         }
         return res();
+      })
+    }
+
+    handleUpdateGroupValor = async (ws, data) => {
+      const self = this;
+      return new Promise(async (res, rej) => {
+        try {
+          if(!data.path || !data.ended) return res();
+          const valor = self.saving[self.sync][`all/${data.path}`] || await self.getLocal(`all/${data.path}`);
+          if(!valor || !valor.data) return res()
+          const st = valor.data.spaceTime;
+          if(st[st.length - 1].length == 2){
+            const dataGroupIndex = jumpConsistentHash(valor.data.path, self.groups.length);
+            if(self.groups[dataGroupIndex].indexOf(valor.data.url) == -1){
+              st[st.length - 1].push(data.ended);
+              self.saving[self.sync][`all/${data.path}`] = valor;
+              await self.setLocal(`all/${data.path}`, valor);
+              await self.shareGroupSig(data.path)
+            }
+          }
+        } catch(e){
+  
+        }
       })
     }
 
@@ -3796,7 +3849,7 @@ try {
             isValid = true;
           }
           if(isValid){
-            let d = self.saving[self.sync]["all/ledgers/" + data.id + ".json"] || await self.getLocal("all/ledgers/" + data.id + ".json") || await self.get("ledgers/" + data.id + ".json", {notLocal: true});
+            let d = await self.get("ledgers/" + data.id + ".json");
             if(!d || !d.data) d = {
               data: {
                 paths: {},
@@ -3889,7 +3942,7 @@ try {
           const id = data.id;
           if(!self.dimensions[id]) {
             self.dimensions[id] = {conns: {}};
-            const g = new Array(...self.group.members);
+            const g = JSON.parse(JSON.stringify(self.group.members));
             g.splice(g.indexOf(self.url), 1);
             if(g.length > 0){
               const url = g[g.length * Math.random() << 0];
