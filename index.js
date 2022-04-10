@@ -1,5 +1,4 @@
 const isLocal = process.env.PORT ? false : true;
-// if(isLocal) require('longjohn');
 const http = require('http');
 const fs = require('fs');
 const fsPromises = require("fs/promises");
@@ -8,9 +7,7 @@ const express = require('express');
 const Port = process.env.PORT || 3000;
 const crypto = require('crypto');
 const subtle = crypto.webcrypto.subtle;
-// const WebSocket = require('ws');
-const SocketServer = require("socket.io").Server;
-const SocketClient = require("socket.io-client").io;
+const WebSocket = require('ws');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const res = require('express/lib/response');
@@ -95,22 +92,17 @@ try {
       this.app.enable('trust proxy');
       this.server = http.Server(this.app);
       this.port = port;
-      this.io = new SocketServer(this.server, {
-        cors: {
-          origin: "*"
-        }
+      this.wss = new WebSocket.Server({ 
+        server: this.server,
+        maxPayload: 512 * 1024 * 1024
       });
-      this.io.on('connection', async (socket) => {
+      this.wss.on('connection', async (ws) => {
         try {
-          await this.setupWS(socket);
+          await this.setupWS(ws);
         } catch(e){
-  
+
         }
-      });
-      // this.wss = new WebSocket.Server({ 
-      //   server: this.server,
-      //   maxPayload: 512 * 1024 * 1024
-      // });
+      })
       this.conns = {};
       this.promises = {};
       this.groups = [];
@@ -139,7 +131,7 @@ try {
               const data = (await axios.get(url + "valoria/self-verification")).data;
               if(data.key == self.selfKey){
                 self.url = url;
-                await this.setup();
+                await self.setup();
               }
               self.verifyingSelf = false;
               self.selfKey = "";
@@ -226,83 +218,78 @@ try {
       return new Promise(async (res, rej) => {
         try {
           if(!url || url == self.url) return rej();
-          let connected = false;
-          setTimeout(() => {
-            if(!connected && !self.conns[url]?.connected) {
-              // if(self.conns[url]) self.conns[url].disconnect();
-              delete self.conns[url];
-              // return rej();
-            }
-          }, 5000)
           try {
             if(self.conns[url] && self.conns[url].connected){
-              connected = true;
-              return res();
+              if(!self.conns[url].isWS || self.conns[url].readyState === WebSocket.OPEN){
+                return res();
+              }
             } else {
-              if(!self.conns[url]) {
-                if(url.includes("valoria/peers/")){
-                  let originUrl = url.substring(0, url.indexOf("valoria/peers/"));
-                  let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
-                  await self.connectToServer(originUrl);
-                  console.log(self.url + " Connected to origin url " + originUrl)
-                  self.conns[url] = await new Promise(async (res, rej) => {
-                    self.promises["Connected to peer ws for " + url] = {res, rej};
-                    self.conns[originUrl].send(JSON.stringify({
-                      event: "Connect to peer ws",
-                      data: {
-                        id
-                      }
-                    }))
-                  })
-                  connected = true;
-                  return res();
-                } else {
-                  let wsUrl = "ws://" + new URL(url).host + "/"
-                  if(url.startsWith('https')){
-                    wsUrl = "wss://" + new URL(url).host + "/"
-                  }
-                  try {
-                    self.conns[url] = SocketClient(wsUrl);
-                    self.conns[url].Url = url;
-                    self.conns[url].on("connect", async () => {
-                      try {
-                        await self.setupWS(self.conns[url]);
-                        await new Promise(async(res, rej) => {
-                          self.promises["Url verified with " + url] = {res, rej};
-                          self.conns[url].send(JSON.stringify({
-                            event: "Verify url request",
-                            data: {
-                              url: self.url
-                            }
-                          }))
-                        })
-                        self.conns[url].connected = true;
-                        connected = true;
-                        return res();
-                      } catch (e){
-                        console.log(e)
-                        return res();
-                        // return rej(e);
-                      }
-                    })
-                    const engine = self.conns[url].io.engine;
-                    // engine.on("close", async (error) => {
-                    //   // console.log("COULD NOT CONNECT TO " + url);
-                    //   return rej(error);
-                    // });
-                  } catch(e){
-  
-                  }
+              // setTimeout(() => {
+              //   if(!connected && !self.conns[url]?.connected) {
+                  // if(self.conns[url]) self.conns[url].disconnect();
+                  // delete self.conns[url];
+                  // return rej();
+                // }
+              // }, 5000)
+              // if(self.conns[url]) delete self.conns[url];
+              if(url.includes("valoria/peers/")){
+                let originUrl = url.substring(0, url.indexOf("valoria/peers/"));
+                let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
+                await self.connectToServer(originUrl);
+                self.conns[url] = await new Promise(async (res, rej) => {
+                  self.promises["Connected to peer ws for " + url] = {res, rej};
+                  self.conns[originUrl].send(JSON.stringify({
+                    event: "Connect to peer ws",
+                    data: {
+                      id
+                    }
+                  }))
+                })
+                self.conns[url].connected = true;
+                return res();
+              } else {
+                let wsUrl = "ws://" + new URL(url).host + "/"
+                if(url.startsWith('https')){
+                  wsUrl = "wss://" + new URL(url).host + "/"
                 }
-              } 
+                try {
+                  self.conns[url] = new WebSocket(wsUrl);
+                  self.conns[url].Url = url;
+                  self.conns[url].onopen = async () => {
+                    try {
+                      await self.setupWS(self.conns[url]);
+                      await new Promise(async(res, rej) => {
+                        self.promises["Url verified with " + url] = {res, rej};
+                        self.conns[url].send(JSON.stringify({
+                          event: "Verify url request",
+                          data: {
+                            url: self.url
+                          }
+                        }))
+                      })
+                      self.conns[url].connected = true;
+                      return res();
+                    } catch (e){
+                      // console.log(e)
+                      return rej();
+                      // return rej(e);
+                    }
+                  }
+                  self.conns[url].onerror = (error) => {
+                    return rej();
+                  }
+                } catch(e){
+
+                }
+              }
             }
           } catch(e){
-            console.log(e);
-            console.log("line 301");
+            // console.log(e);
+            // console.log("line 301");
             return rej(e);
           }
         } catch(e){
-          console.log("line 305")
+          // console.log("line 305")
          return rej(e); 
         }
       })
@@ -558,22 +545,26 @@ try {
           for(let i=0;i<members.length;i++){
             try {
               d = await new Promise(async (res, rej) => {
-                await self.connectToServer(members[i]);
-                const now = self.now();
-                if(self.promises["Got data from " + members[i] + " for " + path + " at " + now]) return res();
-                self.promises["Got data from " + members[i] + " for " + path + " at " + now] = {res, rej};
-                self.conns[members[i]].send(JSON.stringify({
-                  event: "Get",
-                  data: {
-                    path,
-                    group: self.group.index,
-                    now,
-                  }
-                }))
+                try {
+                  await self.connectToServer(members[i]);
+                  const now = self.now();
+                  if(self.promises["Got data from " + members[i] + " for " + path + " at " + now]) return res();
+                  self.promises["Got data from " + members[i] + " for " + path + " at " + now] = {res, rej};
+                  self.conns[members[i]].send(JSON.stringify({
+                    event: "Get",
+                    data: {
+                      path,
+                      group: self.group.index,
+                      now,
+                    }
+                  }))
+                } catch(e){
+                  console.log(e)
+                }
               })
               if(d) return res(d);
             } catch(e){
-
+              console.log(e);
             }
           }     
           return res();  
@@ -1546,7 +1537,7 @@ try {
             self.sync = self.nextSync;
             self.nextSync += self.syncIntervalMs;
             self.saving[self.sync] = {};
-    
+            
             //VALOR TESTS
             if(self.url == 'http://localhost:3000/' || self.url.startsWith('https')){
               for(let i=0;i<self.groups.length;i++){
@@ -1938,11 +1929,7 @@ try {
       const self = this;
       return new Promise(async(res, rej) => {
         if(!ws) return rej();
-        ws.send = async (msg) => {
-          ws.emit("message", msg);
-        }
-        ws.on('disconnect', async () => {
-          console.log(ws.Url + " Has disconnected"); 
+        ws.on('close', async () => {
           try {
             if(self.conns[ws.Url]?.dimension && self.dimensions[ws.dimension]){
               delete self.dimensions[ws.dimension].conns[ws.Url];
@@ -2325,6 +2312,7 @@ try {
           const key = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
           if(key == self.verifying[ws.verifyingUrl]){
             ws.Url = ws.verifyingUrl;
+            ws.connected = true;
             self.conns[ws.Url] = ws;
             ws.send(JSON.stringify({
               event: "Url verified",
@@ -2405,6 +2393,7 @@ try {
           ws.Url = url;
           ws.peerId = data.id;
           ws.originUrl = self.url;
+          ws.connected = true;
           self.conns[url] = ws;
           ws.send(JSON.stringify({
             event: "Origin url set",
