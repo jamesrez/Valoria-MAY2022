@@ -11,6 +11,7 @@ const WebSocket = require('ws');
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const res = require('express/lib/response');
+const pug = require('pug');
 
 try {
   function getDirContents(dir, results=[]){
@@ -207,6 +208,7 @@ try {
       app.set('view engine', 'pug');
       app.get('/', async (req, res) => {
         res.render('index')
+        
       })
       app.get('/valoria/self-verification', async(req, res) => {
         res.send({key: self.selfKey});

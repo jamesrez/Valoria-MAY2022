@@ -15,6 +15,7 @@
 
 const subtle = window.crypto.subtle;
 const initialServers = window.location.hostname == "localhost" ? ['http://localhost:3000/', 'http://localhost:3001/'] : [
+// const initialServers = [
   "https://www.valoria.live/",
   "https://valoria-1.onrender.com/"
 ];
@@ -120,10 +121,10 @@ class Valoria {
         self.public.url = self.url;
         await self.joinGroup();
         await self.syncTimeWithNearby();
+        self.onJoin();
         await self.syncGroupData();
         await self.shareSelfPublic();
         // setup = true;
-        self.onJoin();
         res();
       } catch(e){
         console.log(e)
