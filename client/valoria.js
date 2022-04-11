@@ -4400,6 +4400,7 @@ class Valoria {
           return;
         }
         self.peers[url].isSRDAnswerPending = description.type == 'answer';
+        if(self.peers[url].datachannel && self.peers[url].datachannel.connected) return;
         await self.peers[url].setRemoteDescription(description);
         self.peers[url].isSRDAnswerPending = false;
         if (description.type == "offer") {
