@@ -120,8 +120,8 @@ class Valoria {
         self.originUrl = originUrl;
         self.public.url = self.url;
         await self.joinGroup();
-        await self.syncTimeWithNearby();
         self.onJoin();
+        await self.syncTimeWithNearby();
         await self.syncGroupData();
         await self.shareSelfPublic();
         // setup = true;
@@ -4300,7 +4300,7 @@ class Valoria {
     const url = data.url;
     const polite = data.polite;
     if(self.peers[url] && self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open") return;
-    if(self.peers[url] && description.type == "offer") delete self.peers[url];
+    if(self.peers[url] && description.type == "offer" && !self.peers[url]?.datachannel?.open) delete self.peers[url];
     if(!self.peers[url]){
       self.peers[url] = new RTCPeerConnection({iceServers});
       self.peers[url].onStream = self.peers[url].onStream || (() => {});
