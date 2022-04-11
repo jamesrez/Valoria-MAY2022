@@ -532,6 +532,7 @@ try {
     get = async (path, opts={notLocal: false}) => {
       const self = this;
       return new Promise(async(res, rej) => {
+        if(!self.group) return res();
         try {
           const groupIndex = jumpConsistentHash(path, self.groups.length);
           // if(groupIndex == self.group.index){
