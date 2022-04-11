@@ -125,7 +125,7 @@ try {
       //   this.url = 'http://localhost:' + port + "/";
       // } else {
         this.app.use(async (req, res, next) => {
-          if(!self.url && !self.verifyingSelf && (isLocal || !req.get('host').startsWith('localhost'))){
+          if(!self.url && !self.verifyingSelf && (isLocal || !req.get('host').startsWith('localhost')) && !self.isSetup){
             self.verifyingSelf = true;
             try {
               let url = req.protocol + "://" + req.get('host') + "/";
