@@ -4336,7 +4336,7 @@ class Valoria {
     const url = data.url;
     const polite = data.polite;
     if(self.peers[url] && self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open" || !description) return;
-    if(self.peers[url] && description.type == "offer") delete self.peers[url];
+    if(self.peers[url] && description.type == "offer"  && self.peers[url].signalingState !== "stable") delete self.peers[url];
     if(!self.peers[url]){
       self.peers[url] = new RTCPeerConnection({iceServers});
       self.peers[url].onStream = self.peers[url].onStream || (() => {});
@@ -4394,8 +4394,10 @@ class Valoria {
     }
     try {
       if (description) {
-        const offerCollision = (description.type == "offer") &&
-                             (self.peers[url].makingOffer || self.peers[url].signalingState != "stable");
+        const readyForOffer =
+          !self.peers[url].makingOffer &&
+          (self.peers[url].signalingState == "stable" || self.peers[url].isSRDAnswerPending);
+        const offerCollision = description.type == "offer" && !readyForOffer;
         let ignoreOffer = !polite && offerCollision;
         if (ignoreOffer) {
           return;
