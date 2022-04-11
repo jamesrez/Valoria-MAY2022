@@ -3837,7 +3837,7 @@ class Valoria {
           let d = await self.get("ledgers/" + data.id + ".json");
           if(!d || !d.data) d = {
             data: {
-              paths: {},
+              paths: [],
               for: data.id,
             },
             sigs: {}
