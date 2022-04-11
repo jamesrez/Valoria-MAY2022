@@ -12,6 +12,7 @@ const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const res = require('express/lib/response');
 const pug = require('pug');
+const { stringify } = require('querystring');
 
 try {
   function getDirContents(dir, results=[]){
@@ -944,8 +945,8 @@ try {
               startClaims.push(data.start);
               syncClaims.push(data.sync);
               if(groups.flat().length >= self.groups.flat().length){
-                self.groups = new Array(...groups);
-                self.syncGroups = new Array(...groups);
+                self.groups =  groups
+                self.syncGroups = groups
               }
               used.push(url);
               servers = self.groups.flat();
@@ -978,7 +979,7 @@ try {
           let willCreateGroup = true;
           while(groups.length > 0 && !self.group){
             const gIndex = groups.length * Math.random() << 0
-            const group = groups[gIndex];
+            const group = JSON.parse(JSON.stringify(groups[gIndex]));
             const url = group[group.length * Math.random() << 0];
             groups.splice(gIndex, 1);
             try {
@@ -1545,6 +1546,7 @@ try {
             if(self.url == 'http://localhost:3000/' || self.url.startsWith('https')){
               for(let i=0;i<self.groups.length;i++){
                 for(let j=0;j<self.groups[i]?.length;j++){
+                  if(!self.groups[i] || !self.groups[i][j]) continue;
                   try {
                     const valor = await self.calculateValor(self.groups[i][j]);
                     console.log(`${self.groups[i][j]} Valor: ${valor}`);
@@ -1988,13 +1990,13 @@ try {
               }
             }
           } catch(e){
-            try {
-              delete self.conns[ws.Url];
-              ws.Url = "";
-              ws.terminate();
-            } catch(e){
+            // try {
+            //   delete self.conns[ws.Url];
+            //   ws.Url = "";
+            //   ws.terminate();
+            // } catch(e){
   
-            }
+            // }
           }
         })
         ws.on('message', async (d) => {
@@ -2769,12 +2771,16 @@ try {
             self.groups.push(data.group.members);
             if(self.canCreate && self.canCreate == data.index) self.canCreate = null;
             for(let i=0;i<self.group.members.length;i++){
-              if(self.group.members[i] == self.url) continue;
-              await self.connectToServer(self.group.members[i]);
-              self.conns[self.group.members[i]].send(JSON.stringify({
-                event: "New group",
-                data
-              }))
+              try {
+                if(self.group.members[i] == self.url) continue;
+                await self.connectToServer(self.group.members[i]);
+                self.conns[self.group.members[i]].send(JSON.stringify({
+                  event: "New group",
+                  data
+                }))
+              } catch(e){
+
+              }
             }
             if(self.group.index > 0 && self.groups[self.group.index - 1]){
               const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
@@ -2793,7 +2799,7 @@ try {
             ws.send(JSON.stringify({
               event: "New group found",
               data: {success: true}
-            }))
+            }));
           }
         } catch(e){
           console.log(e)
@@ -3940,15 +3946,19 @@ try {
             g.splice(g.indexOf(self.url), 1);
             if(g.length > 0){
               const url = g[g.length * Math.random() << 0];
-              await this.connectToServer(url);
               self.dimensions[id].conns = await new Promise(async (res, rej) => {
-                self.promises["Got peers in group dimension " + id + " from " + url] = {res, rej};
-                self.conns[url].send(JSON.stringify({
-                  event: "Get peers in group dimension",
-                  data: {
-                    id
-                  }
-                }))
+                try {
+                  await this.connectToServer(url);
+                  self.promises["Got peers in group dimension " + id + " from " + url] = {res, rej};
+                  self.conns[url].send(JSON.stringify({
+                    event: "Get peers in group dimension",
+                    data: {
+                      id
+                    }
+                  }))
+                } catch(e){
+                  console.log()
+                }
               });
             }
           }
@@ -3965,25 +3975,33 @@ try {
             }))
           }
           for(let i=0;i<self.group.members.length;i++){
-            if(self.url == self.group.members[i]) continue;
-            await self.connectToServer(self.group.members[i]);
-            self.conns[self.group.members[i]]?.send(JSON.stringify({
-              event: "New peer in group dimension",
-              data: {
-                url: ws.Url,
-                dimension: id
-              }
-            }))
+            try {
+              if(self.url == self.group.members[i]) continue;
+              await self.connectToServer(self.group.members[i]);
+              self.conns[self.group.members[i]]?.send(JSON.stringify({
+                event: "New peer in group dimension",
+                data: {
+                  url: ws.Url,
+                  dimension: id
+                }
+              }))
+            } catch(e){
+
+            }
           }
           for(let i=0;i<peers.length;i++){
-            await self.connectToServer(peers[i]);
-            self.conns[peers[i]]?.send(JSON.stringify({
-              event: "New peer in dimension",
-              data: {
-                url: ws.Url,
-                dimension: id
-              }
-            }));
+            try {
+              await self.connectToServer(peers[i]);
+              self.conns[peers[i]]?.send(JSON.stringify({
+                event: "New peer in dimension",
+                data: {
+                  url: ws.Url,
+                  dimension: id
+                }
+              }));
+            } catch(e){
+
+            }
           }
         } catch(e){
           console.log()

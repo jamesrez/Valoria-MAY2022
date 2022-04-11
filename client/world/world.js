@@ -1,3 +1,4 @@
+THREE.Cache.enabled = true;
 const scene = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer();
 const GLTFLoader = new THREE.GLTFLoader();
@@ -13,19 +14,86 @@ const peerAvatars = {};
 
 const clock = new THREE.Clock();
 
-async function loadModel(url){
+
+const cloneGltf = (gltf) => {
+  const clone = {
+    animations: gltf.animations,
+    scene: gltf.scene.clone(true)
+  };
+
+  const skinnedMeshes = {};
+
+  gltf.scene.traverse(node => {
+    if (node.isSkinnedMesh) {
+      skinnedMeshes[node.name] = node;
+    }
+  });
+
+  const cloneBones = {};
+  const cloneSkinnedMeshes = {};
+
+  clone.scene.traverse(node => {
+    if (node.isBone) {
+      cloneBones[node.name] = node;
+    }
+
+    if (node.isSkinnedMesh) {
+      cloneSkinnedMeshes[node.name] = node;
+    }
+  });
+
+  for (let name in skinnedMeshes) {
+    const skinnedMesh = skinnedMeshes[name];
+    const skeleton = skinnedMesh.skeleton;
+    const cloneSkinnedMesh = cloneSkinnedMeshes[name];
+
+    const orderedCloneBones = [];
+
+    for (let i = 0; i < skeleton.bones.length; ++i) {
+      const cloneBone = cloneBones[skeleton.bones[i].name];
+      orderedCloneBones.push(cloneBone);
+    }
+
+    cloneSkinnedMesh.bind(
+        new THREE.Skeleton(orderedCloneBones, skeleton.boneInverses),
+        cloneSkinnedMesh.matrixWorld);
+  }
+
+  return clone.scene;
+}
+
+
+let models = {};
+async function loadModel(url, opts={clone: true}){
   return new Promise(async (res, rej) => {
-    GLTFLoader.load(url, (gltf) => {
-      scene.add(gltf.scene);
-      gltf.scene.traverse((node) => {
+    // if(!models[url]) m
+    if(models[url] && opts.clone){
+      let model = cloneGltf(models[url])
+      scene.add(model);
+      model.traverse((node) => {
         if(node.isMesh){
           node.frustumCulled = false;
         }
       })
-      gltf.scene.animations = gltf.animations;
-      gltf.scene.mixer = new THREE.AnimationMixer(gltf.scene);
-      res(gltf.scene);
-    });
+      model.animations = models[url].animations;
+      model.mixer = new THREE.AnimationMixer(model);
+      res(model);
+    } else {
+      GLTFLoader.load(url, (gltf) => {
+        scene.add(gltf.scene);
+        gltf.scene.traverse((node) => {
+          if(node.isMesh){
+            node.frustumCulled = false;
+          }
+        })
+        gltf.scene.animations = gltf.animations;
+        gltf.scene.mixer = new THREE.AnimationMixer(gltf.scene);
+        if(opts.clone){
+          models[url] = gltf;
+        }
+        res(gltf.scene);
+      });
+    }
   })
 }
 
@@ -68,7 +136,7 @@ let avatarIK;
 let leftController;
 let rightController;
 (async () => {
-  avatar = await loadModel('assets/default.glb');
+  avatar = await loadModel('assets/default.glb', {clone: false});
   // avatar.traverse((node) => {
   //   if(node.isMesh){
   //     node.frustumCulled = true;
@@ -110,6 +178,22 @@ let rightController;
   avatar.attach(leftController);
   avatar.attach(rightController);
   avatarIK = new IKVR(avatar, leftController, rightController);
+
+  // for(let i=0;i<200;i++){
+  //   let p = await loadModel("assets/default.glb");
+  //   console.log(p);
+  //   setModelAction(p, p.mixer.clipAction(p.animations[3]));
+  //   p.position.x = Math.random() * ((avatar.position.x + 5) - (avatar.position.x - 5) + 1) + (avatar.position.x - 5);
+  //   if(Math.abs(p.position.z - avatar.position.z) < 1.5 || Math.abs(p.position.x - avatar.position.x) < 1.5){
+  //     if(Math.random() >= 0.5){
+  //       p.position.z <= avatar.position.z ? p.position.z -= 1.5 : p.position.z += 1.5;
+  //     } else {
+  //       p.position.x <= avatar.position.x ? p.position.x -= 1.5 : p.position.x += 1.5;
+  //     }
+  //   }
+  //   p.position.z = Math.random() * ((avatar.position.z - 10) - (avatar.position.z + 10) + 1) + (avatar.position.z + 10);
+  // }
+
   // test = await loadModel('assets/default.glb');
   // test.position.x = 1;
   // test.position.y = 0.1;
@@ -347,7 +431,7 @@ function handleObjectsMoving(){
 
 async function addPeerToScene(id){
   if(peerAvatars[id]) return;
-  peerAvatars[id] = await loadModel('assets/default.glb');
+  peerAvatars[id] = await loadModel('assets/default.glb', {clone: false});
   peerAvatars[id].name = "Avatar";
   // peerAvatars[id].sound = new THREE.PositionalAudio(listener);
   setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
@@ -512,7 +596,7 @@ let spawningPalms = true;
 let ogPalm;
 async function palmTreeSpawn(){
   while(palms.length < 125){
-    const palm = palms[0]?.clone() || await loadModel("assets/palm/QueenPalmTree.gltf");
+    const palm = await loadModel("assets/palm/QueenPalmTree.gltf");
     if(!palm.parent) scene.add(palm);
     palm.scale.x = 0.6;
     palm.scale.y = 0.6;
@@ -532,8 +616,7 @@ palmTreeSpawn();
 
 async function palmTrees(){
   if(palms.length < 125 && !spawningPalms){
-    const palm = palms[0]?.clone() || await loadModel("assets/palm/QueenPalmTree.gltf");
-    if(!palm.parent) scene.add(palm);
+    const palm = await loadModel("assets/palm/QueenPalmTree.gltf");
     palm.scale.x = 0.6;
     palm.scale.y = 0.6;
     palm.scale.z = 0.6;
@@ -552,9 +635,10 @@ async function palmTrees(){
 
   palms = palms.filter((p) => {
     if(p.position.z - avatar.position.z <= 50){
-      return p
+      return true;
     } else {
       p.clear();
+      return false;
     }
   });
   

@@ -21,8 +21,6 @@ window.onload = async () => {
 }
 
 valoria.onJoin = async () => {
-  // console.log("SIGNED IN!");
-  // page.style.display = "none";
   let valorInterval = setInterval(async () => {
     try {
       const valor = await valoria.calculateValor(valoria.id);
@@ -40,9 +38,9 @@ valoria.onJoin = async () => {
   }
   await valoria.joinDimension("Valoria"); 
   console.log("joined dimension: " + valoria.dimension.id)
-
 }
 
+valoria.loadCredentials();
 // function playMusic(){
 //   document.querySelector("#radio").play();
 // }
