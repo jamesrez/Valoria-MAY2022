@@ -3968,7 +3968,7 @@ class Valoria {
         const groupIndex = jumpConsistentHash(id, self.groups.length);
         const group = self.groups[groupIndex];
         const url = group[group.length * Math.random() << 0];
-        if(self.group.index !== groupIndex){
+        if(self.group?.index !== groupIndex){
           await self.connectToServer(url);
           self.promises["Joined " + id + " dimension"] = {res, rej};
           self.conns[url].send(JSON.stringify({
@@ -3995,6 +3995,7 @@ class Valoria {
   handleJoinDimension(ws, data){
     const self = this;
     return new Promise(async( res, rej) => {
+      if(!self.group) rej();
       try {
         const id = data.id;
         if(!self.dimensions[id]) {
