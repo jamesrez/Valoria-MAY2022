@@ -1389,26 +1389,25 @@ try {
           for(let i=0;i<paths.length;i++){
             try {
               if(paths[i].startsWith("data/") || paths[i].startsWith("public/")){
-                const v = self.saving[self.sync][`all/valor/${self.id}/${paths[i]}`] || await self.get(`valor/${self.id}/${paths[i]}`);
+                const v = await self.get(`valor/${id}/${paths[i]}`);
                 if(!v || !v.data || !v.data.spaceTime) continue;
                 for(let j=0;j<v.data.spaceTime.length;j++){
                   const duration = Math.abs(v.data.spaceTime[j][2] ? (v.data.spaceTime[j][2] - v.data.spaceTime[j][1]) : (self.nextSync - v.data.spaceTime[j][1]));
-                  const amount = 0.001 * (((v.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                  const amount = 1 * (((v.data.spaceTime[j][0] / 10000) * (duration / 1000000000 )) + (duration * 0.0000000005));
                   addSize += amount;
                   valor += amount;
                 }
               } else if(paths[i].startsWith("requests/")){
-                const r = self.saving[self.sync][`all/${paths[i]}`] || await self.get(paths[i]);
+                const r = await self.get(paths[i]);
                 if(!r || !r.data || !r.data.spaceTime) continue;
                 for(let j=0;j<r.data.spaceTime.length;j++){
                   const duration = Math.abs(r.data.spaceTime[j][2] ? (r.data.spaceTime[j][2] - r.data.spaceTime[j][1]) : (self.nextSync - r.data.spaceTime[j][1]));
-                  const amount = -0.00320 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000 )) + (duration * 0.0000000005));
+                  const amount = -3.20 * (((r.data.spaceTime[j][0] / 10000) * (duration / 1000000000 )) + (duration * 0.0000000005));
                   minusSize += amount;
                   valor += amount;
                 }
               }
             } catch(e){
-              console.log(e);
               continue;
             }
           }

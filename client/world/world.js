@@ -430,79 +430,53 @@ function handleObjectsMoving(){
 }
 
 async function addPeerToScene(id){
-  if(peerAvatars[id]) return;
-  peerAvatars[id] = await loadModel('assets/default.glb', {clone: false});
-  peerAvatars[id].name = "Avatar";
-  // peerAvatars[id].sound = new THREE.PositionalAudio(listener);
-  setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
-  valoria.conns[id]?.on("Movement", (data) => {
-    if(
-      Math.abs(data.position.x - peerAvatars[id].position.x) < 0.01 &&
-      // Math.abs(data.position.y - peerAvatars[id].position.y) < 0.1 ||
-      Math.abs(data.position.z - peerAvatars[id].position.z) < 0.01
-    ) {
-      setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
-    } else {
-      setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[3]));
-    }
-    objsMoving[id] = {
-      entity: peerAvatars[id],
-      data
-    }
-  })
-  valoria.peers[id].onStream = (stream) => { 
-    // document.getElementById('song').play();
-    if(peerAvatars[id].audio) {
-      peerAvatars[id].audio.remove();
-    }
-    let audio = document.createElement('audio');
-    world.append(audio);
-    // let audio = new Audio("assets/Raven_DigitalSunlight.mp3");
-    // // audio.id = "audio-" + id;
-    // audio.loop = true;
-    // audio.preload = "auto";
-    let audioStream = new MediaStream();
-    stream.getAudioTracks().forEach(track => audioStream.addTrack(track));
-    try {
-      audio.srcObject = audioStream;
-    } catch(e) {
-      audio.src = URL.createObjectURL(audioStream);
-    }
-    peerAvatars[id].audio = audio;
-    audio.play()
+  if(peerAvatars[id] || id == valoria.url) return;
+  try {
+    peerAvatars[id] = await loadModel('assets/default.glb', {clone: false});
+    peerAvatars[id].name = "Avatar";
     // peerAvatars[id].sound = new THREE.PositionalAudio(listener);
-    // peerAvatars[id].add(peerAvatars[id].sound);
-    // peerAvatars[id].sound.setMaxDistance(20)
-    // peerAvatars[id].sound.setMediaElementSource(audio)
+    setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
+    valoria.conns[id]?.on("Movement", (data) => {
+      if(
+        Math.abs(data.position.x - peerAvatars[id].position.x) < 0.01 &&
+        // Math.abs(data.position.y - peerAvatars[id].position.y) < 0.1 ||
+        Math.abs(data.position.z - peerAvatars[id].position.z) < 0.01
+      ) {
+        setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
+      } else {
+        setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[3]));
+      }
+      objsMoving[id] = {
+        entity: peerAvatars[id],
+        data
+      }
+    })
+    valoria.peers[id].onStream = (stream) => { 
+      // document.getElementById('song').play();
+      if(peerAvatars[id].audio) {
+        peerAvatars[id].audio.remove();
+      }
+      let audio = document.createElement('audio');
+      world.append(audio);
+      // let audio = new Audio("assets/Raven_DigitalSunlight.mp3");
+      // // audio.id = "audio-" + id;
+      // audio.loop = true;
+      // audio.preload = "auto";
+      let audioStream = new MediaStream();
+      stream.getAudioTracks().forEach(track => audioStream.addTrack(track));
+      try {
+        audio.srcObject = audioStream;
+      } catch(e) {
+        audio.src = URL.createObjectURL(audioStream);
+      }
+      peerAvatars[id].audio = audio;
+      audio.play()
+    };
+    if(valoria.peers[id].stream){
+      valoria.peers[id].onStream(valoria.peers[id].stream);
+    }
+  } catch(e){
 
-    // audio.src = 
-    // let audioStream = new MediaStream()
-    // let aTracks = stream.getAudioTracks();
-    // for(let i=0;i<aTracks.length;i++){
-    //   audioStream.addTrack(aTracks[i]);
-    // }
-    // let source = new AudioContext().createMediaStreamSource(audioStream);
-
-    // world.appendChild(audio);
-    // audio.play();
-    // peerAvatars[id].sound.autoplay = true;
-    // peerAvatars[id].sound.loop = true;
-    // peerAvatars[id].sound.setRefDistance(1);
-    // peerAvatars[id].sound.setRolloffFactor(1);
-    // peerAvatars[id].sound.setDistanceModel("exponential")
-    // peerAvatars[id].sound.setRolloffFactor(10);
-    // peerAvatars[id].sound.setDirectionalCone(180, 230, 0.1);
-    
-
-
-    // peerAvatars[id].audio = audio;
-
-    // audio.pause();
-    // peerAvatars[id].sound.setDirectionalCone(180, 230, 0.1);
-
-  };
-  if(valoria.peers[id].stream){
-    valoria.peers[id].onStream(valoria.peers[id].stream);
   }
 }
 
