@@ -179,6 +179,8 @@ let rightController;
   avatar.attach(rightController);
   avatarIK = new IKVR(avatar, leftController, rightController);
 
+  palmTreeSpawn();
+
   // for(let i=0;i<200;i++){
   //   let p = await loadModel("assets/default.glb");
   //   console.log(p);
@@ -585,8 +587,6 @@ async function palmTreeSpawn(){
   }
   spawningPalms = false;
 }
-
-palmTreeSpawn();
 
 async function palmTrees(){
   if(palms.length < 125 && !spawningPalms){
