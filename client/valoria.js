@@ -4417,19 +4417,21 @@ class Valoria {
         if (ignoreOffer) {
           return;
         }
-        self.peers[url].isSRDAnswerPending = description.type == 'answer';
         if(self.peers[url].datachannel && self.peers[url].datachannel.connected) return;
-        await self.peers[url].setRemoteDescription(description);
-        self.peers[url].isSRDAnswerPending = false;
-        if (description.type == "offer") {
-          await self.peers[url].setLocalDescription();
-          ws.send(JSON.stringify({
-            event: "Send rtc description",
-            data: {
-              desc: self.peers[url].localDescription,
-              url
-            }
-          }));
+        if(description.type == "offer" || (description.type == "answer" && self.peers[url].signalingState !== "stable")){
+          self.peers[url].isSRDAnswerPending = description.type == 'answer';
+          await self.peers[url].setRemoteDescription(description);
+          self.peers[url].isSRDAnswerPending = false;
+          if (description.type == "offer") {
+            await self.peers[url].setLocalDescription();
+            ws.send(JSON.stringify({
+              event: "Send rtc description",
+              data: {
+                desc: self.peers[url].localDescription,
+                url
+              }
+            }));
+          }
         }
       }
     } catch(err) {
