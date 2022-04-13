@@ -1774,14 +1774,11 @@ class Valoria {
           }
         }
         const gIndices = Object.keys(groups);
-        console.log("Getting new group data");
         for(let j=0;j<gIndices.length;j++){
           try { 
             const paths = groups[gIndices[j]];
             const url = self.groups[gIndices[j]][self.groups[gIndices[j]].length * Math.random() << 0];
-            console.log("connecting to " + url);
             await self.connectToServer(url);
-            console.log("getting data from " + url);
             await new Promise(async (res, rej) => {
               self.promises["Group " + self.group.index + " data taken over from " + url] = {res, rej}
               self.conns[url].send(JSON.stringify({
@@ -1793,7 +1790,6 @@ class Valoria {
                 }
               }))
             });
-            console.log("Got the data");
             const groupIndices = Object.keys(self.pastPaths);
             for(let k=0;k<groupIndices.length;k++){
               if(Math.abs(groupIndices[k] - self.groups.length) >= 2){

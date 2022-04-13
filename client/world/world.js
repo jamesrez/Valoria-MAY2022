@@ -18,46 +18,46 @@ const clock = new THREE.Clock();
 const cloneGltf = (gltf) => {
   const clone = {
     animations: gltf.animations,
-    scene: gltf.scene.clone(true)
+    scene: gltf.scene.clone()
   };
 
   const skinnedMeshes = {};
 
-  gltf.scene.traverse(node => {
-    if (node.isSkinnedMesh) {
-      skinnedMeshes[node.name] = node;
-    }
-  });
+  // gltf.scene.traverse(node => {
+  //   if (node.isSkinnedMesh) {
+  //     skinnedMeshes[node.name] = node;
+  //   }
+  // });
 
-  const cloneBones = {};
-  const cloneSkinnedMeshes = {};
+  // const cloneBones = {};
+  // const cloneSkinnedMeshes = {};
 
-  clone.scene.traverse(node => {
-    if (node.isBone) {
-      cloneBones[node.name] = node;
-    }
+  // clone.scene.traverse(node => {
+  //   if (node.isBone) {
+  //     cloneBones[node.name] = node;
+  //   }
 
-    if (node.isSkinnedMesh) {
-      cloneSkinnedMeshes[node.name] = node;
-    }
-  });
+  //   // if (node.isSkinnedMesh) {
+  //   //   cloneSkinnedMeshes[node.name] = node;
+  //   // }
+  // });
 
-  for (let name in skinnedMeshes) {
-    const skinnedMesh = skinnedMeshes[name];
-    const skeleton = skinnedMesh.skeleton;
-    const cloneSkinnedMesh = cloneSkinnedMeshes[name];
+  // for (let name in skinnedMeshes) {
+  //   const skinnedMesh = skinnedMeshes[name];
+  //   const skeleton = skinnedMesh.skeleton;
+  //   const cloneSkinnedMesh = cloneSkinnedMeshes[name];
 
-    const orderedCloneBones = [];
+  //   const orderedCloneBones = [];
 
-    for (let i = 0; i < skeleton.bones.length; ++i) {
-      const cloneBone = cloneBones[skeleton.bones[i].name];
-      orderedCloneBones.push(cloneBone);
-    }
+  //   for (let i = 0; i < skeleton.bones.length; ++i) {
+  //     const cloneBone = cloneBones[skeleton.bones[i].name];
+  //     orderedCloneBones.push(cloneBone);
+  //   }
 
-    cloneSkinnedMesh.bind(
-        new THREE.Skeleton(orderedCloneBones, skeleton.boneInverses),
-        cloneSkinnedMesh.matrixWorld);
-  }
+  //   cloneSkinnedMesh.bind(
+  //       new THREE.Skeleton(orderedCloneBones, skeleton.boneInverses),
+  //       cloneSkinnedMesh.matrixWorld);
+  // }
 
   return clone.scene;
 }
@@ -66,19 +66,7 @@ const cloneGltf = (gltf) => {
 let models = {};
 async function loadModel(url, opts={clone: true}){
   return new Promise(async (res, rej) => {
-    // if(!models[url]) m
-    if(models[url] && opts.clone){
-      let model = cloneGltf(models[url])
-      scene.add(model);
-      model.traverse((node) => {
-        if(node.isMesh){
-          node.frustumCulled = false;
-        }
-      })
-      model.animations = models[url].animations;
-      model.mixer = new THREE.AnimationMixer(model);
-      res(model);
-    } else {
+    if(!models[url] || opts.clone == false){
       GLTFLoader.load(url, (gltf) => {
         scene.add(gltf.scene);
         gltf.scene.traverse((node) => {
@@ -92,7 +80,19 @@ async function loadModel(url, opts={clone: true}){
           models[url] = gltf;
         }
         res(gltf.scene);
-      });
+      })
+    }
+    if(models[url] && opts.clone){
+      let model = cloneGltf(models[url])
+      scene.add(model);
+      model.traverse((node) => {
+        if(node.isMesh){
+          node.frustumCulled = false;
+        }
+      })
+      model.animations = models[url].animations;
+      model.mixer = new THREE.AnimationMixer(model);
+      res(model);
     }
   })
 }
@@ -605,18 +605,11 @@ async function palmTrees(){
 
   for(let i=0;i<palms.length;i++){
     palms[i].position.z += 0.04;
-  }
-
-  palms = palms.filter((p) => {
-    if(p.position.z - avatar.position.z <= 50){
-      return true;
+    if(palms[i].position.z - avatar.position.z <= 50){
     } else {
-      p.clear();
-      return false;
+      palms[i].position.z = Math.random() * ((avatar.position.z - 70) - (avatar.position.z - 90) + 1) + (avatar.position.z - 90);
     }
-  });
-  
-
+  }
 }
 
 
