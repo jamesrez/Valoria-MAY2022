@@ -121,8 +121,11 @@ class Valoria {
         await self.joinGroup();
         self.onJoin();
         await self.syncTimeWithNearby();
+        console.log("syncing group data")
         await self.syncGroupData();
+        console.log("sharing self public")
         await self.shareSelfPublic();
+        console.log("Fully setup and connected to network")
         // setup = true;
         res();
       } catch(e){
@@ -408,7 +411,7 @@ class Valoria {
                   }
                 }))
               } catch(e){
-
+                
               }
             })
             if(d) return res(d);
@@ -1715,11 +1718,15 @@ class Valoria {
         if(group.length == 0) return res();
         const url = group[group.length * Math.random << 0];
         const paths = await new Promise(async (res, rej) => {
-          await self.connectToServer(url);
-          self.promises[`Got group paths from ${url}`] = {res, rej};
-          self.conns[url].send(JSON.stringify({
-            event: "Get group paths",
-          }))
+          try {
+            await self.connectToServer(url);
+            self.promises[`Got group paths from ${url}`] = {res, rej};
+            self.conns[url].send(JSON.stringify({
+              event: "Get group paths",
+            }))
+          } catch(e){
+
+          }
         });
         let dataPaths = [];
         for(let i=0;i<paths.length;i++){
@@ -1728,7 +1735,9 @@ class Valoria {
               dataPaths.push(paths[i]);
             }
             const d = await self.get(paths[i], {notLocal: true});
-            await self.setLocal("all/" + paths[i], d);
+            if(d){
+              await self.setLocal("all/" + paths[i], d);
+            }
           } catch(e){
             continue;
           }

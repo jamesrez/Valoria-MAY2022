@@ -656,7 +656,7 @@ try {
           if(groupIndex == self.group.index){
             const r = await self.getLocal(`all/requests/${self.id}/${path}`);
             if(r && r.data){
-              if(r.data?.for == request.data.for) {
+              if(r.data.for == request.data.for) {
                 try {
                   await self.verify(JSON.stringify(data), Buffer.from(r.data?.data, "base64"), self.ECDSA.publicKey);
                   return rej() //REQUEST ALREADY CREATED
