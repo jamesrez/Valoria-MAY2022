@@ -1638,7 +1638,7 @@ class Valoria {
 
               }
             }).catch((e) => {
-              throw e;
+              // throw e;
             })
           } catch(e){
             continue;
