@@ -1,12 +1,13 @@
 {
   "name": "valoria",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/main.js",
   "engines": {
     "node": ">=15.14.0",
     "npm": ">= 4.4.0"
   },
+  "engineStrict": true,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js"
