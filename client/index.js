@@ -40,8 +40,12 @@ valoria.onJoin = async () => {
   valoria.dimension.onPeerLeave = (id) => {
     removePeerFromScene(id);
   }
-  await valoria.joinDimension("Valoria"); 
-  console.log("joined dimension: " + valoria.dimension.id)
+  try {
+    await valoria.joinDimension("Valoria"); 
+    console.log("joined dimension: " + valoria.dimension.id)
+  } catch(e){
+
+  }
 }
 
 valoria.loadCredentials();
