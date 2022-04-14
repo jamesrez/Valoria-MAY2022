@@ -95,14 +95,14 @@ try {
     
     setup = async () => {
       const self = this;
+      self.isSetup = false;
       return new Promise(async (res, rej) => {
-        // let setup = false;
-        //   setTimeout(async () => {
-        //     if(!setup){
-        //       await self.setup();
-        //       return;
-        //     }
-        //   }, 3000)
+        setTimeout(async () => {
+          if(!self.isSetup){
+            await self.setup();
+            return;
+          }
+        }, 5000)
         try {
           await self.reset();
           if(!self.id || !self.ecdsa.publicKey) return rej();
@@ -120,14 +120,14 @@ try {
           self.originUrl = originUrl;
           self.public.url = self.url;
           await self.joinGroup();
-          self.onJoin();
           await self.syncTimeWithNearby();
           console.log("syncing group data")
           await self.syncGroupData();
-          console.log("sharing self public")
           await self.shareSelfPublic();
+          self.onJoin();
+          console.log("sharing self public")
           console.log("Fully setup and connected to network")
-          // setup = true;
+          self.isSetup = true;
           res();
         } catch(e){
           console.log(e)
@@ -396,6 +396,7 @@ try {
           if(members.length == 0) return res();
           let d;
           for(let i=0;i<members.length;i++){
+            // console.log("finna ask " + members[i] + " for " + path);
             try {
               d = await new Promise(async (res, rej) => {
                 try {
@@ -1536,6 +1537,8 @@ try {
     syncInterval = async () => {
       const self = this;
       return new Promise(async (res, rej) => {
+        if(!self.syncIntervalCount) self.syncIntervalCount = 0;
+        self.syncIntervalCount += 1;
         if(self.now() >= self.nextSync || self.sync == self.start){
           self.saving[self.sync] = {};
           self.syncGroup = Object.assign({}, self.group);
@@ -1578,6 +1581,13 @@ try {
           //   }
           // }
           // console.log("\n\n")
+
+          if(self.syncIntervalCount == 5){
+            self.syncIntervalCount = 0;
+            if(self.dimension?.joined && self.dimension?.id){
+              await self.joinDimension(self.dimension.id)
+            }
+          }
 
         }, self.syncIntervalMs);
       })
@@ -1728,6 +1738,7 @@ try {
 
             }
           });
+          console.log("got sync group paths");
           let dataPaths = [];
           for(let i=0;i<paths.length;i++){
             try {
@@ -1742,6 +1753,7 @@ try {
               continue;
             }
           }
+          console.log("Got all sync group data");
           for(let j=0;j<dataPaths.length;j++){
             try {
               await self.claimValorForData(dataPaths[j]);
@@ -1749,6 +1761,7 @@ try {
               continue;
             }
           }
+          console.log("claimed all sync group paths");
         } catch(e){
 
         }
@@ -2671,12 +2684,16 @@ try {
               })
             }
           } catch(e){
-            ws.send(JSON.stringify({
-              event: "New group response",
-              data: {
-                success: false
-              }
-            }))
+            try {
+              ws.send(JSON.stringify({
+                event: "New group response",
+                data: {
+                  success: false
+                }
+              }))
+            } catch(e){
+
+            }
             return res();
           }
           ws.send(JSON.stringify({
@@ -3593,11 +3610,13 @@ try {
         try {
           if(!ws.Url || !data.path) return err();
           const valorGroupIndex = jumpConsistentHash("valor/" + data.id + "/" + data.path, self.groups.length);
+          if(data.id == 'facd248ecb4c2b17b28f18ff9466728139370209'){
+            console.log(valorGroupIndex == self.group.index)
+          }
           if(valorGroupIndex !== self.group.index) return err();
           let size;
           if(data.path.startsWith("data/")){
             const dataPath = data.path.substr(data.path.indexOf("/") + 1);
-
             const request = await self.getSetRequest(data.path);
             if(!request) return err("No set request found");
             let reqPublicD = await self.getPublicFromUrl(request.data.url);
@@ -4248,7 +4267,7 @@ try {
       const self = this;
       return new Promise(async (res, rej) => {
         try {
-          if(self.peers[url] && self.peers[url].datachannel && self.peers[url].datachannel.open) return res(self.peers[url].datachannel);
+          if(self.peers[url] && self.peers[url].datachannel && self.peers[url].datachannel.readyState == "open") return res(self.peers[url].datachannel);
           if(!url || !url.includes("valoria/peers/") || url == self.url) return rej({err: "Bad peer url"});
           const originUrl = url.substring(0, url.indexOf("valoria/peers/"));
           // let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);

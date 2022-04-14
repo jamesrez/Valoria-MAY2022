@@ -48,7 +48,13 @@ valoria.onJoin = async () => {
   }
 }
 
-valoria.loadCredentials();
+(async() => {
+  try {
+    await valoria.loadCredentials();
+  } catch(e){
+
+  }
+})();
 // function playMusic(){
 //   document.querySelector("#radio").play();
 // }
