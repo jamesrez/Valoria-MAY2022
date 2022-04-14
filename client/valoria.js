@@ -1538,7 +1538,6 @@ try {
       const self = this;
       return new Promise(async (res, rej) => {
         if(!self.syncIntervalCount) self.syncIntervalCount = 0;
-        self.syncIntervalCount += 1;
         if(self.now() >= self.nextSync || self.sync == self.start){
           self.saving[self.sync] = {};
           self.syncGroup = Object.assign({}, self.group);
@@ -1547,6 +1546,7 @@ try {
         }
         res();
         self.syncIntervalMain = setInterval(async () => {
+          self.syncIntervalCount += 1;
           if(!self.saving[self.sync]) self.saving[self.sync] = {};
           if(self.group && self.groups){
             self.syncGroup = Object.assign({}, self.group);
