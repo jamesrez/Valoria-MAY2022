@@ -1982,7 +1982,7 @@ try {
               }))
             }
             for(let i=0;i<peers.length;i++){
-              if(peers[i] == self.url) continue;
+              if(peers[i] == self.url || self.conns[peers[i]]?.readyState !== "open") continue;
               self.conns[peers[i]]?.send(JSON.stringify({
                 event: "Peer has left dimension",
                 data: {
