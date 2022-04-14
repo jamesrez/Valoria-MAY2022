@@ -340,7 +340,7 @@ class Valoria {
           res();
         } catch(e){
           console.log(e);
-          rej(e);
+          return rej(e);
         }
       }
       fileInput.click()
@@ -949,7 +949,7 @@ class Valoria {
                       return res();
                     } catch (e){
                       // console.log(e)
-                      rej({error: "Could not connect to " + url});
+                      return rej({error: "Could not connect to " + url});
                     }
                   }
                   self.conns[url].onerror = (error) => {
@@ -1430,10 +1430,10 @@ class Valoria {
         }
         minusSize += -0.00320 * (((size / 10000) * (100000 / 1000 )) + (100000 * 0.0000000005));
         if(Math.abs(addSize) >= Math.abs(minusSize)){
-          res()
+          return res()
         } else {
           console.log("CANT SET DATA. NOT ENOUGH VALOR");
-          rej();
+          return rej();
         }
       } catch(e){
         rej()

@@ -1413,10 +1413,10 @@ try {
           }
           minusSize += -0.00320 * (((size / 10000) * (100000 / 1000 )) + (100000 * 0.0000000005));
           if(Math.abs(addSize) >= Math.abs(minusSize)){
-            res()
+            return res()
           } else {
             console.log("CANT SET DATA. NOT ENOUGH VALOR");
-            rej();
+            return rej();
           }
         } catch(e){
           rej();
