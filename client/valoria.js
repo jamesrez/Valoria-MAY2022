@@ -961,8 +961,6 @@ try {
                   }
                 }
               } catch(e){
-                console.log(e);
-                console.log({error: "Could not connect 4 " + url})
                 return rej(e)
               }
             } 

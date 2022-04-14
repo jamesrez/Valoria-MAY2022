@@ -227,14 +227,6 @@ try {
                 return res();
               }
             } else {
-              // setTimeout(() => {
-              //   if(!connected && !self.conns[url]?.connected) {
-                  // if(self.conns[url]) self.conns[url].disconnect();
-                  // delete self.conns[url];
-                  // return rej();
-                // }
-              // }, 5000)
-              // if(self.conns[url]) delete self.conns[url];
               if(url.includes("valoria/peers/")){
                 let originUrl = url.substring(0, url.indexOf("valoria/peers/"));
                 let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
@@ -282,7 +274,7 @@ try {
                     return rej();
                   }
                 } catch(e){
-
+                  return rej();
                 }
               }
             }
@@ -291,6 +283,12 @@ try {
             // console.log("line 301");
             return rej(e);
           }
+          setTimeout(() => {
+            if(!self.conns[url]?.connected) {
+              delete self.conns[url];
+              return rej();
+            }
+          }, 5000)
         } catch(e){
           // console.log("line 305")
          return rej(e); 
