@@ -3004,19 +3004,23 @@ try {
             const g = self.groups[self.group.index + 1];
             const url = g[g.length * Math.random() << 0];
             await self.connectToServer(url);
-            self.conns[url].send(JSON.stringify({
-              event: "Member has left group",
-              data
-            }))
+            if(self.conns[url].isWS || (self.conns[url].isP2P && self.conns[url].readyState == "open")){
+              self.conns[url].send(JSON.stringify({
+                event: "Member has left group",
+                data
+              }))
+            }
           }
           if(self.groups[self.group.index - 1] && data.index >= self.group.index){
             const g = self.groups[self.group.index - 1];
             const url = g[g.length * Math.random() << 0];
             await self.connectToServer(url);
-            self.conns[url].send(JSON.stringify({
-              event: "Member has left group",
-              data
-            }))
+            if(self.conns[url].isWS || (self.conns[url].isP2P && self.conns[url].readyState == "open")){
+              self.conns[url].send(JSON.stringify({
+                event: "Member has left group",
+                data
+              }))
+            }
           }
           await self.updateValorClaims();
         } catch(e){
