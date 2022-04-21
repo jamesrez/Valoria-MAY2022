@@ -121,9 +121,9 @@ try {
           self.public.url = self.url;
           await self.joinGroup();
           await self.syncTimeWithNearby();
+          await self.shareSelfPublic();
           console.log("syncing group data")
           await self.syncGroupData();
-          await self.shareSelfPublic();
           self.onJoin();
           console.log("sharing self public")
           console.log("Fully setup and connected to network")
@@ -4369,7 +4369,7 @@ try {
       const description = data.desc;
       const url = data.url;
       const polite = data.polite;
-      if(self.peers[url] && self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open" || !description) return;
+      if(self.peers[url] && self.peers[url]?.datachannel?.open && self.peers[url]?.datachannel?.readyState == "open" || !description) return;
       if(self.peers[url] && description.type == "offer"  && self.peers[url].signalingState !== "stable") delete self.peers[url];
       if(!self.peers[url]){
         self.peers[url] = new RTCPeerConnection({iceServers});
@@ -4420,8 +4420,9 @@ try {
               self.peers[url].datachannel.send(JSON.stringify({
                 event: "Webrtc setup"
               }));
+              return
             } catch(e){
-              return;
+              return
             }
           };
         };
@@ -4434,7 +4435,7 @@ try {
           const offerCollision = description.type == "offer" && !readyForOffer;
           let ignoreOffer = !polite && offerCollision;
           if (ignoreOffer) {
-            return;
+            return
           }
           if(self.peers[url].datachannel && self.peers[url].datachannel.connected) return;
           if(description.type == "offer" || (description.type == "answer" && self.peers[url].signalingState !== "stable")){
@@ -4455,8 +4456,8 @@ try {
         }
       } catch(err) {
         console.error(err);
+        return;
       }
-      
     }
 
     async handleGotRtcCandidate(ws, data){

@@ -121,9 +121,9 @@ try {
       this.syncIntervalMs = 1000;
       this.ownerId = process.env.VALORIA_USER_ID;
       const self = this;
-      // if(isLocal){
-      //   this.url = 'http://localhost:' + port + "/";
-      // } else {
+      if(isLocal){
+        this.url = 'http://localhost:' + port + "/";
+      } else {
         this.app.use(async (req, res, next) => {
           if(!self.url && !self.verifyingSelf && (isLocal || !req.get('host').startsWith('localhost')) && !self.isSetup){
             self.verifyingSelf = true;
@@ -147,7 +147,7 @@ try {
             next();
           }
         });
-      // }
+      }
       this.setupRoutes();
       this.server.listen(port, () => {
         console.log("Server started on port " + port);
@@ -1931,6 +1931,7 @@ try {
       const self = this;
       return new Promise(async(res, rej) => {
         if(!ws) return rej();
+        ws.id = Buffer.from(crypto.randomBytes(32)).toString('hex');
         ws.on('close', async () => {
           try {
             if(self.conns[ws.Url]?.dimension && self.dimensions[ws.dimension]){
@@ -2264,7 +2265,7 @@ try {
       const self = this;
       return new Promise(async( res, rej) => {
         try {
-          if(ws.Url || !data.url) return res();
+          if(!data.url) return res();
           ws.verifyingUrl = data.url;
           self.verifying[data.url] = Buffer.from(crypto.randomBytes(32)).toString('hex');
           await new Promise(async(res, rej) => {
@@ -2275,6 +2276,7 @@ try {
                 key: self.verifying[data.url]
               }
             }))
+            console.log("Verify url with key at " + data.url);
           })
           res();
         } catch(e){
@@ -4088,6 +4090,12 @@ try {
         if(!self.conns[data.url]) {
           return;
         }
+        let urlFix = false;
+        if(!ws.Url && data.selfUrl){
+          ws.Url = data.selfUrl;
+          urlFix = true;
+        }
+        console.log(ws.Url + " Sending " + data.desc.type + " to " + data.url);
         if(!self.conns[data.url].peers) self.conns[data.url].peers = {};
         if(!self.conns[ws.Url].peers) self.conns[ws.Url].peers = {};
         if(!self.conns[ws.Url].peers[data.url] || !self.conns[data.url].peers[ws.Url]){
@@ -4102,6 +4110,7 @@ try {
             polite: self.conns[ws.Url].peers[data.url]?.polite,
           }
         }));
+        if(urlFix) ws.Url = "";
       } catch(e){
   
       }
@@ -4130,7 +4139,7 @@ try {
         //   setTimeout(async () => {
             try {
               const server = new Server(i + Port);
-              // await server.setup();
+              await server.setup();
               localServers.push(server);
             } catch(e){
             }
