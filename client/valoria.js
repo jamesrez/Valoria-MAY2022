@@ -4612,6 +4612,5 @@ try {
 
   window.valoria = new Valoria();
 } catch(e){
-  console.log("lol")
   console.log(e)
 }

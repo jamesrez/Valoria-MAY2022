@@ -76,6 +76,11 @@ async function loadModel(url, opts={clone: true}){
         })
         gltf.scene.animations = gltf.animations;
         gltf.scene.mixer = new THREE.AnimationMixer(gltf.scene);
+        gltf.scene.animationActions = [];
+        for(let i=0;i<gltf.animations.length;i++){
+          const animationAction = gltf.scene.mixer.clipAction(gltf.animations[i])
+          gltf.scene.animationActions.push(animationAction)
+        }
         if(opts.clone){
           models[url] = gltf;
         }
@@ -111,8 +116,8 @@ function setModelAction(model, toAction) {
 }
 
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-const controls = new THREE.PointerLockControls(camera, renderer.domElement);
-let mobControls;
+// const controls = new THREE.PointerLockControls(camera, renderer.domElement);
+let controls;
 let touchControls;
 
 
@@ -143,9 +148,8 @@ let rightController;
   //   }
   // })
   avatar.name = "Avatar";
-  avatar.add(camera);
-  avatar.add(listener);
   avatar.position.z = -0.5;
+  avatar.rotation.y = 90 * Math.PI  / 2
   avatar.ray = new THREE.Raycaster();
   avatar.ray.set(new THREE.Vector3(avatar.position.x, 0.3, avatar.position.z), new THREE.Vector3(0, -1, 0));
 
@@ -156,28 +160,29 @@ let rightController;
     leftController = renderer.xr.getController( 1 );
     rightController = renderer.xr.getController( 0 );
   }
-  if(isMobile){
-    mobControls = new THREE.DeviceOrientationControls(camera);
-		touchControls = new TouchControls(world, camera, {
-			speedFactor: 0.015,
-			delta: 1,
-			rotationFactor: 0.015,
-			maxPitch: 55,
-			hitTest: false,
-			hitTestDistance: 40
-		});
-		touchControls.addToScene(scene);
-    camera.position.z = -0.3
+
+  if(!isMobile){
+    controls = new MMOControls(camera, avatar, world);
+  } else {
+    touchControls = new TouchControls(world, camera, avatar, {
+      speedFactor: 0.015,
+      delta: 1,
+      rotationFactor: 0.015,
+      maxPitch: 55,
+      hitTest: false,
+      hitTestDistance: 40
+    });
+    touchControls.addToScene(scene);
   }
  
   // const lcTransform = new THREE.TransformControls(camera, world);
   // lcTransform.attach(leftController);
   // scene.add(lcTransform)
-  setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
+  // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
 
   avatar.attach(leftController);
   avatar.attach(rightController);
-  avatarIK = new IKVR(avatar, leftController, rightController);
+  // avatarIK = new IKVR(avatar, leftController, rightController);
 
   palmTreeSpawn();
 
@@ -209,16 +214,16 @@ let rightController;
   // room.scale.z = 2
   // room.position.z = -2.5;
 })();
-camera.position.z = -0.35;
-camera.position.y = 1.6;
+// camera.position.z = -0.35;
+// camera.position.y = 1.6;
 const listener = new THREE.AudioListener();
 camera.add(listener);
 
 renderer.setAnimationLoop(async () => {
 	renderer.render( scene, camera );
-  handleControls();
-  handleXRControls();
   let delta = clock.getDelta();
+  handleControls(delta);
+  handleXRControls();
   scene.traverse((node) => {
     // if(node.name == "Avatar" && node.ray){
     //   node.ray.set(new THREE.Vector3(node.position.x, node.position.y + 0.6, node.position.z), new THREE.Vector3(0, -1, 0));
@@ -264,37 +269,54 @@ document.addEventListener('keydown', (event) => {
 });
 
 document.addEventListener('keyup', (event) => {
+  if(event.key == "w"){
+    controls.avatar.move["forward"] = 0;
+  }
+  if(event.key == "s"){
+    controls.avatar.move["forward"] = 0;
+  }
+  if(event.key == "a"){
+    controls.avatar.move["left"] = 0;
+  }
+  if(event.key == "d"){
+    controls.avatar.move["left"] = 0;
+  }
   delete activeKeys[event.key];
 });
 
 const moveSpeed = 0.045;
-function handleControls(){
+function handleControls(delta){
   let direction;
   if(activeKeys["w"]){
-    controls.moveForward(moveSpeed);
+    controls.avatar.move["forward"] = 1;
     // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
   }
   if(activeKeys["a"]){
-    controls.moveRight(moveSpeed * -1);
+    controls.avatar.move["left"] = 1;
     // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
   }
   if(activeKeys["s"]){
-    controls.moveForward(moveSpeed * -1);
+    controls.avatar.move["forward"] = -1;
     // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
   }
   if(activeKeys["d"]){
-    controls.moveRight(moveSpeed);
-    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
+    controls.avatar.move["left"] = -1;
+    // setModelAction(avatar, avatar.mixer.clipAction(av-atar.animations[2]));
   }
-  if(Object.keys(activeKeys).length == 0){
+  if(Object.keys(activeKeys).length == 0 && controls){
+    controls.avatar.move["left"] = 0;
+    controls.avatar.move["forward"] = 0;
     // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
   }
-  if(mobControls && mobControls.update){
+  if(controls?.update){
+    controls.update(delta);
+  }
+  if(touchControls?.update){
     // avatar.rotation.y = camera.rotation.y;
     // camera.rotation.y = 0
-    touchControls.update();
-    mobControls.update();
-    camera.rotation.x += 20 * (Math.PI / 180);
+    touchControls.update(delta);
+    // mobControls.update();
+    // camera.rotation.x += 20 * (Math.PI / 180);
   } 
 }
 
@@ -303,7 +325,7 @@ let vrSpeed = 0.05;
 function handleXRControls(){
   session = renderer.xr.getSession();
   if(!session) return;
-  camera.position.z = -0.3;
+  // camera.position.z = -0.3;
   for(let source of session.inputSources){
     if(!source || !source.gamepad || !source.handedness) continue;
     let axes = source.gamepad.axes.slice(0);
@@ -317,10 +339,12 @@ function handleXRControls(){
               if (source.handedness == "left") {
                   // (data.axes[2] > 0) ? console.log('left on left thumbstick') : console.log('right on left thumbstick')
                   if(axes[i] < 0){
-                    controls.moveRight(vrSpeed * -1);
+                    controls.avatar.move["left"] = 1;
+                    // controls.moveRight(vrSpeed * -1);
                     // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                   } else if(axes[i] > 0){
-                    controls.moveRight(vrSpeed);
+                    controls.avatar.move["left"] = -1;
+                    // controls.moveRight(vrSpeed);
                     // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                   }
               } else {
@@ -338,10 +362,11 @@ function handleXRControls(){
               if (source.handedness == "left") {
                   // (data.axes[3] > 0) ? console.log('up on left thumbstick') : console.log('down on left thumbstick')
                   if(axes[i] < 0){
-                    controls.moveForward(vrSpeed);
+                    controls.avatar.move["forward"] = 1;
+                    // controls.moveForward(vrSpeed);
                     // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                   } else if(axes[i] > 0){
-                    controls.moveForward(vrSpeed * -1);
+                    controls.avatar.move["forward"] = -1;
                     // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[2]));
                   }
               } else {
@@ -371,9 +396,9 @@ function updateAvatarAnimation(){
   ) {
     oAvatarPos.x = avatar.position.x;
     oAvatarPos.z = avatar.position.z;
-    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[3]));
+    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[3]));
   } else {
-    setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
+    // setModelAction(avatar, avatar.mixer.clipAction(avatar.animations[0]));
   }
 }
 
@@ -506,9 +531,9 @@ async function updatePeerAvatarVolume(){
   }
 }
 
-world.onmousedown = () => {
-  controls.lock();
-}
+// world.onmousedown = () => {
+  // controls.lock();
+// }
 
 const light = new THREE.AmbientLight();
 light.intensity = 1.7;

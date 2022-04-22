@@ -30,10 +30,10 @@ class IKVR {
     rightTarget.position.z = -0.64;
     this.rightTarget = rightTarget; 
 
-    this.head = avatar.getObjectByName("mixamorigHead");
-    this.head.scale.x = 0.001;
-    this.head.scale.y = 0.001;
-    this.head.scale.z = 0.001;
+    // this.head = avatar.getObjectByName("mixamorigHead");
+    // this.head.scale.x = 0.001;
+    // this.head.scale.y = 0.001;
+    // this.head.scale.z = 0.001;
 
     this.setup();
   }
