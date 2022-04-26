@@ -56,6 +56,7 @@ class MMOControls {
     this.camera.dirTarget = new THREE.Object3D();
     this.camera.attach(this.camera.dirTarget);
     this.camera.dirTarget.position.set(this.camera.position.x, this.camera.position.y, this.camera.position.z + 2.5);
+    this.sphericalDelta.phi = 0.3;
     this.domElement.addEventListener("mousemove", (e) => {
       if(!this.enabled || !this.ranOnce) return;
       const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
@@ -69,7 +70,7 @@ class MMOControls {
       this.rotateDelta.subVectors( this.rotateEnd, this.rotateStart ).multiplyScalar( this.rotateSpeed );
       const element = this.domElement;
       this.sphericalDelta.theta -= 2 * Math.PI * this.rotateDelta.x / element.clientHeight // yes, height
-      this.sphericalDelta.phi -= 2 * Math.PI * this.rotateDelta.y / element.clientHeight
+      this.sphericalDelta.phi -= 2 * Math.PI * this.rotateDelta.y / element.clientHeight;
       this.rotateStart.copy( this.rotateEnd );
     })
   }
@@ -98,7 +99,7 @@ class MMOControls {
     offset.applyQuaternion( quat ); // angle from z-axis around y-axis
     this.spherical.setFromVector3( offset );
     this.spherical.theta += this.sphericalDelta.theta;
-    this.spherical.phi += this.sphericalDelta.phi;
+    this.spherical.phi += this.sphericalDelta.phi; 
     this.spherical.phi = Math.max(0.2, Math.min(Math.PI / 2 - 0.05, this.spherical.phi ) ); // restrict phi to be between desired limits
     this.spherical.makeSafe();
     this.spherical.radius *= 1; // restrict radius to be between desired limits

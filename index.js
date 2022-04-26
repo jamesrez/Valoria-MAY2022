@@ -2276,11 +2276,9 @@ try {
                 key: self.verifying[data.url]
               }
             }))
-            console.log("Verify url with key at " + data.url);
           })
           res();
         } catch(e){
-          console.log("line 2075")
           // rej();
           res();
         }
@@ -4122,7 +4120,7 @@ try {
       self.conns[data.url].send(JSON.stringify({
         event: "Got rtc candidate",
         data: {
-          url: ws.Url,
+          url: ws.Url || data.selfUrl,
           candidate: data.candidate
         }
       }))

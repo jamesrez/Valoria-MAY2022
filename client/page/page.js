@@ -161,9 +161,6 @@ async function createAccount(){
     newPasswordForm.style.display = "none";
     // mainModal.style.display = "none";
     page.style.display = "none";
-    if(!isMobile){
-      controls.lock();
-    }
     try {
       await valoria.startMediaStream({audio: true, video: false});
     } catch(e){
