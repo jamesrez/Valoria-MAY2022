@@ -2292,7 +2292,12 @@ try {
           if(!self.promises["Url verified with " + ws.Url] || !data.key) return res();
           let pathUrl = ws.Url.replace(/\//g, "");
           pathUrl = pathUrl.replace(/\:/g, "");
-          self.verificationKeys["/valoria/verifying/" + pathUrl] = data.key;
+          const sig = Buffer.from(await self.sign(data.key)).toString("base64");
+          self.verificationKeys["/valoria/verifying/" + pathUrl] = {
+            key: data.key,
+            sig,
+            id: self.id
+          };
           self.app.get("/valoria/verifying/" + pathUrl, (req, res) => {
             res.send(self.verificationKeys[req.path]);
           })
@@ -2311,11 +2316,23 @@ try {
       return new Promise(async( res, rej) => {
         try {
           if(!ws.verifyingUrl || !self.verifying[ws.verifyingUrl]) return res();
-          const key = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
-          if(key == self.verifying[ws.verifyingUrl]){
+          const data = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
+          if(data.key == self.verifying[ws.verifyingUrl]){
             ws.Url = ws.verifyingUrl;
             ws.connected = true;
-            self.conns[ws.Url] = ws;
+            if(self.conns[ws.verifyingUrl] && data.sig){
+              //VERIFY THE SIG
+              try {
+                const publicD = await self.getPublicFromId(data.id);
+                await self.verify(data.key, Buffer.from(data.sig, "base64"), publicD.ecdsaPub);
+                self.conns[ws.verifyingUrl].terminate();
+                self.conns[ws.verifyingUrl] = ws;
+              } catch(e){
+                self.conns[ws.verifyingUrl] = ws;
+              }
+            } else {
+              self.conns[ws.verifyingUrl] = ws;
+            }
             ws.send(JSON.stringify({
               event: "Url verified",
               data: {
@@ -2335,6 +2352,7 @@ try {
             }))
           }
         } catch(e){
+          console.log(e)
           ws.send(JSON.stringify({
             event: "Url verified",
             data: {
@@ -2367,7 +2385,11 @@ try {
           if(self.conns[ws.Url] && self.conns[ws.Url].originUrl == self.url){
             let pathUrl = data.url.replace(/\//g, "");
             pathUrl = pathUrl.replace(/\:/g, "");
-            self.verificationKeys["/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl] = data.key;
+            self.verificationKeys["/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl] = {
+              key: data.key,
+              sig: data.sig,
+              id: self.conns[ws.Url].peerId
+            };
             self.app.get("/valoria/peers/" + self.conns[ws.Url].peerId + "/valoria/verifying/" + pathUrl, (req, res) => {
               res.send(self.verificationKeys[req.path]);
               delete self.verificationKeys[req.path];
@@ -2396,7 +2418,16 @@ try {
           ws.peerId = data.id;
           ws.originUrl = self.url;
           ws.connected = true;
-          self.conns[url] = ws;
+          console.log("ORIGIN ALREADY EXISTS FOR PEER " + data.id);
+          if(self.conns[url] && data.sig){
+            //VERIFY THE SIG
+            const publicD = await self.getPublicFromId(data.id);
+            await self.verify(`${data.id} + sets origin url as ${self.url} at ${data.sync}`, Buffer.from(data.sig, "base64"), publicD.ecdsaPub);
+            self.conns[url].terminate();
+            self.conns[url] = ws;
+          } else {
+            self.conns[url] = ws;
+          }
           ws.send(JSON.stringify({
             event: "Origin url set",
             data: {
@@ -2670,6 +2701,9 @@ try {
               })
             }
           } catch(e){
+            console.log(e);
+            console.log("GROUP CAN NOT BE CREATED bcuz other members said so.");
+            self.canCreate = null;
             ws.send(JSON.stringify({
               event: "New group response",
               data: {
@@ -2684,13 +2718,16 @@ try {
               success: true
             }
           }))
+          self.canCreate = null;
         } else {
+          console.log("CANT CREATE NEW GROUP FOR " + ws.Url + ", " + data.index + " : " + self.groups.length);
           ws.send(JSON.stringify({
             event: "New group response",
             data: {
               success: false
             }
           }))
+          self.canCreate = null;
         }
         return res();
       })
@@ -4088,11 +4125,6 @@ try {
         if(!self.conns[data.url]) {
           return;
         }
-        let urlFix = false;
-        if(!ws.Url && data.selfUrl){
-          ws.Url = data.selfUrl;
-          urlFix = true;
-        }
         console.log(ws.Url + " Sending " + data.desc.type + " to " + data.url);
         if(!self.conns[data.url].peers) self.conns[data.url].peers = {};
         if(!self.conns[ws.Url].peers) self.conns[ws.Url].peers = {};
@@ -4108,7 +4140,6 @@ try {
             polite: self.conns[ws.Url].peers[data.url]?.polite,
           }
         }));
-        if(urlFix) ws.Url = "";
       } catch(e){
   
       }
@@ -4120,7 +4151,7 @@ try {
       self.conns[data.url].send(JSON.stringify({
         event: "Got rtc candidate",
         data: {
-          url: ws.Url || data.selfUrl,
+          url: ws.Url,
           candidate: data.candidate
         }
       }))

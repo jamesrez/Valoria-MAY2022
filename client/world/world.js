@@ -407,18 +407,16 @@ let frame = 0;
 async function sendPeerUpdates(){
   frame += 1;
   if(frame == 10){
-    if(valoria.dimension?.peers){
-      const peers = valoria.dimension?.peers;
-      for(let i=0;i<peers.length;i++){
-        if(valoria.conns[peers[i]] && valoria.conns[peers[i]].readyState == "open"){
-          valoria.conns[peers[i]].send(JSON.stringify({
-            event: "Movement",
-            data: {
-              position: {x: avatar.position.x, y: avatar.position.y, z: avatar.position.z},
-              quaternion: {w: avatar.quaternion.w, x: avatar.quaternion.x, y: avatar.quaternion.y, z: avatar.quaternion.z},
-            }
-          }))
-        }
+    let peers = Object.keys(peerAvatars);
+    for(let i=0;i<peers.length;i++){
+      if(valoria.conns[peers[i]] && valoria.conns[peers[i]].readyState == "open"){
+        valoria.conns[peers[i]].send(JSON.stringify({
+          event: "Movement",
+          data: {
+            position: {x: avatar.position.x, y: avatar.position.y, z: avatar.position.z},
+            quaternion: {w: avatar.quaternion.w, x: avatar.quaternion.x, y: avatar.quaternion.y, z: avatar.quaternion.z},
+          }
+        }))
       }
     }
     frame = 0;
@@ -462,15 +460,18 @@ async function addPeerToScene(id){
     peerAvatars[id] = await loadModel('assets/default.glb', {clone: false});
     peerAvatars[id].name = "Avatar";
     // peerAvatars[id].sound = new THREE.PositionalAudio(listener);
-    setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
+    setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[1]));
+    console.log("Adding on movement to " + id);
     valoria.conns[id]?.on("Movement", (data) => {
+      console.log("movement data");
+      console.log(data);
       if(!peerAvatars[id]) return;
       if(
-        Math.abs(data.position.x - peerAvatars[id].position.x) < 0.01 &&
+        Math.abs(data.position.x - peerAvatars[id].position.x) < 0.02 &&
         // Math.abs(data.position.y - peerAvatars[id].position.y) < 0.1 ||
-        Math.abs(data.position.z - peerAvatars[id].position.z) < 0.01
+        Math.abs(data.position.z - peerAvatars[id].position.z) < 0.02
       ) {
-        setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[0]));
+        setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[1]));
       } else {
         setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[3]));
       }

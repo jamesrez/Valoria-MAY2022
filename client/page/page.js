@@ -20,7 +20,7 @@ async function showHome(){
 }
 
 async function showJoin(){
-  if(valoria.id && valoria.ecdsa.privateKey){
+  if(valoria.id && valoria.ecdsa.publicKey){
     page.style.display = "none";
     try {
       if(!isMobile){

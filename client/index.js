@@ -12,14 +12,17 @@ if( window.DeviceOrientationEvent && navigator.userAgent.match(/iPhone/i)
 ){
   isMobile = true;
 }
+let swc;
+let messageChannel;
 
 if ('serviceWorker' in navigator) {
   try {
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.getRegistration(navigator.serviceWorker.controller.scriptURL).then(function (sw) {
+    if (swc) {
+      navigator.serviceWorker.getRegistration(swc.scriptURL).then(function (sw) {
         if(sw){
+          // navigator.serviceWorker.terminate();
           sw.unregister().then(unregResult => { 
-            registerSW()
+            registerSW();
           })
         } else {
           registerSW()
@@ -29,6 +32,7 @@ if ('serviceWorker' in navigator) {
       const url = window.location.protocol + '//' + window.location.host + '/sw.js';
       navigator.serviceWorker.getRegistration(url).then(function (sw) {
         if (sw) {
+          // navigator.serviceWorker.terminate();
           sw.unregister().then(() => {
             registerSW();
           });
@@ -48,10 +52,10 @@ if ('serviceWorker' in navigator) {
         console.log(navigator.serviceWorker.controller);
         if(navigator.serviceWorker.controller?.postMessage){
           clearInterval(waitingForController)
-          const messageChannel = new MessageChannel();
+          messageChannel = new MessageChannel();
           console.log("Sent port connect message to SW");
           console.log(navigator.serviceWorker.controller?.postMessage)
-          let swc = navigator.serviceWorker.controller;
+          swc = navigator.serviceWorker.controller;
           swc?.postMessage({
             event: 'Port connect',
           }, [messageChannel.port2]);
@@ -64,6 +68,9 @@ if ('serviceWorker' in navigator) {
               case "Valor calculation":
                 await handleValorCalculation(swc, d.data);
                 break;
+              case "Connected to server":
+                await handleConnectToServer(swc, d.data);
+                break;
               case "Connect to peer":
                 await connectToPeer(swc, d.data);
                 break;
@@ -74,6 +81,12 @@ if ('serviceWorker' in navigator) {
                 break;
               case "Handle got rtc candidate":
                 await handleGotRtcCandidate(swc, d.data);
+                break;
+              case "New peer in dimension":
+                await handleNewPeerInDimension(swc, d.data);
+                break;
+              case "Peer has left dimension":
+                await handlePeerHasLeftDimension(swc, d.data);
                 break;
             }
     
@@ -92,17 +105,35 @@ async function handleValoriaSetup(swc, data){
   return new Promise(async (res, rej) => {
     const v = data.valoria;
     Object.assign(valoria, v);
-    valoria.dimension.onPeerJoin = (id) => {
-      addPeerToScene(id);
+    valoria.connectToServer = async (url) => {
+      return new Promise(async (res, rej) => {
+        try {
+          valoria.promises["Connected to server " + url] = {res, rej};
+          swc?.postMessage({
+            event: 'Connect to server',
+            data: {url}
+          }, [messageChannel.port2]);
+        } catch(e){
+          res()
+        }
+      })
     }
-    valoria.dimension.onPeerLeave = (id) => {
-      removePeerFromScene(id);
-    }
-    try {
-      await valoria.joinDimension("Valoria"); 
-      console.log("joined dimension: " + valoria.dimension.id)
-    } catch(e){
-  
+    let conns = Object.keys(valoria.conns);
+    for(let i=0;i<conns.length;i++){
+      if(conns[i].includes("valoria/peers/")) continue;
+      valoria.conns[conns[i]].send = async (msg) => {
+        try {
+          swc?.postMessage({
+            event: 'Send message to server',
+            data: {
+              msg,
+              url: conns[i]
+            }
+          }, [messageChannel.port2]);
+        } catch(e){
+
+        }
+      };
     }
     res();
   })
@@ -110,14 +141,22 @@ async function handleValoriaSetup(swc, data){
 
 async function handleValorCalculation(swc, data){
   return new Promise(async (res, rej) => {
+    if(!valorAmount) return res();
     const valor = data?.valor;
-    if(valor && valor !== 0 && valorAmount){
+    if(valor && valor !== 0){
       valorAmount.textContent = `VALOR: ${+valor.toFixed(9)}`;
     } else {
       valorAmount.textContent = `VALOR: Connecting`;
     }
     res();
   })
+}
+
+async function connectedToServer(swc, data){
+  if(!data.url) return;  
+  if(valoria.promises["Connected to server " + data.url]){
+    valoria.promises["Connected to server " + data.url].res();
+  }
 }
 
 async function connectToPeer(swc, data){
@@ -145,8 +184,7 @@ async function handleGotRtcDescription(swc, data){
   if(!data) return;  
   // console.log("Handling rtc description for " + data.ws);
   try {
-    await valoria.connectToServer(data.ws);
-    if(!valoria.conns[data.ws].Url) valoria.conns[data.ws].Url = data.ws;
+    if(!valoria.conns[data.ws]?.Url) valoria.conns[data.ws].Url = data.ws;
     valoria.handleGotRtcDescription(valoria.conns[data.ws], data);
     if(valoria.peers[data.url]?.datachannel?.open){
       swc.postMessage({event: "Connected to peer", data})
@@ -166,6 +204,15 @@ async function handleGotRtcCandidate(swc, data){
   // send({event: "Connected to peer", data})
 }
 
+async function handleNewPeerInDimension(swc, data){
+  if(!data?.id) return;  
+  addPeerToScene(data.id);
+}
+
+async function handlePeerHasLeftDimension(swc, data){
+  if(!data?.id) return;  
+  removePeerFromScene(data.id);
+}
 
 
 window.onload = async () => {

@@ -405,7 +405,6 @@ try {
             try {
               d = await new Promise(async (res, rej) => {
                 try {
-                  if(!self.conns[members[i]]?.send) delete self.conns[members[i]];
                   await self.connectToServer(members[i]);
                   const now = self.now();
                   if(self.promises["Got data from " + members[i] + " for " + path + " at " + now]) return res();
@@ -892,10 +891,14 @@ try {
             if(!self.conns[url].verified && opts.origin){
               await new Promise(async(res, rej) => {
                 self.promises["Origin url set with " + url] = {res, rej};
+                const sync = self.sync;
+                const sig = await arrayBufferToBase64(await self.sign((`${self.id} + sets origin url as ${url} at ${sync}`)));
                 self.conns[url].send(JSON.stringify({
                   event: "Set origin url",
                   data: {
-                    id: self.id
+                    id: self.id,
+                    sig,
+                    sync
                   }
                 }))
               })
@@ -1044,6 +1047,7 @@ try {
       const self = this;
       return new Promise(async(res, rej) => {
         try {
+          self.groups = [];
           await self.loadAllGroups();
           console.log(self.groups)
           const groupIndex = self.groups.length;
@@ -1079,6 +1083,7 @@ try {
             max: 3
           }
           self.groups.push([self.url]);
+          console.log("pushed new g");
           if(self.group.index > 0){
             const url = self.groups[self.group.index - 1][self.groups[self.group.index - 1]?.length * Math.random() << 0];
             await self.connectToServer(url);
@@ -1101,6 +1106,7 @@ try {
           console.log(self.url + " has created group " + self.group.index);
           return res(true);
         } catch (e){
+          console.log(e);
           rej();
         }
       })
@@ -1851,7 +1857,6 @@ try {
             publicD = await self.get(`public/${pathUrl}.json`);
             if(!publicD){
               publicD = await new Promise(async (res, rej) => {
-                if(!self.conns[url]?.send) delete self.conns[url];
                 await self.connectToServer(url);
                 self.promises["Got public from " + url] = {res, rej};
                 self.conns[url].send(JSON.stringify({
@@ -2019,8 +2024,7 @@ try {
           ){
             await self.handleGroupRemoved(ws, {index: self.group.index - 1, url: ws.Url})
           }
-          if(self.conns[ws.Url])
-          delete self.conns[ws.Url];
+          if(self.conns[ws.Url]) delete self.conns[ws.Url];
         }
         ws.onmessage = async (e) => {
           const d = JSON.parse(e.data);
@@ -2345,18 +2349,17 @@ try {
       const self = this;
       return new Promise(async( res, rej) => {
         if(!self.promises["Url verified with " + ws.Url] || !data.key) return res();
-        let pathUrl = ws.Url.replace(/\//g, "");
-        pathUrl = pathUrl.replace(/\:/g, "");
         await new Promise(async(res, rej) => {
           self.promises["Verified peer url for " + ws.Url + " at " + self.originUrl] = {res, rej};
-          if(!self.conns[self.originUrl]?.send) delete self.conns[self.originUrl];
           await self.connectToServer(self.originUrl);
+          const sig = await arrayBufferToBase64(await self.sign(data.key));
           self.conns[self.originUrl].send(JSON.stringify({
             event: "Verify peer url with key",
             data: {
               id: self.id,
               url: ws.Url,
-              key: data.key
+              key: data.key,
+              sig,
             }
           }))
         })
@@ -2372,10 +2375,21 @@ try {
       return new Promise(async( res, rej) => {
         try {
           if(!ws.verifyingUrl || !self.verifying[ws.verifyingUrl]) return res();
-          const key = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
-          if(key == self.verifying[ws.verifyingUrl]){
+          const data = (await axios.get(ws.verifyingUrl + "valoria/verifying/" + self.pathUrl)).data;
+          if(data.key == self.verifying[ws.verifyingUrl]){
             ws.Url = ws.verifyingUrl;
-            self.conns[ws.Url] = ws;
+            if(self.conns[ws.verifyingUrl] && data.sig){
+              try {
+                const publicD = await self.getPublicFromId(data.id);
+                await self.verify(data.key, base64ToArrayBuffer(data.sig), publicD.ecdsaPub);
+                self.conns[ws.verifyingUrl].terminate();
+                self.conns[ws.verifyingUrl] = ws;
+              } catch(e){
+                self.conns[ws.verifyingUrl] = ws;
+              }
+            } else {
+              self.conns[ws.verifyingUrl] = ws;
+            }
             ws.send(JSON.stringify({
               event: "Url verified",
               data: {
@@ -2685,7 +2699,6 @@ try {
           try {
             for(let i=0;i<self.group.members.length;i++){
               if(self.group.members[i] == self.url) continue;
-              if(!self.conns[self.group.members[i]]?.send) delete self.conns[self.group.members[i]];
               await self.connectToServer(self.group.members[i]);
               await new Promise(async (res, rej) => {
                 self.promises[`Group ${data.index} can be created from ${self.group.members[i]}`] = {res, rej};
@@ -2735,6 +2748,7 @@ try {
         if(data.success){
           self.promises["New group response from " + ws.Url].res();
         } else {
+          console.log("Cant create the GROUP from " + ws.Url);
           self.promises["New group response from " + ws.Url].rej();
         }
         delete self.promises["New group response from " + ws.Url]
@@ -3975,6 +3989,7 @@ try {
         self.servers = [];
         self.originUrl = null;
         self.url = null;
+        self.isSetup = true;
         setTimeout(() => {
           res();
         }, 500)
@@ -4008,17 +4023,16 @@ try {
     joinDimension(id){
       const self = this;
       return new Promise(async (res, rej) => {
-        self.dimension.joined = false;
-        setTimeout(async () => {
-          if(!self.dimension.joined) await self.joinDimension(id);
-          return res();
-        }, 5000)
+        self.dimension.joined = self.dimension.joined || false;
+        // setTimeout(async () => {
+        //   if(!self.dimension.joined) await self.joinDimension(id);
+        //   return res();
+        // }, 5000)
         try {
           const groupIndex = jumpConsistentHash(id, self.groups.length);
           const group = self.groups[groupIndex];
           const url = group[group.length * Math.random() << 0];
           if(self.group?.index !== groupIndex){
-            if(!self.conns[url]?.send) delete self.conns[url];
             await self.connectToServer(url);
             self.promises["Joined " + id + " dimension"] = {res, rej};
             self.conns[url].send(JSON.stringify({
@@ -4028,10 +4042,10 @@ try {
               }
             }));
           } else {
+            console.log("handle join dimension for self");
             try {
               await self.handleJoinDimension({Url : self.url}, {id})
             } catch(e){
-
             }
             self.dimension.joined = true;
             res();
@@ -4050,13 +4064,13 @@ try {
           const id = data.id;
           if(!self.dimensions[id]) {
             self.dimensions[id] = {conns: {}};
-            const g = new Array(...self.group.members);
+            const g = JSON.parse(JSON.stringify(self.group.members));
             g.splice(g.indexOf(self.url), 1);
             if(g.length > 0){
               const url = g[g.length * Math.random() << 0];
+              console.log("getting dim peers from " + url);
               self.dimensions[id].conns = await new Promise(async (res, rej) => {
                 self.promises["Got peers in group dimension " + id + " from " + url] = {res, rej};
-                if(!self.conns[url]?.send) delete self.conns[url];
                 await self.connectToServer(url);
                 self.conns[url].send(JSON.stringify({
                   event: "Get peers in group dimension",
@@ -4066,11 +4080,15 @@ try {
                 }))
               });
             }
+            console.log("got the peers");
           }
           const peers = Object.keys(self.dimensions[id].conns)
           self.dimensions[id].conns[ws.Url] = ws;
           if(self.conns[ws.Url]) self.conns[ws.Url].dimension = id;
-          if(ws.send){
+          if(ws.Url == self.url){
+            await this.handleJoinedDimension({}, {dimension: id, peers});
+            res();
+          } else if(self.conns[ws.Url].send){
             self.conns[ws.Url].send(JSON.stringify({
               event: "Joined dimension",
               data: {
@@ -4078,13 +4096,10 @@ try {
                 peers
               }
             }))
-          } else if(ws.Url == self.url){
-            await this.handleJoinedDimension({}, {dimension: id, peers});
           }
           for(let i=0;i<self.group.members.length;i++){
             try {
               if(self.url == self.group.members[i]) continue;
-              if(!self.conns[self.group.members[i]]?.send) delete self.conns[self.group.members[i]];
               await self.connectToServer(self.group.members[i]);
               self.conns[self.group.members[i]]?.send(JSON.stringify({
                 event: "New peer in group dimension",
@@ -4100,7 +4115,6 @@ try {
           for(let i=0;i<peers.length;i++){
             try {
               if(peers[i] == self.url) continue;
-              if(!self.conns[peers[i]]?.send) delete self.conns[peers[i]];
               await self.connectToServer(peers[i]);
               self.conns[peers[i]]?.send(JSON.stringify({
                 event: "New peer in dimension",
@@ -4127,6 +4141,7 @@ try {
           const peers = data.peers;
           self.dimension.id = data.dimension;
           self.dimension.peers = peers;
+          self.dimension.joined = true;
           self.dimension.onPeerJoin = self.dimension.onPeerJoin || (() => {});
           self.dimension.onPeerLeave = self.dimension.onPeerLeave || (() => {});
           for(let i=0;i<peers.length;i++){
@@ -4144,7 +4159,6 @@ try {
             }
           }
           if(self.promises["Joined " + data.dimension + " dimension"]){
-            self.dimension.joined = true;
             self.promises["Joined " + data.dimension + " dimension"].res();
             delete self.promises["Joined " + data.dimension + " dimension"];
           }
@@ -4177,7 +4191,7 @@ try {
           if(data.dimension !== self.dimension.id || !data.url) return res();
           self.dimension.peers.splice(self.dimension.peers.indexOf(data.url), 1);
           self.dimension.onPeerLeave(data.url);
-          delete self.peers[data.url];
+          // delete self.peers[data.url];
         } catch(e){
 
         }
@@ -4290,15 +4304,14 @@ try {
       return new Promise(async (res, rej) => {
         if(!self.url) return;
         try {
-          // if(self.peers[url] && self.peers[url].datachannel && self.peers[url].datachannel.readyState == "open") return res(self.peers[url].datachannel);
+          if(self.peers[url] && self.peers[url].datachannel && self.peers[url].datachannel.setup) return res(self.peers[url].datachannel);
           if(!url || !url.includes("valoria/peers/") || url == self.url) return rej({err: "Bad peer url"});
           const originUrl = url.substring(0, url.indexOf("valoria/peers/"));
           // let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
-          if(self.peers[url] && description.type == "offer") delete self.peers[url];
+          // if(self.peers[url] && description.type == "offer" && self.peers[url]?.datachannel?.readyState !== "open") delete self.peers[url];
           // if(self.peers[url]?.datachannel?.readyState !== "open") delete valoria.peers[url];
           if(!self.peers[url]){
             console.log("Creating new peer connection to " + url);
-            if(!self.conns[originUrl]?.send) delete self.conns[originUrl];
             await self.connectToServer(originUrl);
             self.peers[url] = new RTCPeerConnection({iceServers});
             self.peers[url].onStream = self.peers[url].onStream || (() => {});
@@ -4316,7 +4329,7 @@ try {
               self.peers[url].onconnectionstatechange = () => {
                 if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
                   self.peers[url].datachannel?.onclose();
-                  delete self.peers[url];
+                  // delete self.peers[url];
                 }
               };
               self.conns[url] = self.peers[url].datachannel;
@@ -4325,21 +4338,20 @@ try {
                 self.promises["Webrtc connection with " + url + " is setup"] = {res, rej};
               })
               self.peers[url].datachannel.setup = true;
-              return res(self.peers[url].datachannel);
+              console.log(self.peers[url].datachannel)
+              res(self.peers[url].datachannel);
             };
             if(self.stream && self.stream.getTracks){
               self.stream.getTracks().forEach(track => self.peers[url].addTrack(track, self.stream));
             }
             self.peers[url].onicecandidate = async ({candidate}) =>  {
               if(!candidate) return;
-              if(!self.conns[originUrl]?.send) delete self.conns[originUrl];
               await self.connectToServer(originUrl);
               self.conns[originUrl].send(JSON.stringify({
                 event: "Send rtc candidate",
                 data: {
                   candidate,
                   url,
-                  selfUrl: self.url
                 }
               }));
             }
@@ -4348,7 +4360,6 @@ try {
               try {
                 self.peers[url].makingOffer = true;
                 await self.peers[url].setLocalDescription();
-                if(!self.conns[originUrl]?.send) delete self.conns[originUrl];
                 await self.connectToServer(originUrl);
                 console.log("SELF URL IS " + self.url);
                 self.conns[originUrl].send(JSON.stringify({
@@ -4356,7 +4367,6 @@ try {
                   data: {
                     desc: self.peers[url]?.localDescription,
                     url,
-                    selfUrl: self.url
                   }
                 }));
                 console.log("rtc description sent");
@@ -4377,8 +4387,9 @@ try {
                 self.peers[url].restartIce();
               }
             };
-          } else if (self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open" && self.peers[url]?.datachannel?.setup){
-            return res(self.peers[url].datachannel);
+          } 
+          if (self.peers[url]?.datachannel?.open && self.peers[url]?.readyState == "open" && self.peers[url]?.datachannel?.setup){
+            res(self.peers[url].datachannel);
           } 
           // else if(self.peers[url].localDescription){
           //   self.conns[originUrl].send(JSON.stringify({
@@ -4404,7 +4415,7 @@ try {
       console.log("got rtc descripton");
       console.log(data);
       if(self.peers[url] && self.peers[url]?.datachannel?.open && self.peers[url]?.datachannel?.readyState == "open") return;
-      if(self.peers[url] && description.type == "offer") delete self.peers[url];
+      if(self.peers[url] && description.type == "offer" && self.peers[url]?.datachannel?.readyState !== "open") delete self.peers[url];
       if(!self.peers[url]){
         self.peers[url] = new RTCPeerConnection({iceServers});
         self.peers[url].onStream = self.peers[url].onStream || (() => {});
@@ -4422,7 +4433,6 @@ try {
             data: {
               candidate,
               url,
-              selfUrl: self.url
             }
           }));
         }
@@ -4447,7 +4457,7 @@ try {
             self.peers[url].onconnectionstatechange = () => {
               if(self.peers[url] && self.peers[url].connectionState == "disconnected"){
                 self.peers[url].datachannel?.onclose();
-                delete self.peers[url];
+                // delete self.peers[url];
               }
             }
             try {
@@ -4477,15 +4487,11 @@ try {
           self.peers[url].isSRDAnswerPending = false;
           if (description.type == "offer") {
             await self.peers[url].setLocalDescription();
-            if(!self.conns[ws.Url].send) delete self.conns[ws.Url];
-            await self.connectToServer(ws.Url);
-            console.log("SELF URL IS " + self.url);
             self.conns[ws.Url].send(JSON.stringify({
               event: "Send rtc description",
               data: {
                 desc: self.peers[url].localDescription,
                 url,
-                selfUrl: self.url
               }
             }));
           }
