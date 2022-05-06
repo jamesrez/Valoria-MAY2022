@@ -6,16 +6,24 @@ self.addEventListener('activate', function(event) {
   event.waitUntil(self.clients.claim()); // Become available to all pages
 })
 
-self.addEventListener("message", async (event) => {
-  console.log(event);
+self.addEventListener('message', async (event) => {
+  if (event.data && event.data.event === 'Port connect') {
+    console.log("New port connected from the default messager lol?");
+  }
+});
+
+let broadcast = new BroadcastChannel('valoria-worker');
+//self.addEventListener("message", 
+broadcast.onmessage = async (event) => {
+  // console.log(event);
   if (event.data && event.data.event === 'Port connect') {
     console.log("New port connected");
     
-    Port = event.ports[0];
+    // Port = event.ports[0];
     if(valoria.ecdsa?.publicKey && valoria.isSetup){
-      Port.postMessage({event: "Valoria setup", data: {valoria: JSON.parse(JSON.stringify(valoria))}});
+      broadcast.postMessage({event: "Valoria setup", data: {valoria: JSON.parse(JSON.stringify(valoria))}});
     }
-    console.log(Port)
+    // console.log(Port)
     // Port.onDisconnect(() => {
     //   valoria.reset();
     //   Port = null;
@@ -26,13 +34,12 @@ self.addEventListener("message", async (event) => {
     handleConnectToServer(event.data.data);
   } else if(event.data && event.data.event == "Send message to server"){
     handleSendMessageToServer(event.data.data)
+  } else if(event.data && event.data.event == "Get valoria"){
+    broadcast.postMessage({event: "Got valoria", data: {valoria: JSON.parse(JSON.stringify(valoria))}});
+  } else if(event.data && event.data.event == "Join dimension"){
+    handleJoinDimension(event.data.data)
   }
-});
-
-self.addEventListener("disconnect", async (port) => {
-  console.log("DISCONNECT FROM");
-  console.log(port);
-})
+};
 
 async function handleConnectedPeer(data){
   console.log("Handle New peer conencted!")
@@ -40,8 +47,7 @@ async function handleConnectedPeer(data){
   // console.log(valoria.conns);
   if(!valoria.conns[data.url]) valoria.conns[data.url] = {};
   valoria.conns[data.url].send = (msg) => {
-    if(!Port) return;
-    Port.postMessage({event: "Send p2p message", data: {msg, url: data.url}});
+    broadcast.postMessage({event: "Send p2p message", data: {msg, url: data.url}});
   }
 }
 
@@ -52,18 +58,32 @@ async function handleConnectToServer(data){
   } catch(e){
 
   }
-  if(!Port) return;
-  Port.postMessage({event: "Connected to server", data: {url: data.url}});
+  broadcast.postMessage({event: "Connected to server", data: {url: data.url}});
 }
 
 async function handleSendMessageToServer(data){
-  if(!data.url || !data.msg || !valoria.conns[data.url]) return;
-  valoria.conns[data.url].send(data.msg);
-  if(!Port) return;
-  Port.postMessage({event: "Connected to server", data: {url: data.url}});
+  console.log("Must send message to server lol");
+  console.log(data);
+  if(!data.url || !data.msg) return;
+  try {
+    await valoria.connectToServer(data.url);
+    valoria.conns[data.url].send(data.msg);
+  } catch(e){
+    console.log(e)
+  }
 }
 
-let Port;
+async function handleJoinDimension(data){
+  if(!data.id) return;
+  try {
+    await valoria.joinDimension(data.id);
+    broadcast.postMessage({event: "Joined dimension", data: {dimension: JSON.parse(JSON.stringify(valoria.dimension))}});
+  } catch(e){
+    console.log(e)
+  }
+}
+
+// let Port;
 let count = 0;
 let setup = false;
 console.log("yo")
@@ -71,45 +91,37 @@ importScripts("valoria.js");
 
 valoria.onJoin = async () => {
   setup = true;
-  console.log(Port)
-  if(Port?.postMessage){
-    const v = JSON.parse(JSON.stringify(valoria));
-    delete v.ecdh.privateKey;
-    delete v.ecdsa.privateKey;
-    Port.postMessage({event: "Valoria setup", data: {valoria: v}});
-  }
+  const v = JSON.parse(JSON.stringify(valoria));
+  delete v.ecdh.privateKey;
+  delete v.ecdsa.privateKey;
+  broadcast.postMessage({event: "Valoria setup", data: {valoria: v}});
   valoriaSent = true;
   let valorInterval = setInterval(async () => {
     const valor = await valoria.calculateValor(valoria.id);
-    if(Port?.postMessage){
-      Port.postMessage({event: "Valor calculation", data: {id: valoria.id, valor}});
-    }
+    broadcast.postMessage({event: "Valor calculation", data: {id: valoria.id, valor}});
   }, valoria.syncIntervalMs)
 
   valoria.dimension.onPeerJoin = (id) => {
-    if(Port?.postMessage){
-      Port.postMessage({event: "New peer in dimension", data: {id}});
-    }
+    broadcast.postMessage({event: "New peer in dimension", data: {id}});
   }
   valoria.dimension.onPeerLeave = (id) => {
-    if(Port?.postMessage){
-      Port.postMessage({event: "Peer has left dimension", data: {id}});
-    }
+    broadcast.postMessage({event: "Peer has left dimension", data: {id}});
   }
-  try {
-    await valoria.joinDimension("Valoria"); 
-    console.log("joined dimension: " + valoria.dimension.id)
-  } catch(e){
-    console.log(e);
-  }
+  // try {
+  //   await valoria.joinDimension("Valoria"); 
+  //   for(let i=0;i<valoria.dimension?.peers?.length;i++){
+  //     broadcast.postMessage({event: "New peer in dimension", data: {id}});
+  //   }
+  //   console.log("joined dimension: " + valoria.dimension.id)
+  // } catch(e){
+  //   console.log(e);
+  // }
 
 }
 
 valoria.connectToPeer = async (url) => {
   return new Promise(async (res, rej) => {
-    if(Port?.postMessage){
-      Port.postMessage({event: "Connect to peer", data: {url}});
-    }
+    broadcast.postMessage({event: "Connect to peer", data: {url}});
     res()
   })
 }
@@ -118,17 +130,15 @@ valoria.handleGotRtcDescription = async (ws, data) => {
   return new Promise(async (res, rej) => {
     if(!ws.Url) return res();
     data.ws = ws.Url;
-    if(Port?.postMessage){
-      Port.postMessage({event: "Handle got rtc description", data});
-    }
+    broadcast.postMessage({event: "Handle got rtc description", data});
     res();
   })
 }
 
 valoria.handleGotRtcCandidate = async (ws, data) => {
-  if(Port?.postMessage){
-    Port.postMessage({event: "Handle got rtc candidate", data});
-  }
+  if(!ws.Url) return res();
+  data.ws = ws.Url;
+  broadcast.postMessage({event: "Handle got rtc candidate", data});
 }
 
 (async() => {

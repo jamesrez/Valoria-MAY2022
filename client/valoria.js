@@ -118,6 +118,7 @@ try {
             await self.syncInterval();
           }, self.sync == self.start ? 0 : stall > 0 ? stall : 0)
           const originUrl = self.servers[jumpConsistentHash(self.id, self.servers.length)];
+          console.log("connecting to origin")
           await self.connectToServer(originUrl, {origin: true});
           self.url = originUrl + "valoria/peers/" + self.id + "/";
           let pathUrl = self.url.replace(/\//g, "");
@@ -889,10 +890,11 @@ try {
               })
             }
             if(!self.conns[url].verified && opts.origin){
+              console.log("wat");
               await new Promise(async(res, rej) => {
                 self.promises["Origin url set with " + url] = {res, rej};
                 const sync = self.sync;
-                const sig = await arrayBufferToBase64(await self.sign((`${self.id} + sets origin url as ${url} at ${sync}`)));
+                const sig = await arrayBufferToBase64(await self.sign(`${self.id} sets origin url as ${url} at ${sync}`));
                 self.conns[url].send(JSON.stringify({
                   event: "Set origin url",
                   data: {
@@ -911,7 +913,12 @@ try {
             if(!self.conns[url]) {
               try {
                 if(url.includes("valoria/peers/")){
-                  self.conns[url] = await self.connectToPeer(url);
+                  await self.connectToPeer(url);
+                  self.conns[url] = self.peers[url]?.datachannel;
+                  if(!self.conns[url]) {
+                    console.log(self.peers[url]);
+                    return rej();
+                  }
                   self.conns[url].isP2P = true;
                   self.conns[url].isWS = false;
                   self.conns[url].Url = url;
@@ -928,6 +935,7 @@ try {
                     self.conns[url].isWS = true;
                     self.conns[url].isP2P = false;
                     self.conns[url].Url = url;
+                    console.log("connected to origin ws at " + wsUrl)
                     self.conns[url].onopen = async () => {
                       try {
                         await self.setupWS(self.conns[url]);
@@ -959,14 +967,16 @@ try {
                         connected = true;
                         return res();
                       } catch (e){
-                        // console.log(e)
+                        console.log(e)
                         return rej({error: "Could not connect to " + url});
                       }
                     }
                     self.conns[url].onerror = (error) => {
+                      console.log(error);
                       return rej({error: "Could not connect 2 " + url});
                     }
                   } catch(e){
+                    console.log(e)
                     return rej({error: "Could not connect 3 " + url});
                   }
                 }
@@ -2025,6 +2035,7 @@ try {
             await self.handleGroupRemoved(ws, {index: self.group.index - 1, url: ws.Url})
           }
           if(self.conns[ws.Url]) delete self.conns[ws.Url];
+          if(self.peers[ws.Url]) delete self.peers[ws.Url];
         }
         ws.onmessage = async (e) => {
           const d = JSON.parse(e.data);
@@ -4285,7 +4296,7 @@ try {
           if(ws.Url && ws.verified){
             self.conns[data.url]?.onclose();
             // console.log("Peer disconnect from " + ws.Url);
-            delete self.peers[data.url];
+            // delete self.peers[data.url];
             if(self.dimension?.peers?.indexOf(data.url) !== -1){
               self.dimension.peers.splice(self.dimension.peers.indexOf(data.url), 1);
               self.dimension.onPeerLeave(data.url);
@@ -4302,9 +4313,9 @@ try {
     async connectToPeer(url){
       const self = this;
       return new Promise(async (res, rej) => {
-        if(!self.url) return;
+        if(!self.url) return rej("Self URL not found");
         try {
-          if(self.peers[url] && self.peers[url].datachannel && self.peers[url].datachannel.setup) return res(self.peers[url].datachannel);
+          if(self.peers[url] && self.peers[url].datachannel && self.peers[url].datachannel.open) return res(self.peers[url].datachannel);
           if(!url || !url.includes("valoria/peers/") || url == self.url) return rej({err: "Bad peer url"});
           const originUrl = url.substring(0, url.indexOf("valoria/peers/"));
           // let id = url.substring(url.indexOf("valoria/peers/") + 14, url.length - 1);
@@ -4317,6 +4328,7 @@ try {
             self.peers[url].onStream = self.peers[url].onStream || (() => {});
             self.peers[url].datachannel = self.peers[url].createDataChannel("Data");
             self.peers[url].datachannel.onopen = async () => {
+              if(!self.peers[url].datachannel) return;
               self.peers[url].datachannel.open = true;
               self.peers[url].datachannel.verified = true;
               self.peers[url].datachannel.connected = true;
@@ -4338,7 +4350,6 @@ try {
                 self.promises["Webrtc connection with " + url + " is setup"] = {res, rej};
               })
               self.peers[url].datachannel.setup = true;
-              console.log(self.peers[url].datachannel)
               res(self.peers[url].datachannel);
             };
             if(self.stream && self.stream.getTracks){
@@ -4401,7 +4412,7 @@ try {
           //   }));
           // }
         } catch(e){
-          rej();
+          rej(e);
         }
       })
     }

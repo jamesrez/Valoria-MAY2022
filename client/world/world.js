@@ -462,6 +462,7 @@ async function addPeerToScene(id){
     // peerAvatars[id].sound = new THREE.PositionalAudio(listener);
     setModelAction(peerAvatars[id], peerAvatars[id].mixer.clipAction(peerAvatars[id].animations[1]));
     console.log("Adding on movement to " + id);
+    console.log(valoria.conns[id]);
     valoria.conns[id]?.on("Movement", (data) => {
       console.log("movement data");
       console.log(data);

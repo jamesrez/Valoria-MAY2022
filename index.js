@@ -2421,10 +2421,14 @@ try {
           console.log("ORIGIN ALREADY EXISTS FOR PEER " + data.id);
           if(self.conns[url] && data.sig){
             //VERIFY THE SIG
-            const publicD = await self.getPublicFromId(data.id);
-            await self.verify(`${data.id} + sets origin url as ${self.url} at ${data.sync}`, Buffer.from(data.sig, "base64"), publicD.ecdsaPub);
-            self.conns[url].terminate();
-            self.conns[url] = ws;
+            try {
+              const publicD = await self.getPublicFromId(data.id);
+              await self.verify(`${data.id} sets origin url as ${self.url} at ${data.sync}`, Buffer.from(data.sig, "base64"), publicD.ecdsaPub);
+              self.conns[url].terminate();
+              self.conns[url] = ws;
+            } catch(e){
+              self.conns[url] = ws;
+            }
           } else {
             self.conns[url] = ws;
           }
@@ -4123,6 +4127,7 @@ try {
       const self = this;
       try {
         if(!self.conns[data.url]) {
+          console.log(data.url + " is not a connection of " + self.url)
           return;
         }
         console.log(ws.Url + " Sending " + data.desc.type + " to " + data.url);
